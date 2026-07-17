@@ -19,6 +19,14 @@ async def create_model(
     return await service.create(data)
 
 
+@router.get("/presets")
+async def list_presets(
+    service: ModelService = Depends(get_model_service),
+) -> list[dict]:
+    """Built-in model catalog for one-click add (no auth needed)."""
+    return await service.list_presets()
+
+
 @router.get("/", response_model=list[ModelRead])
 async def list_models(
     provider: str | None = None,
@@ -28,6 +36,14 @@ async def list_models(
     service: ModelService = Depends(get_model_service),
 ) -> list[ModelRead]:
     return await service.list(provider=provider, is_active=is_active, offset=offset, limit=limit)
+
+
+@router.get("/openrouter")
+async def list_openrouter_models(
+    service: ModelService = Depends(get_model_service),
+) -> list[dict]:
+    """Live catalog of models available on OpenRouter (no API key required)."""
+    return await service.list_openrouter_models()
 
 
 @router.get("/{model_pk}", response_model=ModelRead)

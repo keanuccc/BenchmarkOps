@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from fastapi import Depends
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.exceptions import NotFoundError
+from app.core.config import settings
 from app.models.model import Model
 from app.repositories.model import ModelRepository
 from app.schemas.model import ModelCreate, ModelUpdate
@@ -130,10 +132,51 @@ class ModelService:
         obj = await self.get(model_pk)
         await self.repo.delete(obj)
 
+    async def list_presets(self) -> list[dict]:
+        """Catalog of built-in models available to add individually."""
+        return [dict(spec) for spec in _DEFAULT_MODELS]
+
+    async def list_openrouter_models(self) -> list[dict]:
+        """Live OpenRouter model catalog.
+
+        OpenRouter exposes a public /models endpoint (no API key needed). We map
+        its per-token pricing to our per-1K-token schema so added models slot
+        straight into the existing ModelCreate shape.
+        """
+        url = f"{settings.openrouter_base_url.rstrip('/')}/models"
+        headers = {
+            "HTTP-Referer": settings.openrouter_http_referer,
+            "X-Title": settings.openrouter_app_title,
+        }
+        async with httpx.AsyncClient(timeout=settings.eval_request_timeout) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            payload = resp.json()
+
+        out: list[dict] = []
+        for m in payload.get("data", []):
+            pricing = m.get("pricing") or {}
+            try:
+                in_1k = float(pricing.get("prompt", 0)) * 1000
+                out_1k = float(pricing.get("completion", 0)) * 1000
+            except (TypeError, ValueError):
+                in_1k = out_1k = 0.0
+            out.append(
+                {
+                    "id": m.get("id"),
+                    "name": m.get("name") or m.get("id"),
+                    "context_length": m.get("context_length"),
+                    "pricing": {
+                        "input_per_1k": round(in_1k, 8),
+                        "output_per_1k": round(out_1k, 8),
+                    },
+                    "architecture": (m.get("architecture") or {}).get("modality", ""),
+                }
+            )
+        # Sort by name for a stable dropdown.
+        return sorted(out, key=lambda x: (x["name"] or "").lower())
+
     async def seed_defaults(self) -> int:
-        existing = await self.repo.count()
-        if existing > 0:
-            return 0
         seeded = 0
         for spec in _DEFAULT_MODELS:
             obj = Model(

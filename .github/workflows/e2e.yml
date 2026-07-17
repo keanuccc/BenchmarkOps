@@ -1,0 +1,104 @@
+name: Frontend E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Backend (FastAPI, uv, deterministic Mock provider) ---
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install backend deps
+        working-directory: backend
+        run: uv sync --frozen --extra dev
+
+      - name: Write backend .env for CI (Mock provider + 127.0.0.1 CORS)
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          # Bind-friendly origins so the browser (127.0.0.1) is CORS-allowed.
+          echo "BACKEND_CORS_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://localhost:3000,http://localhost:3001,http://localhost:3002" >> .env
+          # Empty key -> deterministic Mock provider (no API key, no cost).
+          echo "OPENROUTER_API_KEY=" >> .env
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
+          echo "backend pid $!"
+
+      # --- Frontend (Next.js) ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        # NEXT_PUBLIC_* is inlined at BUILD time, so it must be set here.
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000/api/v1
+        run: npm run build
+
+      - name: Start frontend (production)
+        working-directory: frontend
+        run: |
+          npm run start -- --port 3000 > /tmp/frontend.log 2>&1 &
+
+      # --- Wait for both services to be ready ---
+      - name: Wait for services
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/api/v1/health >/dev/null && \
+               curl -sf http://127.0.0.1:3000/ >/dev/null; then
+              echo "both services up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "services did not come up in time"
+          echo "--- backend.log ---"; cat /tmp/backend.log
+          echo "--- frontend.log ---"; cat /tmp/frontend.log
+          exit 1
+
+      # --- Playwright E2E ---
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Playwright
+        working-directory: frontend/e2e
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        working-directory: frontend/e2e
+        env:
+          BASE_URL: http://127.0.0.1:3000
+        run: pytest -v --tb=short

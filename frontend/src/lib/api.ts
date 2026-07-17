@@ -113,6 +113,29 @@ export const listModels = (params?: { provider?: string }) => {
 };
 export const seedModels = () => api.post<{ seeded: number }>("/models/seed");
 
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  context_length: number | null;
+  pricing: { input_per_1k: number; output_per_1k: number };
+  architecture: string;
+}
+export const listOpenRouterModels = () =>
+  api.get<OpenRouterModel[]>("/models/openrouter");
+
+export interface ModelCreate {
+  name: string;
+  provider: string;
+  model_id: string;
+  context_length?: number | null;
+  pricing?: Record<string, number>;
+  capabilities?: string[];
+  is_active?: boolean;
+}
+export const createModel = (body: ModelCreate) =>
+  api.post<ModelInfo>("/models/", body);
+export const deleteModel = (id: string) => api.del<void>(`/models/${id}`);
+
 // --- Datasets ---
 export interface Dataset {
   id: string;

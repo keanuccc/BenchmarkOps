@@ -17,6 +17,9 @@ venv/
 *.sqlite
 *.sqlite3
 
+# E2E test caches
+frontend/e2e/.pytest_cache/
+
 # Node / Next
 node_modules/
 .next/
