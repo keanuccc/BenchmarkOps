@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* ============================================================
+   BenchmarkOps — Design Tokens
+   Oklch-based palette, purple accent (#6366F1 / oklch(0.55 0.20 265)).
+   Dark by default; .light overrides for light mode.
+   ============================================================ */
+@theme inline {
+  --color-accent: var(--ocd-accent);
+  --color-accent-fg: var(--ocd-accent-fg);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --ocd-bg: oklch(0.19 0.01 265);          /* app background */
+  --ocd-surface: oklch(0.24 0.012 265);    /* card */
+  --ocd-surface-2: oklch(0.28 0.012 265);  /* card hover / inset */
+  --ocd-sidebar: oklch(0.16 0.012 265);    /* dark sidebar */
+  --ocd-border: oklch(0.32 0.012 265);
+  --ocd-border-soft: oklch(0.28 0.012 265);
+
+  /* Text */
+  --ocd-text: oklch(0.97 0.005 265);
+  --ocd-text-muted: oklch(0.70 0.01 265);
+  --ocd-text-faint: oklch(0.55 0.012 265);
+
+  /* Accent (purple) */
+  --ocd-accent: oklch(0.55 0.20 265);
+  --ocd-accent-fg: oklch(0.98 0.01 265);
+  --ocd-accent-soft: oklch(0.55 0.20 265 / 0.15);
+
+  /* Status */
+  --ocd-ok: oklch(0.70 0.16 150);
+  --ocd-warn: oklch(0.78 0.16 85);
+  --ocd-info: oklch(0.68 0.15 240);
+  --ocd-bad: oklch(0.64 0.20 25);
+
+  /* Chart series */
+  --ocd-c1: oklch(0.55 0.20 265);
+  --ocd-c2: oklch(0.70 0.16 150);
+  --ocd-c3: oklch(0.76 0.15 80);
+  --ocd-c4: oklch(0.68 0.15 240);
+  --ocd-c5: oklch(0.62 0.18 320);
+
+  --ocd-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 16px oklch(0 0 0 / 0.25);
+  --ocd-radius: 12px;
+}
+
+:root.light {
+  color-scheme: light;
+  --ocd-bg: oklch(0.985 0.003 265);
+  --ocd-surface: oklch(1 0 0);
+  --ocd-surface-2: oklch(0.965 0.004 265);
+  --ocd-sidebar: oklch(0.235 0.014 265);
+  --ocd-border: oklch(0.90 0.006 265);
+  --ocd-border-soft: oklch(0.93 0.005 265);
+  --ocd-text: oklch(0.22 0.012 265);
+  --ocd-text-muted: oklch(0.45 0.012 265);
+  --ocd-text-faint: oklch(0.60 0.012 265);
+  --ocd-accent: oklch(0.55 0.20 265);
+  --ocd-accent-fg: oklch(0.98 0.01 265);
+  --ocd-accent-soft: oklch(0.55 0.20 265 / 0.12);
+  --ocd-shadow: 0 1px 2px oklch(0 0 0 / 0.06), 0 4px 16px oklch(0 0 0 / 0.05);
+}
+
+html,
+body {
+  background: var(--ocd-bg);
+  color: var(--ocd-text);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  border-color: var(--ocd-border);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ocd-border);
+  border-radius: 8px;
+}

@@ -1,0 +1,223 @@
+"use client";
+
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  listExperiments,
+  compareExperiments,
+  getLeaderboard,
+  type Experiment,
+  type ComparisonResponse,
+  type LeaderboardEntry,
+} from "@/lib/api";
+import { Button, Card, EmptyState } from "@/components/ui";
+import { BarChart } from "@/components/charts";
+
+const SERIES_COLORS = [
+  "var(--ocd-c1)",
+  "var(--ocd-c2)",
+  "var(--ocd-c3)",
+  "var(--ocd-c4)",
+];
+
+function CompareInner() {
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("project_id") ?? undefined;
+  const initialIds = searchParams.get("ids")?.split(",").filter(Boolean) ?? null;
+
+  const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  useEffect(() => {
+    listExperiments(projectId).then((list) => {
+      const completed = list.filter((e) => e.status === "completed");
+      setExperiments(completed);
+      const sel =
+        initialIds && initialIds.every((id) => completed.some((e) => e.id === id))
+          ? initialIds
+          : completed.map((e) => e.id);
+      setSelected(new Set(sel));
+    });
+    getLeaderboard(projectId).then(setLeaderboard).catch(() => setLeaderboard([]));
+  }, [projectId]);
+
+  const runCompare = useCallback(async () => {
+    if (selected.size < 2) {
+      setComparison(null);
+      return;
+    }
+    try {
+      setComparison(await compareExperiments([...selected]));
+    } catch {
+      setComparison(null);
+    }
+  }, [selected]);
+
+  useEffect(() => {
+    runCompare();
+  }, [runCompare]);
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  const d = comparison?.dimensions;
+
+  const dims: {
+    title: string;
+    data: number[];
+    fmt: (v: number) => string;
+  }[] = d
+    ? [
+        {
+          title: "准确率 (%)",
+          data: d.accuracy.map((x) => +(x * 100).toFixed(2)),
+          fmt: (v) => `${v}%`,
+        },
+        {
+          title: "平均延迟 (ms)",
+          data: d.avg_latency_ms,
+          fmt: (v) => `${v.toFixed(0)}ms`,
+        },
+        {
+          title: "总花费 (USD)",
+          data: d.total_cost,
+          fmt: (v) => `$${v.toFixed(2)}`,
+        },
+        {
+          title: "总令牌数",
+          data: d.total_tokens,
+          fmt: (v) => v.toLocaleString(),
+        },
+      ]
+    : [];
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">对比实验</h1>
+        <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
+          选择已完成的实验,对比准确率、花费与延迟。
+        </p>
+      </header>
+
+      {experiments.length === 0 ? (
+        <EmptyState message="暂无可对比的已完成实验。" />
+      ) : (
+        <Card className="p-4">
+          <div className="flex flex-wrap gap-3">
+            {experiments.map((e) => (
+              <label
+                key={e.id}
+                className="flex items-center gap-2 text-sm text-[var(--ocd-text)]"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-[var(--ocd-accent)]"
+                  checked={selected.has(e.id)}
+                  onChange={() => toggle(e.id)}
+                />
+                {e.name}
+              </label>
+            ))}
+          </div>
+          <div className="mt-3">
+            <Button onClick={runCompare}>更新图表</Button>
+          </div>
+        </Card>
+      )}
+
+      {d && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {dims.map((dim, i) => (
+            <Card key={dim.title} className="p-4">
+              <h3 className="mb-2 text-sm font-semibold text-[var(--ocd-text)]">
+                {dim.title}
+              </h3>
+              <BarChart
+                labels={d.labels}
+                data={dim.data}
+                color={SERIES_COLORS[i % SERIES_COLORS.length]}
+                format={dim.fmt}
+              />
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--ocd-text-muted)]">
+          排行榜
+        </h2>
+        {leaderboard.length === 0 ? (
+          <EmptyState message="暂无排行榜数据。" />
+        ) : (
+          <Card className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead
+                className="border-b text-left text-xs uppercase tracking-wider text-[var(--ocd-text-faint)]"
+                style={{ borderColor: "var(--ocd-border)", background: "var(--ocd-surface-2)" }}
+              >
+                <tr>
+                  <th className="px-4 py-3">#</th>
+                  <th className="px-4 py-3">实验</th>
+                  <th className="px-4 py-3">模型</th>
+                  <th className="px-4 py-3">准确率</th>
+                  <th className="px-4 py-3">花费</th>
+                  <th className="px-4 py-3">延迟</th>
+                  <th className="px-4 py-3">令牌数</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((row, i) => (
+                  <tr
+                    key={row.experiment_id}
+                    className="border-b last:border-0"
+                    style={{ borderColor: "var(--ocd-border-soft)" }}
+                  >
+                    <td className="px-4 py-3 font-medium text-[var(--ocd-text-faint)]">
+                      {i + 1}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text)]">
+                      {row.experiment_name}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
+                      {row.model_name}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-[var(--ocd-text)]">
+                      {(row.accuracy * 100).toFixed(1)}%
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
+                      ${row.total_cost.toFixed(4)}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
+                      {row.avg_latency_ms.toFixed(0)}ms
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
+                      {row.total_tokens.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
+      </section>
+    </div>
+  );
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<EmptyState message="Loading…" />}>
+      <CompareInner />
+    </Suspense>
+  );
+}

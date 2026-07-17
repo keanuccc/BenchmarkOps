@@ -1,0 +1,327 @@
+/**
+ * Typed fetch client for the BenchmarkOps backend API.
+ *
+ * Single point of HTTP access — pages/components call typed helpers, never fetch
+ * directly. Backend base URL is configurable via NEXT_PUBLIC_API_BASE_URL.
+ */
+
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+
+export interface ApiError {
+  code: string;
+  message: string;
+}
+
+export class ApiRequestError extends Error {
+  code: string;
+  status: number;
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    cache: "no-store",
+    ...init,
+  });
+
+  if (!res.ok) {
+    let code = "http_error";
+    let message = res.statusText;
+    try {
+      const body = await res.json();
+      if (body?.error) {
+        code = body.error.code ?? code;
+        message = body.error.message ?? message;
+      }
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiRequestError(res.status, code, message);
+  }
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+export const api = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
+  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  // Raw fetch for multipart uploads (datasets), bypassing JSON content-type.
+  upload: <T>(path: string, form: FormData) =>
+    request<T>(path, { method: "POST", body: form, headers: {} }),
+};
+
+// --- Health ---
+export interface HealthResponse {
+  status: string;
+  app: string;
+  env: string;
+  database: string;
+  provider_mode: string;
+}
+
+export const getHealth = () => api.get<HealthResponse>("/health");
+
+// --- Projects ---
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const listProjects = (params?: { status?: string; q?: string }) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.q) qs.set("q", params.q);
+  const s = qs.toString();
+  return api.get<Project[]>(`/projects/${s ? `?${s}` : ""}`);
+};
+export const getProject = (id: string) => api.get<Project>(`/projects/${id}`);
+export const createProject = (body: { name: string; description?: string }) =>
+  api.post<Project>("/projects/", body);
+export const archiveProject = (id: string) =>
+  api.post<Project>(`/projects/${id}/archive`);
+export const deleteProject = (id: string) => api.del<void>(`/projects/${id}`);
+
+// --- Models ---
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  context_length: number | null;
+  pricing: Record<string, number>;
+  capabilities: string[];
+  is_active: boolean;
+}
+export const listModels = (params?: { provider?: string }) => {
+  const qs = params?.provider ? `?provider=${params.provider}` : "";
+  return api.get<ModelInfo[]>(`/models/${qs}`);
+};
+export const seedModels = () => api.post<{ seeded: number }>("/models/seed");
+
+// --- Datasets ---
+export interface Dataset {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  format: string;
+  version: number;
+  row_count: number;
+  tags: string[];
+  stats: Record<string, unknown>;
+  column_schema: string[];
+  created_at: string;
+  updated_at: string;
+}
+export interface DatasetRow {
+  id: string;
+  idx: number;
+  input: Record<string, unknown>;
+  expected: Record<string, unknown> | null;
+}
+export const listDatasets = (projectId: string) =>
+  api.get<Dataset[]>(`/datasets/?project_id=${projectId}`);
+export const previewDataset = (id: string) =>
+  api.get<DatasetRow[]>(`/datasets/${id}/preview`);
+export const uploadDataset = (form: FormData) =>
+  api.upload<Dataset>("/datasets/upload", form);
+export const deleteDataset = (id: string) => api.del<void>(`/datasets/${id}`);
+
+// --- Prompts ---
+export interface Prompt {
+  id: string;
+  project_id: string;
+  name: string;
+  template: string;
+  variables: string[];
+  version: number;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export const listPrompts = (projectId: string) =>
+  api.get<Prompt[]>(`/prompts/?project_id=${projectId}`);
+export const createPrompt = (body: {
+  project_id: string;
+  name: string;
+  template: string;
+  description?: string;
+}) => api.post<Prompt>("/prompts/", body);
+export const deletePrompt = (id: string) => api.del<void>(`/prompts/${id}`);
+
+// --- Benchmarks ---
+export interface Benchmark {
+  id: string;
+  project_id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  metric: string;
+  metric_config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+export const listBenchmarks = (projectId: string) =>
+  api.get<Benchmark[]>(`/benchmarks/?project_id=${projectId}`);
+export const createBenchmark = (body: {
+  project_id: string;
+  name: string;
+  type: string;
+  metric?: string;
+  description?: string;
+}) => api.post<Benchmark>("/benchmarks/", body);
+export const deleteBenchmark = (id: string) => api.del<void>(`/benchmarks/${id}`);
+export const getMetrics = () =>
+  api.get<{ metrics: string[]; defaults: Record<string, string> }>(
+    "/benchmarks/metrics/available",
+  );
+
+// --- Experiments ---
+export interface Experiment {
+  id: string;
+  project_id: string;
+  name: string;
+  dataset_id: string;
+  benchmark_id: string;
+  prompt_id: string;
+  model_id: string;
+  params: Record<string, unknown>;
+  status: string;
+  metrics: Record<string, number | string>;
+  total_cost: number;
+  total_tokens: number;
+  runtime_ms: number;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface ExperimentResult {
+  id: string;
+  row_idx: number;
+  input: Record<string, unknown>;
+  expected: Record<string, unknown> | null;
+  output: string;
+  score: number;
+  latency_ms: number;
+  tokens: number;
+  cost: number;
+  error: string | null;
+}
+export const listExperiments = (projectId?: string) =>
+  api.get<Experiment[]>(
+    `/experiments/${projectId ? `?project_id=${projectId}` : ""}`,
+  );
+export const getExperiment = (id: string) =>
+  api.get<Experiment>(`/experiments/${id}`);
+export const createExperiment = (body: {
+  project_id: string;
+  name: string;
+  dataset_id: string;
+  benchmark_id: string;
+  prompt_id: string;
+  model_id: string;
+  params?: Record<string, unknown>;
+}) => api.post<Experiment>("/experiments/", body);
+export const runExperiment = (id: string) =>
+  api.post<Experiment>(`/experiments/${id}/run`);
+export const retryExperiment = (id: string) =>
+  api.post<Experiment>(`/experiments/${id}/retry`);
+export const duplicateExperiment = (id: string) =>
+  api.post<Experiment>(`/experiments/${id}/duplicate`, {});
+export const deleteExperiment = (id: string) =>
+  api.del<void>(`/experiments/${id}`);
+export const getExperimentResults = (id: string) =>
+  api.get<ExperimentResult[]>(`/experiments/${id}/results`);
+
+// --- Analytics ---
+export interface LeaderboardEntry {
+  experiment_id: string;
+  experiment_name: string;
+  model_id: string;
+  model_name: string;
+  accuracy: number;
+  avg_latency_ms: number;
+  total_cost: number;
+  total_tokens: number;
+  rows_total: number;
+  status: string;
+}
+export interface ComparisonResponse {
+  experiments: Array<Record<string, unknown>>;
+  dimensions: {
+    labels: string[];
+    accuracy: number[];
+    avg_latency_ms: number[];
+    total_cost: number[];
+    total_tokens: number[];
+  };
+}
+export const getLeaderboard = (projectId?: string) =>
+  api.get<LeaderboardEntry[]>(
+    `/analytics/leaderboard${projectId ? `?project_id=${projectId}` : ""}`,
+  );
+export const compareExperiments = (experimentIds: string[]) =>
+  api.post<ComparisonResponse>("/analytics/compare", {
+    experiment_ids: experimentIds,
+  });
+
+// --- Reports ---
+export interface Report {
+  id: string;
+  project_id: string;
+  title: string;
+  experiment_ids: string[];
+  content_markdown: string;
+  sections: Record<string, string>;
+  generated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+export const listReports = (projectId: string) =>
+  api.get<Report[]>(`/reports/?project_id=${projectId}`);
+export const generateReport = (body: {
+  project_id: string;
+  experiment_ids: string[];
+  title?: string;
+}) => api.post<Report>("/reports/generate", body);
+/**
+ * Fetch a report's markdown and trigger a same-origin Blob download.
+ * Avoids relying on `<a download>` (which is ignored for cross-origin URLs)
+ * by routing the file through fetch() + object URL.
+ */
+export async function exportReport(id: string, title?: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/reports/${id}/export`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new ApiRequestError(
+      res.status,
+      "export_error",
+      `报告导出失败 (${res.status})`,
+    );
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${title?.trim() || id}.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
