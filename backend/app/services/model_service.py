@@ -1,0 +1,153 @@
+"""Model Center service — business logic for the Model Center module."""
+from __future__ import annotations
+
+from fastapi import Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_session
+from app.core.exceptions import NotFoundError
+from app.models.model import Model
+from app.repositories.model import ModelRepository
+from app.schemas.model import ModelCreate, ModelUpdate
+
+
+_DEFAULT_MODELS: list[dict] = [
+    {
+        "name": "GPT-4o mini",
+        "provider": "openai",
+        "model_id": "openai/gpt-4o-mini",
+        "context_length": 128000,
+        "pricing": {"input_per_1k": 0.15, "output_per_1k": 0.6},
+        "capabilities": ["chat", "coding"],
+    },
+    {
+        "name": "GPT-4o",
+        "provider": "openai",
+        "model_id": "openai/gpt-4o",
+        "context_length": 128000,
+        "pricing": {"input_per_1k": 2.5, "output_per_1k": 10},
+        "capabilities": ["chat", "coding", "reasoning"],
+    },
+    {
+        "name": "Claude 3.5 Sonnet",
+        "provider": "anthropic",
+        "model_id": "anthropic/claude-3.5-sonnet",
+        "context_length": 200000,
+        "pricing": {"input_per_1k": 3, "output_per_1k": 15},
+        "capabilities": ["chat", "coding", "reasoning"],
+    },
+    {
+        "name": "Claude 3.5 Haiku",
+        "provider": "anthropic",
+        "model_id": "anthropic/claude-3.5-haiku",
+        "context_length": 200000,
+        "pricing": {"input_per_1k": 0.8, "output_per_1k": 4},
+        "capabilities": ["chat", "coding"],
+    },
+    {
+        "name": "Gemini 1.5 Pro",
+        "provider": "google",
+        "model_id": "google/gemini-pro-1.5",
+        "context_length": 2000000,
+        "pricing": {"input_per_1k": 1.25, "output_per_1k": 5},
+        "capabilities": ["chat", "reasoning"],
+    },
+    {
+        "name": "DeepSeek V3",
+        "provider": "deepseek",
+        "model_id": "deepseek/deepseek-chat",
+        "context_length": 64000,
+        "pricing": {"input_per_1k": 0.14, "output_per_1k": 0.28},
+        "capabilities": ["chat", "coding"],
+    },
+    {
+        "name": "Qwen 2.5 72B",
+        "provider": "qwen",
+        "model_id": "qwen/qwen-2.5-72b-instruct",
+        "context_length": 32000,
+        "pricing": {"input_per_1k": 0.35, "output_per_1k": 0.4},
+        "capabilities": ["chat", "coding"],
+    },
+    {
+        "name": "GLM-4",
+        "provider": "zhipu",
+        "model_id": "zhipuai/glm-4",
+        "context_length": 128000,
+        "pricing": {"input_per_1k": 0.5, "output_per_1k": 0.5},
+        "capabilities": ["chat"],
+    },
+]
+
+
+class ModelService:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.repo = ModelRepository(session)
+
+    async def create(self, data: ModelCreate) -> Model:
+        obj = Model(
+            name=data.name,
+            provider=data.provider,
+            model_id=data.model_id,
+            context_length=data.context_length,
+            pricing=data.pricing,
+            capabilities=data.capabilities,
+            is_active=data.is_active,
+        )
+        return await self.repo.create(obj)
+
+    async def get(self, model_pk: str) -> Model:
+        obj = await self.repo.get(model_pk)
+        if obj is None:
+            raise NotFoundError(f"Model {model_pk} not found")
+        return obj
+
+    async def list(
+        self,
+        *,
+        provider: str | None = None,
+        is_active: bool | None = None,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> list[Model]:
+        stmt = select(Model)
+        if provider is not None:
+            stmt = stmt.where(Model.provider == provider)
+        if is_active is not None:
+            stmt = stmt.where(Model.is_active == is_active)
+        stmt = stmt.order_by(Model.created_at.desc())
+        stmt = stmt.offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update(self, model_pk: str, data: ModelUpdate) -> Model:
+        obj = await self.get(model_pk)
+        payload = data.model_dump(exclude_unset=True)
+        return await self.repo.update(obj, payload)
+
+    async def delete(self, model_pk: str) -> None:
+        obj = await self.get(model_pk)
+        await self.repo.delete(obj)
+
+    async def seed_defaults(self) -> int:
+        existing = await self.repo.count()
+        if existing > 0:
+            return 0
+        seeded = 0
+        for spec in _DEFAULT_MODELS:
+            obj = Model(
+                name=spec["name"],
+                provider=spec["provider"],
+                model_id=spec["model_id"],
+                context_length=spec["context_length"],
+                pricing=spec["pricing"],
+                capabilities=spec["capabilities"],
+            )
+            await self.repo.create(obj)
+            seeded += 1
+        return seeded
+
+
+def get_model_service(session: AsyncSession = Depends(get_session)) -> ModelService:
+    return ModelService(session)
