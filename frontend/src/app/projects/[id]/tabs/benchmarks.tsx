@@ -6,6 +6,7 @@ import {
   createBenchmark,
   deleteBenchmark,
   getMetrics,
+  ApiRequestError,
   type Benchmark,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
@@ -25,6 +26,8 @@ export function BenchmarksTab({
   const [name, setName] = useState("");
   const [type, setType] = useState("qa");
   const [metric, setMetric] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function refresh() {
     setItems(await listBenchmarks(projectId));
@@ -40,17 +43,25 @@ export function BenchmarksTab({
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     if (!name.trim()) return;
-    await createBenchmark({
-      project_id: projectId,
-      name,
-      type,
-      metric: metric || undefined,
-    });
-    setName("");
-    setMetric("");
-    refresh();
-    onChange();
+    setBusy(true);
+    try {
+      await createBenchmark({
+        project_id: projectId,
+        name,
+        type,
+        metric: metric || undefined,
+      });
+      setName("");
+      setMetric("");
+      refresh();
+      onChange();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "创建失败");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -99,7 +110,8 @@ export function BenchmarksTab({
               ))}
             </select>
           </div>
-          <Button type="submit">创建</Button>
+          <Button type="submit" disabled={busy}>创建</Button>
+          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </form>
       </Card>
 
@@ -120,10 +132,20 @@ export function BenchmarksTab({
               </div>
               <Button
                 variant="danger"
+                disabled={busy}
                 onClick={async () => {
-                  await deleteBenchmark(b.id);
-                  refresh();
-                  onChange();
+                  if (!confirm(`确定删除基准「${b.name}」？`)) return;
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    await deleteBenchmark(b.id);
+                    refresh();
+                    onChange();
+                  } catch (err) {
+                    setError(err instanceof ApiRequestError ? err.message : "删除失败");
+                  } finally {
+                    setBusy(false);
+                  }
                 }}
               >
                 删除

@@ -6,6 +6,7 @@ import {
   seedModels,
   createModel,
   deleteModel,
+  deleteModels,
   listOpenRouterModels,
   type ModelInfo,
   type ModelCreate,
@@ -13,6 +14,12 @@ import {
 } from "@/lib/api";
 import { Button, Card, Badge, EmptyState, Spinner, Modal } from "@/components/ui";
 import { Cpu, Plus, Trash2 } from "lucide-react";
+
+type ConfirmState = {
+  kind: "single" | "bulk" | "all";
+  ids: string[];
+  name?: string;
+} | null;
 
 export default function ModelsPage() {
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -24,6 +31,9 @@ export default function ModelsPage() {
   const [selectedOr, setSelectedOr] = useState("");
   const [addingOr, setAddingOr] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirm, setConfirm] = useState<ConfirmState>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     name: "",
     provider: "",
@@ -156,15 +166,49 @@ export default function ModelsPage() {
     }
   }
 
-  async function onDelete(m: ModelInfo) {
-    if (!window.confirm(`确定删除模型「${m.name}」？`)) return;
-    await deleteModel(m.id);
-    await refresh();
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function askDelete(m: ModelInfo) {
+    setConfirm({ kind: "single", ids: [m.id], name: m.name });
+  }
+
+  function askBulkDelete() {
+    setConfirm({ kind: "bulk", ids: [...selectedIds] });
+  }
+
+  function askDeleteAll() {
+    setConfirm({ kind: "all", ids: [] });
+  }
+
+  async function onConfirmDelete() {
+    if (!confirm) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteModels(confirm.kind === "all" ? [] : confirm.ids);
+      const removed = new Set(confirm.ids);
+      setModels((prev) => prev.filter((m) => !removed.has(m.id)));
+      setSelectedIds(new Set());
+      setConfirm(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const field =
     "mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm";
   const labelCls = "block text-xs font-medium text-slate-500";
+
+  const selectedCount = selectedIds.size;
 
   return (
     <div className="space-y-6">
@@ -175,9 +219,23 @@ export default function ModelsPage() {
             LLM 统一注册表。定价为每 1K 令牌（USD）。
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={onSeed} disabled={seeding} variant="secondary">
             {seeding ? <Spinner size={14} /> : <Cpu size={15} />} 初始化模型
+          </Button>
+          <Button
+            onClick={askBulkDelete}
+            disabled={selectedCount === 0}
+            variant="secondary"
+          >
+            <Trash2 size={15} /> 批量删除{selectedCount > 0 ? ` (${selectedCount})` : ""}
+          </Button>
+          <Button
+            onClick={askDeleteAll}
+            disabled={models.length === 0}
+            variant="secondary"
+          >
+            <Trash2 size={15} /> 全部删除
           </Button>
           <Button onClick={() => { resetForm(); setCreating(true); }}>
             <Plus size={15} /> 新建模型
@@ -228,9 +286,18 @@ export default function ModelsPage() {
           {models.map((m) => (
             <Card key={m.id} className="space-y-3 p-4">
               <div className="flex items-start justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold">{m.name}</p>
-                  <Badge>{m.provider}</Badge>
+                <div className="flex min-w-0 items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(m.id)}
+                    onChange={() => toggleSelect(m.id)}
+                    aria-label={`选择 ${m.name}`}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0">
+                    <p className="font-semibold">{m.name}</p>
+                    <Badge>{m.provider}</Badge>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {m.is_active ? (
@@ -239,7 +306,7 @@ export default function ModelsPage() {
                     <Badge status="archived">已停用</Badge>
                   )}
                   <button
-                    onClick={() => onDelete(m)}
+                    onClick={() => askDelete(m)}
                     aria-label={`删除 ${m.name}`}
                     className="rounded-md p-1.5 text-red-400 transition-colors hover:bg-red-400/10"
                   >
@@ -365,6 +432,41 @@ export default function ModelsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={confirm !== null}
+        onClose={() => !deleting && setConfirm(null)}
+        title="确认删除"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--ocd-text-muted)]">
+            {confirm?.kind === "all"
+              ? `将删除模型中心中的全部 ${models.length} 个模型，此操作不可撤销。`
+              : confirm?.kind === "bulk"
+                ? `将删除选中的 ${confirm.ids.length} 个模型，此操作不可撤销。`
+                : `确定删除模型「${confirm?.name}」？此操作不可撤销。`}
+          </p>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setConfirm(null)}
+              disabled={deleting}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={onConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? <Spinner size={14} /> : "确认删除"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

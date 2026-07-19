@@ -10,6 +10,7 @@ import {
   retryExperiment,
   duplicateExperiment,
   deleteExperiment,
+  ApiRequestError,
   type Experiment,
   type ExperimentResult,
 } from "@/lib/api";
@@ -47,6 +48,7 @@ export default function ExperimentDetailPage() {
   const [results, setResults] = useState<ExperimentResult[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     const e = await getExperiment(experimentId);
@@ -74,9 +76,12 @@ export default function ExperimentDetailPage() {
 
   async function withBusy(fn: () => Promise<unknown>) {
     setBusy(true);
+    setError(null);
     try {
       await fn();
       await refresh();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "操作失败");
     } finally {
       setBusy(false);
     }
@@ -120,8 +125,16 @@ export default function ExperimentDetailPage() {
               variant="danger"
               disabled={busy}
               onClick={async () => {
-                await deleteExperiment(exp.id);
-                router.push("/experiments");
+                if (!confirm("确定删除该实验？")) return;
+                setBusy(true);
+                setError(null);
+                try {
+                  await deleteExperiment(exp.id);
+                  router.push("/experiments");
+                } catch (err) {
+                  setError(err instanceof ApiRequestError ? err.message : "删除失败");
+                  setBusy(false);
+                }
               }}
             >
               <Trash2 size={14} /> 删除
@@ -136,6 +149,15 @@ export default function ExperimentDetailPage() {
           style={{ borderColor: "var(--ocd-bad)", color: "var(--ocd-bad)" }}
         >
           {exp.error}
+        </Card>
+      )}
+
+      {error && (
+        <Card
+          className="border p-4 text-sm"
+          style={{ borderColor: "var(--ocd-bad)", color: "var(--ocd-bad)" }}
+        >
+          {error}
         </Card>
       )}
 

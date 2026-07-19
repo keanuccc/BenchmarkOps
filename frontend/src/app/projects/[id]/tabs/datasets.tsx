@@ -6,6 +6,7 @@ import {
   uploadDataset,
   deleteDataset,
   previewDataset,
+  ApiRequestError,
   type Dataset,
   type DatasetRow,
 } from "@/lib/api";
@@ -23,6 +24,7 @@ export function DatasetsTab({
   const [format, setFormat] = useState("jsonl");
   const [preview, setPreview] = useState<{ id: string; rows: DatasetRow[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
@@ -116,18 +118,37 @@ export function DatasetsTab({
                 <div className="flex gap-2">
                   <Button
                     variant="secondary"
-                    onClick={async () =>
-                      setPreview({ id: d.id, rows: await previewDataset(d.id) })
-                    }
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      setError(null);
+                      try {
+                        setPreview({ id: d.id, rows: await previewDataset(d.id) });
+                      } catch (err) {
+                        setError(err instanceof ApiRequestError ? err.message : "预览失败");
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
                   >
                     预览
                   </Button>
                   <Button
                     variant="danger"
+                    disabled={busy}
                     onClick={async () => {
-                      await deleteDataset(d.id);
-                      refresh();
-                      onChange();
+                      if (!confirm(`确定删除数据集「${d.name}」？`)) return;
+                      setBusy(true);
+                      setError(null);
+                      try {
+                        await deleteDataset(d.id);
+                        refresh();
+                        onChange();
+                      } catch (err) {
+                        setError(err instanceof ApiRequestError ? err.message : "删除失败");
+                      } finally {
+                        setBusy(false);
+                      }
                     }}
                   >
                     删除

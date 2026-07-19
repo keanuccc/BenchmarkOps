@@ -8,6 +8,9 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
+/** Default per-request timeout. Overridable by passing `signal`/`timeoutMs` in init. */
+export const DEFAULT_TIMEOUT_MS = 30000;
+
 export interface ApiError {
   code: string;
   message: string;
@@ -18,35 +21,92 @@ export class ApiRequestError extends Error {
   status: number;
   constructor(status: number, code: string, message: string) {
     super(message);
+    this.name = "ApiRequestError";
     this.status = status;
     this.code = code;
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-    cache: "no-store",
-    ...init,
-  });
+interface RequestOptions extends RequestInit {
+  /** Per-request timeout in ms. Defaults to DEFAULT_TIMEOUT_MS. Ignored if `signal` is provided. */
+  timeoutMs?: number;
+}
 
-  if (!res.ok) {
-    let code = "http_error";
-    let message = res.statusText;
-    try {
-      const body = await res.json();
-      if (body?.error) {
-        code = body.error.code ?? code;
-        message = body.error.message ?? message;
-      }
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new ApiRequestError(res.status, code, message);
+function isAbortError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === "AbortError" || err.name === "TimeoutError")
+  );
+}
+
+export async function request<T>(path: string, init?: RequestOptions): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let controller: AbortController | undefined;
+  let signal: AbortSignal | undefined =
+    init?.signal == null ? undefined : init.signal;
+
+  // Wire up an AbortController-based timeout unless the caller supplied its own signal.
+  if (!signal) {
+    controller = new AbortController();
+    signal = controller.signal;
+    const ms = init?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    timeoutId = setTimeout(() => controller!.abort(), ms);
   }
 
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      cache: "no-store",
+      ...init,
+      signal,
+    });
+
+    if (!res.ok) {
+      let code = "http_error";
+      let message = res.statusText;
+      try {
+        const body = await res.json();
+        if (body?.error) {
+          code = body.error.code ?? code;
+          message = body.error.message ?? message;
+        }
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiRequestError(res.status, code, message);
+    }
+
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  } catch (err) {
+    // Translate network-layer / timeout failures into a uniform, readable error
+    // so callers never receive a raw `TypeError: Failed to fetch`.
+    if (isAbortError(err)) {
+      // Distinguish our own timeout timer firing from a caller-supplied signal
+      // being aborted (e.g. component unmount / navigation) — the latter is a
+      // normal cancellation, not a timeout the user should retry.
+      if (controller?.signal.aborted) {
+        throw new ApiRequestError(0, "timeout", "请求超时，请稍后重试");
+      }
+      throw new ApiRequestError(0, "cancelled", "请求已取消");
+    }
+    // fetch() reports network-layer failure as `TypeError: Failed to fetch`.
+    // Narrow to that so we don't mislabel a genuine code-level TypeError
+    // (e.g. a serialization bug) as a connectivity problem — preserve the
+    // original error as `cause` for debugging.
+    if (err instanceof TypeError && /fetch/i.test(err.message)) {
+      const e = new ApiRequestError(
+        0,
+        "network_error",
+        "无法连接到服务器，请检查后端是否运行",
+      );
+      (e as Error).cause = err;
+      throw e;
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 export const api = {
@@ -55,11 +115,34 @@ export const api = {
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  del: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "DELETE",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
   // Raw fetch for multipart uploads (datasets), bypassing JSON content-type.
+  // Uploads can be large / slow to parse server-side, so allow a longer timeout
+  // than the default 30s to avoid spuriously aborting a legitimate upload.
   upload: <T>(path: string, form: FormData) =>
-    request<T>(path, { method: "POST", body: form, headers: {} }),
+    request<T>(path, { method: "POST", body: form, headers: {}, timeoutMs: 120000 }),
 };
+
+// --- Global unhandled-rejection guard -------------------------------------
+// Prevents network/timeout failures that escape try/catch from failing silently
+// in the console. Registered exactly once per module load (modules are
+// singletons in both ESM and the Next.js bundle).
+if (typeof window !== "undefined" && !("__benchmarkopsUnhandledGuard" in window)) {
+  (window as unknown as { __benchmarkopsUnhandledGuard?: boolean }).__benchmarkopsUnhandledGuard =
+    true;
+  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    if (reason instanceof ApiRequestError) {
+      console.error(`[api] 未捕获请求错误 (${reason.code}):`, reason.message);
+    } else {
+      console.error("[api] 未捕获的 Promise rejection:", reason);
+    }
+  });
+}
 
 // --- Health ---
 export interface HealthResponse {
@@ -135,6 +218,10 @@ export interface ModelCreate {
 export const createModel = (body: ModelCreate) =>
   api.post<ModelInfo>("/models/", body);
 export const deleteModel = (id: string) => api.del<void>(`/models/${id}`);
+// Bulk delete. Pass a list of ids to delete those; pass nothing (or []) to
+// delete every model in the registry.
+export const deleteModels = (ids?: string[]) =>
+  api.del<{ deleted: number }>(`/models/bulk`, { ids: ids ?? [] });
 
 // --- Datasets ---
 export interface Dataset {
@@ -342,9 +429,13 @@ export async function exportReport(id: string, title?: string): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${title?.trim() || id}.md`;
+  // ASCII-safe fallback name; the server also sends filename*=UTF-8'' for the
+  // real (possibly Chinese) title.
+  const safe = (title?.trim() || id).replace(/[^A-Za-z0-9_.-]/g, "_");
+  a.download = `${safe}.md`;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Defer revocation so the browser has time to start the download.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

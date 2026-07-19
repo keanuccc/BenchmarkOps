@@ -38,6 +38,8 @@ export default function ExperimentsPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [allExperiments, setAllExperiments] = useState<Experiment[]>([]);
+  const [templateExpId, setTemplateExpId] = useState("");
   const [form, setForm] = useState({
     project_id: "",
     name: "",
@@ -49,10 +51,13 @@ export default function ExperimentsPage() {
 
   async function refresh() {
     setLoading(true);
-    const list = await listExperiments();
+    const [list, ms] = await Promise.all([
+      listExperiments(),
+      listModels(),
+    ]);
     setItems(list);
-    const ms = await listModels();
     setModels(ms);
+    setAllExperiments(list);
     setLoading(false);
   }
 
@@ -69,6 +74,7 @@ export default function ExperimentsPage() {
       prompt_id: "",
       model_id: "",
     });
+    setTemplateExpId("");
     setModalOpen(true);
   }
 
@@ -88,6 +94,23 @@ export default function ExperimentsPage() {
       setBenchmarks([]);
       setPrompts([]);
     }
+  }
+
+  // 基于已有实验带出数据集/基准/提示词，用户只需重新选择模型。
+  async function applyTemplate(srcId: string) {
+    setTemplateExpId(srcId);
+    const src = allExperiments.find((e) => e.id === srcId);
+    if (!src) return;
+    await onProjectChange(src.project_id);
+    setForm((f) => ({
+      ...f,
+      project_id: src.project_id,
+      name: `${src.name} (新模型)`,
+      dataset_id: src.dataset_id,
+      benchmark_id: src.benchmark_id,
+      prompt_id: src.prompt_id,
+      model_id: "",
+    }));
   }
 
   useEffect(() => {
@@ -196,6 +219,22 @@ export default function ExperimentsPage() {
             submit();
           }}
         >
+          <Field label="基于已有实验(可选)">
+            <select
+              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+              value={templateExpId}
+              onChange={(e) => applyTemplate(e.target.value)}
+            >
+              <option value="">不复用 / 手动填写</option>
+              {allExperiments.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+
           <Field label="Project">
             <select
               className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"

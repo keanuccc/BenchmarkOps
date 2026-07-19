@@ -13,6 +13,7 @@ import {
   listBenchmarks,
   listPrompts,
   listModels,
+  ApiRequestError,
   type Experiment,
   type Dataset,
   type Benchmark,
@@ -42,6 +43,24 @@ export function ExperimentsTab({
   });
   const [error, setError] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+
+  const showError = (err: unknown) =>
+    setError(err instanceof ApiRequestError ? err.message : "操作失败");
+
+  async function act(id: string, fn: () => Promise<unknown>) {
+    setError(null);
+    setActionBusyId(id);
+    try {
+      await fn();
+      refresh();
+      onChange();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setActionBusyId(null);
+    }
+  }
 
   const refresh = useCallback(async () => {
     setItems(await listExperiments(projectId));
@@ -224,10 +243,8 @@ export function ExperimentsTab({
                 <div className="flex gap-2">
                   {(e.status === "pending" || e.status === "failed") && (
                     <Button
-                      onClick={async () => {
-                        await runExperiment(e.id);
-                        refresh();
-                      }}
+                      disabled={actionBusyId === e.id}
+                      onClick={() => act(e.id, () => runExperiment(e.id))}
                     >
                       运行
                     </Button>
@@ -235,10 +252,8 @@ export function ExperimentsTab({
                   {e.status === "completed" && (
                     <Button
                       variant="secondary"
-                      onClick={async () => {
-                        await retryExperiment(e.id);
-                        refresh();
-                      }}
+                      disabled={actionBusyId === e.id}
+                      onClick={() => act(e.id, () => retryExperiment(e.id))}
                     >
                       重试
                     </Button>
@@ -250,20 +265,17 @@ export function ExperimentsTab({
                   )}
                   <Button
                     variant="ghost"
-                    onClick={async () => {
-                      await duplicateExperiment(e.id);
-                      refresh();
-                      onChange();
-                    }}
+                    disabled={actionBusyId === e.id}
+                    onClick={() => act(e.id, () => duplicateExperiment(e.id))}
                   >
                     复制
                   </Button>
                   <Button
                     variant="danger"
-                    onClick={async () => {
-                      await deleteExperiment(e.id);
-                      refresh();
-                      onChange();
+                    disabled={actionBusyId === e.id}
+                    onClick={() => {
+                      if (!confirm("确定删除该实验？")) return;
+                      act(e.id, () => deleteExperiment(e.id));
                     }}
                   >
                     删除

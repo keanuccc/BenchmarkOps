@@ -25,13 +25,15 @@ export function ReportsTab({
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [exportErr, setExportErr] = useState("");
 
   async function handleExport(r: Report) {
     setExporting(r.id);
+    setExportErr("");
     try {
       await exportReport(r.id, r.title);
     } catch {
-      /* swallow; export is best-effort */
+      setExportErr("导出失败，请重试");
     } finally {
       setExporting(null);
     }
@@ -148,6 +150,9 @@ export function ReportsTab({
                     {exporting === r.id ? "导出中…" : "导出 .md"}
                   </Button>
                 </div>
+                {exportErr && (
+                  <p className="mt-2 text-xs text-red-600">{exportErr}</p>
+                )}
               </div>
               {open === r.id && (
                 <pre className="mt-3 max-h-[500px] overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">

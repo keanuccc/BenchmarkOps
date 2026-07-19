@@ -6,6 +6,7 @@ import {
   listProjects,
   createProject,
   archiveProject,
+  ApiRequestError,
   type Project,
 } from "@/lib/api";
 import { Button, Card, Badge, EmptyState, Modal, SectionTitle } from "@/components/ui";
@@ -17,6 +18,8 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -90,7 +93,9 @@ export default function ProjectsPage() {
       ) : projects.length === 0 ? (
         <EmptyState message="暂无项目。创建第一个项目以开始。" icon={<Boxes size={28} />} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((p) => (
             <Card key={p.id} className="flex flex-col p-5">
               <div className="flex items-start justify-between gap-2">
@@ -115,9 +120,18 @@ export default function ProjectsPage() {
                   <Button
                     variant="ghost"
                     className="gap-1.5"
+                    disabled={busyId === p.id}
                     onClick={async () => {
-                      await archiveProject(p.id);
-                      refresh();
+                      setError(null);
+                      setBusyId(p.id);
+                      try {
+                        await archiveProject(p.id);
+                        refresh();
+                      } catch (err) {
+                        setError(err instanceof ApiRequestError ? err.message : "归档失败");
+                      } finally {
+                        setBusyId(null);
+                      }
                     }}
                   >
                     <Archive size={14} /> 归档
@@ -127,6 +141,7 @@ export default function ProjectsPage() {
             </Card>
           ))}
         </div>
+        </>
       )}
     </div>
   );

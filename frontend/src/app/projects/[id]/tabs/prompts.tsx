@@ -5,6 +5,7 @@ import {
   listPrompts,
   createPrompt,
   deletePrompt,
+  ApiRequestError,
   type Prompt,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
@@ -19,6 +20,8 @@ export function PromptsTab({
   const [items, setItems] = useState<Prompt[]>([]);
   const [name, setName] = useState("");
   const [template, setTemplate] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function refresh() {
     setItems(await listPrompts(projectId));
@@ -30,12 +33,20 @@ export function PromptsTab({
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
     if (!name.trim() || !template.trim()) return;
-    await createPrompt({ project_id: projectId, name, template });
-    setName("");
-    setTemplate("");
-    refresh();
-    onChange();
+    setBusy(true);
+    try {
+      await createPrompt({ project_id: projectId, name, template });
+      setName("");
+      setTemplate("");
+      refresh();
+      onChange();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "创建失败");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -55,7 +66,8 @@ export function PromptsTab({
             rows={3}
             className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-sm"
           />
-          <Button type="submit">创建</Button>
+          <Button type="submit" disabled={busy}>创建</Button>
+          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </form>
       </Card>
 
@@ -88,10 +100,20 @@ export function PromptsTab({
                 <Button
                   variant="danger"
                   className="ml-3"
+                  disabled={busy}
                   onClick={async () => {
-                    await deletePrompt(p.id);
-                    refresh();
-                    onChange();
+                    if (!confirm(`确定删除提示词「${p.name}」？`)) return;
+                    setBusy(true);
+                    setError(null);
+                    try {
+                      await deletePrompt(p.id);
+                      refresh();
+                      onChange();
+                    } catch (err) {
+                      setError(err instanceof ApiRequestError ? err.message : "删除失败");
+                    } finally {
+                      setBusy(false);
+                    }
                   }}
                 >
                   删除
