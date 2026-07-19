@@ -74,7 +74,7 @@ class ReportService:
             # Deterministic fallback — always works with zero LLM.
             content_markdown, sections = template_report(context)
 
-        title = req.title or f"AI Report · {len(experiments)} experiment(s)"
+        title = req.title or f"AI 评测报告 · {len(experiments)} 个实验"
 
         report = Report(
             project_id=req.project_id,

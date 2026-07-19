@@ -43,11 +43,17 @@ async def export_report(
     report_id: str,
     service: ReportService = Depends(get_report_service),
 ):
+    import re
+
     report = await service.get(report_id)
-    filename = f"{report.title or report.id}.md".replace(" ", "_")
-    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    # HTTP headers must be latin-1; use an ASCII-safe filename. The real
+    # (possibly non-ASCII) title is applied client-side via the <a download>
+    # attribute, so we only emit an ASCII `filename` here.
+    raw = report.title or str(report.id)
+    ascii_name = re.sub(r"[^A-Za-z0-9_.-]", "_", raw) + ".md"
+    headers = {"Content-Disposition": f'attachment; filename="{ascii_name}"'}
     return PlainTextResponse(
-        report.content_markdown, media_type="text/markdown", headers=headers
+        report.content_markdown or "", media_type="text/markdown", headers=headers
     )
 
 
