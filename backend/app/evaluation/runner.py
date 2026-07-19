@@ -1,15 +1,4 @@
-"""Evaluation runner — orchestrates a single experiment run.
-
-Given an experiment id, it:
-  1. loads dataset rows, prompt, benchmark, model,
-  2. renders the prompt per row and calls the LLM provider,
-  3. scores each output with the benchmark's metric,
-  4. computes cost from the model's pricing,
-  5. persists per-row results + aggregate metrics, and updates status.
-
-It runs in the background with its own DB session (via AsyncSessionLocal), so it
-must not depend on a request-scoped session.
-"""
+"""Evaluation runner — orchestrates a single experiment run."""
 from __future__ import annotations
 
 import asyncio
@@ -19,14 +8,14 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, with_retry_on_lock
 from app.evaluation.metrics import get_metric
 from app.models.benchmark import Benchmark
 from app.models.dataset import DatasetRow
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.model import Model
 from app.models.prompt import Prompt
-from app.providers.base import ChatMessage, CompletionRequest
+from app.providers.base import ChatMessage, CompletionRequest, ProviderRateLimitedError
 from app.providers.registry import get_provider
 from app.repositories.dataset import DatasetRowRepository
 from app.repositories.experiment import (
@@ -36,14 +25,13 @@ from app.repositories.experiment import (
 
 logger = logging.getLogger(__name__)
 
-_BATCH_SIZE = 500  # dataset rows fetched per cursor page
-_PROGRESS_EVERY = 50  # persist progress counter every N processed rows
+_BATCH_SIZE = 500
+_PROGRESS_EVERY = 50
 
 logger = logging.getLogger(__name__)
 
 
 def _first_value(d: dict | None) -> str:
-    """Extract the ground-truth string from an expected dict ({key: value})."""
     if not d:
         return ""
     val = next(iter(d.values()), "")
@@ -51,18 +39,12 @@ def _first_value(d: dict | None) -> str:
 
 
 def _render_prompt(template: str, variables: list[str], row_input: dict) -> str:
-    """Render a prompt template against a dataset row.
-
-    Missing declared variables are filled with the row's stringified input so runs
-    never crash on a template/data mismatch (robustness over strictness for v1).
-    """
     ctx = {k: ("" if v is None else v) for k, v in row_input.items()}
     for var in variables:
         ctx.setdefault(var, "")
     try:
         return template.format(**ctx)
     except (KeyError, IndexError):
-        # Fallback: append the raw input so the model still sees the question.
         joined = "\n".join(f"{k}: {v}" for k, v in row_input.items())
         return f"{template}\n\n{joined}"
 
@@ -78,55 +60,69 @@ async def _mark_failed(experiment_id: str, error: str) -> None:
 
     Must never be called on a session that is holding a transaction across a
     network await — this is its own connection so it doesn't contend with a
-    long-running run.
+    long-running run. The write is retried on transient 'database is locked'
+    contention; if it still fails after exhausting retries, the error is logged.
     """
-    try:
+
+    async def _write_failed() -> None:
         async with AsyncSessionLocal() as session:
             repo = ExperimentRepository(session)
             exp = await repo.get(experiment_id)
             if exp is not None:
                 await repo.update(exp, {"status": "failed", "error": error[:500]})
                 await session.commit()
-    except SQLAlchemyError:  # noqa: BLE001
+
+    try:
+        await with_retry_on_lock(_write_failed)
+    except Exception:  # noqa: BLE001
         logger.exception("failed to persist terminal 'failed' status")
 
 
-async def _persist_progress(experiment_id: str, processed: int, rows_total: int) -> None:
-    """Best-effort progress update on an isolated short session."""
-    try:
+async def _persist_progress(
+    experiment_id: str, processed: int, rows_total: int, *, cells_done: int = 0, cells_error: int = 0
+) -> None:
+    """Best-effort progress update on an isolated short session.
+
+    The write is retried on transient 'database is locked' contention; since
+    progress is best-effort, a final failure (retries exhausted) is only logged,
+    never raised — matching the original no-throw semantics.
+    """
+
+    async def _write_progress() -> None:
         async with AsyncSessionLocal() as session:
             repo = ExperimentRepository(session)
             exp = await repo.get(experiment_id)
             if exp is not None and exp.status == "running":
-                await repo.update(exp, {"progress": processed, "rows_total": rows_total})
+                await repo.update(
+                    exp,
+                    {
+                        "progress": processed,
+                        "rows_total": rows_total,
+                        "cells_done": cells_done,
+                        "cells_error": cells_error,
+                    },
+                )
                 await session.commit()
-    except SQLAlchemyError:  # noqa: BLE001
+
+    try:
+        await with_retry_on_lock(_write_progress)
+    except Exception:  # noqa: BLE001
         logger.debug("progress update skipped (lock or missing experiment)")
 
 
 async def run_experiment(experiment_id: str) -> None:
     logger.info("experiment %s run started", experiment_id)
 
-    # --- Load phase: resolve config using an isolated, short read session. ---
-    # This never holds a write lock, so concurrent API writes are never blocked.
     async with AsyncSessionLocal() as load_session:
         exp_repo = ExperimentRepository(load_session)
         experiment = await exp_repo.get(experiment_id)
         if experiment is None:
             return
 
-        # CAS: only one concurrent runner may flip status to 'running'. If another
-        # runner (or a prior in-flight run) already holds it, bail — never double-run.
-        # The UPDATE must be COMMITTED here (not just flushed): this load session is
-        # short-lived and its context-manager exit would otherwise roll the CAS back,
-        # making it invisible to a concurrent runner and allowing a double-run.
         if not await exp_repo.set_running_if_not_running(experiment_id):
             return
         await load_session.commit()
 
-        # Resolve prompt/benchmark/model from the creation-time snapshot when
-        # present (reproducible runs), else fall back to live lookups for
-        # experiments created before snapshots existed.
         snap = experiment.prompt_snapshot
         if snap:
             template = snap.get("template", "")
@@ -165,8 +161,6 @@ async def run_experiment(experiment_id: str) -> None:
         if not metric_name:
             return await _mark_failed(experiment_id, "Experiment has no scoring metric")
 
-        # Materialize all dataset rows up-front, then close the read session so no
-        # lock is held during the network-bound compute phase.
         row_repo = DatasetRowRepository(load_session)
         rows: list = []
         offset = 0
@@ -185,7 +179,6 @@ async def run_experiment(experiment_id: str) -> None:
         temperature = float(params.get("temperature", 0.0))
         max_tokens = params.get("max_tokens")
 
-    # --- Compute phase: pure CPU + network, NO database write lock held. ---
     result_objs: list[ExperimentResult] = []
     total_score = 0.0
     total_cost = 0.0
@@ -194,6 +187,10 @@ async def run_experiment(experiment_id: str) -> None:
     scored = 0
     provider_errors = 0
     processed = 0
+    cells_done = 0   # rows scored successfully (drives the progress bar's "scored" count)
+    cells_error = 0   # rows whose provider call failed
+    rate_limited = False
+    rate_limited_msg = ""
     started = time.perf_counter()
 
     for row in rows:
@@ -236,8 +233,27 @@ async def run_experiment(experiment_id: str) -> None:
             total_tokens += completion.total_tokens
             total_latency += completion.latency_ms
             scored += 1
-        except Exception as exc:  # noqa: BLE001
+            cells_done += 1
+        except ProviderRateLimitedError as exc:
             provider_errors += 1
+            cells_error += 1
+            result_objs.append(
+                ExperimentResult(
+                    experiment_id=experiment_id,
+                    row_idx=row.idx,
+                    input=row.input,
+                    expected=row.expected,
+                    output="",
+                    score=0.0,
+                    error=str(exc)[:500],
+                )
+            )
+            rate_limited = True
+            rate_limited_msg = str(exc)[:500]
+            break
+        except Exception as exc:
+            provider_errors += 1
+            cells_error += 1
             result_objs.append(
                 ExperimentResult(
                     experiment_id=experiment_id,
@@ -252,14 +268,14 @@ async def run_experiment(experiment_id: str) -> None:
 
         processed += 1
         if processed % _PROGRESS_EVERY == 0:
-            # Progress update on its own short connection; never the compute lock.
-            await _persist_progress(experiment_id, processed, len(rows))
+            await _persist_progress(experiment_id, processed, len(rows), cells_done, cells_error)
+        if rate_limited:
+            break
 
-    # --- Persist phase: one short write transaction, no network awaits. ---
     n = len(result_objs)
     accuracy = (total_score / scored) if scored else 0.0
     avg_latency = (total_latency / scored) if scored else 0.0
-    status = "partial" if provider_errors > 0 else "completed"
+    status = "failed" if rate_limited else ("partial" if provider_errors > 0 else "completed")
     metrics = {
         "metric": metric_name,
         "accuracy": round(accuracy, 4),
@@ -272,17 +288,11 @@ async def run_experiment(experiment_id: str) -> None:
     }
     runtime_ms = int((time.perf_counter() - started) * 1000)
 
-    # Decide the sole writer with a CAS: only the run that still holds the
-    # 'running' status may persist results + advance to the terminal state. A
-    # concurrent runner (both cleared the start-gate CAS under WAL) that lost
-    # this race must NOT delete/bulk_create — otherwise the two would clobber
-    # each other's result rows and flip the experiment to 'partial'. The loser
-    # returns here, leaving the winner's committed state intact.
-    try:
+    async def _persist() -> None:
         async with AsyncSessionLocal() as session:
             exp_repo = ExperimentRepository(session)
             if not await exp_repo.finish_if_running(
-                experiment_id, status=status, error=None
+                experiment_id, status=status, error=rate_limited_msg or None
             ):
                 logger.info("experiment %s lost persist race; discarding", experiment_id)
                 return
@@ -295,6 +305,8 @@ async def run_experiment(experiment_id: str) -> None:
                 {
                     "progress": processed,
                     "rows_total": n,
+                    "cells_done": cells_done,
+                    "cells_error": cells_error,
                     "metrics": metrics,
                     "accuracy": round(accuracy, 4),
                     "avg_latency_ms": round(avg_latency, 1),
@@ -304,6 +316,17 @@ async def run_experiment(experiment_id: str) -> None:
                 },
             )
             await session.commit()
-    except Exception as exc:  # noqa: BLE001
+
+    # The whole persist transaction is wrapped in a lock-retry so a transient
+    # 'database is locked' (e.g. two backend processes sharing the SQLite file)
+    # recovers instead of silently losing results. If retries are exhausted, we
+    # surface the failure as a terminal 'failed' rather than leaving the
+    # experiment stuck in 'running'.
+    try:
+        await with_retry_on_lock(_persist)
+    except Exception as exc:
         logger.exception("experiment %s persist failed", experiment_id)
+        # Preserve the original diagnostic; a 'database is locked' failure is the
+        # common case, but any other persist error (e.g. disk I/O) must keep its
+        # own message so it stays debuggable in the UI.
         await _mark_failed(experiment_id, str(exc)[:500])

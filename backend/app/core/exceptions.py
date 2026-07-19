@@ -42,6 +42,24 @@ class UnauthorizedError(DomainError):
     code = "unauthorized"
 
 
+class ProviderError(DomainError):
+    """Base class for upstream model-gateway failures.
+
+    Surfaced to clients as 502 (bad gateway) since the failure originates from the
+    LLM provider we proxy to, not from client input.
+    """
+
+    status_code = 502
+    code = "provider_error"
+
+
+class RateLimitedError(DomainError):
+    """Upstream is rate-limiting us (HTTP 429) and the caller should back off."""
+
+    status_code = 429
+    code = "provider_rate_limited"
+
+
 async def domain_error_handler(_: Request, exc: DomainError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,

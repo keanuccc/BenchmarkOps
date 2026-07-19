@@ -5,9 +5,12 @@ backend (SQLite -> Postgres) requires changing only DATABASE_URL.
 """
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+import asyncio
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from typing import TypeVar
 
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -92,3 +95,50 @@ async def init_db() -> None:
     from app.migrations import run_migrations
 
     await run_migrations(engine)
+
+
+_T = TypeVar("_T")
+
+
+async def with_retry_on_lock(
+    operation: Callable[[], Awaitable[_T]],
+    *,
+    max_attempts: int = 4,
+    base_delay: float = 0.2,
+) -> _T:
+    """Run an async DB write with exponential-backoff retry on 'database is locked'.
+
+    Two backend processes (e.g. ports 8000/8001) sharing one SQLite file can collide
+    with ``database is locked`` under the single-writer WAL model. The engine already
+    sets ``busy_timeout=15000`` so SQLite itself waits; this helper adds an
+    application-level retry so a transient lock contention during a short write
+    recovers instead of silently losing a status update (the bug where experiments
+    stick at running/progress=0).
+
+    Behaviour:
+      * Executes ``await operation()``; if it raises ``sqlalchemy.exc.OperationalError``
+        whose message contains "database is locked", retries with exponential backoff
+        ``base_delay * 2**i`` between attempts, sleeping via ``asyncio.sleep`` so other
+        coroutines stay responsive.
+      * Other exceptions (including non-lock OperationalError) propagate untouched.
+      * After ``max_attempts`` exhausted, the last OperationalError is re-raised as-is.
+
+    Note: this is NOT deadlock detection. Each attempt also waits up to the engine's
+    ``busy_timeout`` (15s), so a single call's worst-case wall time is roughly
+    ``(sum of backoff sleeps up to ~1.4s) + 15s``, not just the backoff sum. The
+    backoff is deliberately tiny vs busy_timeout so we never blow past the 30s client
+    fetch timeout; a genuine unresolvable contention still surfaces to the caller.
+    """
+    last_exc: OperationalError | None = None
+    for attempt in range(max_attempts):
+        try:
+            return await operation()
+        except OperationalError as exc:
+            if "database is locked" not in str(exc):
+                raise
+            last_exc = exc
+            if attempt < max_attempts - 1:
+                await asyncio.sleep(base_delay * (2**attempt))
+            continue
+    assert last_exc is not None  # loop always ends via a lock error here
+    raise last_exc

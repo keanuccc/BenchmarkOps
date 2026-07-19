@@ -20,6 +20,7 @@ import {
   Badge,
   EmptyState,
   Spinner,
+  ProgressBar,
 } from "@/components/ui";
 import { Play, RefreshCw, Copy, Trash2, ArrowLeft } from "lucide-react";
 
@@ -142,6 +143,42 @@ export default function ExperimentDetailPage() {
           </div>
         </div>
       </header>
+
+      {(exp.status === "running" || exp.status === "pending") && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-muted)]">
+              真实进度
+            </p>
+            {exp.rows_total ? (
+              <p className="text-sm font-semibold text-[var(--ocd-text)]">
+                {Math.round((exp.progress / exp.rows_total) * 100)}%
+              </p>
+            ) : (
+              <p className="text-xs text-[var(--ocd-text-muted)]">准备中…</p>
+            )}
+          </div>
+          <div className="mt-3">
+            <ProgressBar
+              value={exp.rows_total ? exp.progress / exp.rows_total : 0}
+            />
+          </div>
+          <p className="mt-3 text-xs text-[var(--ocd-text-muted)]">
+            已评分{" "}
+            <span className="font-semibold text-[var(--ocd-ok)]">
+              {exp.cells_done}
+            </span>{" "}
+            · 失败{" "}
+            <span className="font-semibold text-[var(--ocd-bad)]">
+              {exp.cells_error}
+            </span>{" "}
+            · 共{" "}
+            <span className="font-semibold text-[var(--ocd-text)]">
+              {exp.rows_total ?? "—"}
+            </span>
+          </p>
+        </Card>
+      )}
 
       {exp.error && (
         <Card

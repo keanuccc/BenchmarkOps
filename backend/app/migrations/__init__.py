@@ -71,6 +71,32 @@ async def _upgrade_experiment_snapshot_and_metrics(conn) -> None:  # type: ignor
 MIGRATIONS[10] = _upgrade_experiment_snapshot_and_metrics
 
 
+async def _upgrade_experiment_progress_cells(conn) -> None:  # type: ignore[no-untyped-def]
+    """Add per-cell progress counters (cells_done / cells_error) to experiments.
+
+    Drives the three-segment progress bar shown while a run is in flight
+    (scored vs failed vs total). Idempotent: the ALTER only runs for columns
+    that are not already present.
+    """
+    cols = {
+        "cells_done": "INTEGER NOT NULL DEFAULT 0",
+        "cells_error": "INTEGER NOT NULL DEFAULT 0",
+    }
+    existing = {
+        r[1]
+        for r in await conn.execute(sa.text("PRAGMA table_info(experiments)"))
+        if r and len(r) > 1
+    }
+    for col, dtype in cols.items():
+        if col not in existing:
+            await conn.execute(
+                sa.text(f"ALTER TABLE experiments ADD COLUMN {col} {dtype}")
+            )
+
+
+MIGRATIONS[11] = _upgrade_experiment_progress_cells
+
+
 async def _ensure_version_table(conn: sa.ext.asyncio.AsyncConnection) -> None:
     """Create the framework `schema_version` table if it does not exist."""
     await conn.execute(

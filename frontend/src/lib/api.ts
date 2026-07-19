@@ -316,6 +316,12 @@ export interface Experiment {
   total_cost: number;
   total_tokens: number;
   runtime_ms: number;
+  progress: number;
+  rows_total: number | null;
+  cells_done: number;
+  cells_error: number;
+  accuracy: number;
+  avg_latency_ms: number;
   error: string | null;
   created_at: string;
   updated_at: string;

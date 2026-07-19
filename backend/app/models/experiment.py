@@ -40,6 +40,9 @@ class Experiment(Base, UUIDMixin, TimestampMixin):
     progress: Mapped[int] = mapped_column(Integer, default=0)  # rows processed so far
     rows_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    cells_done: Mapped[int] = mapped_column(Integer, default=0)  # rows scored successfully
+    cells_error: Mapped[int] = mapped_column(Integer, default=0)  # rows that failed the call
+
     metrics: Mapped[dict] = mapped_column(JSONType, default=dict)  # {accuracy, ...}
     total_cost: Mapped[float] = mapped_column(Float, default=0.0)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0)
