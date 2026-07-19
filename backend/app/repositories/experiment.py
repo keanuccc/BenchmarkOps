@@ -27,6 +27,26 @@ class ExperimentRepository(BaseRepository[Experiment]):
         await self.session.flush()
         return result.rowcount > 0
 
+    async def finish_if_running(
+        self, experiment_id: str, *, status: str, error: str | None = None
+    ) -> bool:
+        """Atomically advance status from 'running' to a terminal state.
+
+        Returns True only if a row was actually changed. This is the mirror of
+        `set_running_if_not_running`: the Persist phase must not blindly overwrite
+        the terminal status, otherwise two concurrent runners (which both cleared
+        the start-gate CAS under WAL) would each run delete+bulk_create and clobber
+        each other's results. The loser sees rowcount==0 and discards its work.
+        """
+        stmt = (
+            update(Experiment)
+            .where(Experiment.id == experiment_id, Experiment.status == "running")
+            .values(status=status, error=error)
+        )
+        result = await self.session.execute(stmt)
+        await self.session.flush()
+        return result.rowcount > 0
+
 
 class ExperimentResultRepository(BaseRepository[ExperimentResult]):
     model = ExperimentResult

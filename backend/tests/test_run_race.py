@@ -9,9 +9,20 @@ from __future__ import annotations
 import asyncio
 import uuid
 
+import pytest
+
 from app.core.database import AsyncSessionLocal
 from app.evaluation.runner import run_experiment
+from app.providers.mock import MockProvider
 from app.repositories.experiment import ExperimentRepository, ExperimentResultRepository
+
+
+@pytest.fixture(autouse=True)
+def force_mock_provider(monkeypatch):
+    """Keep this an offline race test: never hit the real OpenRouter API."""
+    monkeypatch.setattr(
+        "app.evaluation.runner.get_provider", lambda: MockProvider()
+    )
 
 
 def _make_client(client):

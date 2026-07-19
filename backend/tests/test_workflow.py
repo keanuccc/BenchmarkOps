@@ -3,6 +3,18 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
+from app.providers.mock import MockProvider
+
+
+@pytest.fixture(autouse=True)
+def force_mock_provider(monkeypatch):
+    """Keep this an offline smoke test: never hit the real OpenRouter API."""
+    monkeypatch.setattr(
+        "app.evaluation.runner.get_provider", lambda: MockProvider()
+    )
+
 
 def test_health(client):
     r = client.get("/api/v1/health")

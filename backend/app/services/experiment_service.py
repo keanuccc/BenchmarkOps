@@ -122,12 +122,12 @@ class ExperimentService:
         )
 
     async def run(self, experiment_id: str) -> Experiment:
-        """Queue a background evaluation run. Idempotent guard on 'running'."""
+        """Queue a background evaluation run. Guard against in-flight/dup submissions."""
         exp = await self.get(experiment_id)
-        if exp.status == "running":
+        if exp.status in ("running", "queued"):
             raise ConflictError("Experiment is already running")
-        # Mark queued immediately so the UI reflects state before the task starts.
-        await self.experiments.update(exp, {"status": "pending", "error": None})
+        # Mark queued immediately so the UI reflects receipt before work begins.
+        await self.experiments.update(exp, {"status": "queued", "error": None})
         await self.session.commit()
         task_queue.submit(lambda: run_experiment(experiment_id))
         return exp
@@ -135,7 +135,7 @@ class ExperimentService:
     async def retry(self, experiment_id: str) -> Experiment:
         """Re-run a completed/failed experiment (results are cleared by the runner)."""
         exp = await self.get(experiment_id)
-        if exp.status == "running":
+        if exp.status in ("running", "queued"):
             raise ConflictError("Experiment is already running")
         return await self.run(experiment_id)
 
