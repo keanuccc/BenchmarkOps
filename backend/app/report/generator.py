@@ -95,24 +95,24 @@ def template_report(context: dict) -> tuple[str, dict]:
     best_acc = by_acc[0] if by_acc else None
     cheapest = by_cost[0] if by_cost else None
 
-    # --- Executive Summary ---
+    # --- 执行摘要 ---
     exec_lines = [
-        f"This report covers **{len(exps)}** experiment(s), "
-        f"with total spend of **${_fmt(total_cost)}** and "
-        f"**{total_tokens}** tokens consumed across "
-        f"**{_fmt(_total_runtime_ms(exps))} ms** of runtime."
+        f"本报告覆盖 **{len(exps)}** 个实验，"
+        f"总花费 **${_fmt(total_cost)}**，"
+        f"共消耗 **{total_tokens}** 个令牌，"
+        f"累计运行 **{_fmt(_total_runtime_ms(exps))} 毫秒**。"
     ]
     if best_acc:
         exec_lines.append(
-            f"Best overall accuracy was achieved by **{best_acc['name']}** "
-            f"({best_acc['model_name']}) at **{_fmt(best_acc['metrics']['accuracy']*100, 1)}%**."
+            f"综合准确率最高的是 **{best_acc['name']}** "
+            f"（{best_acc['model_name']}），达到 **{_fmt(best_acc['metrics']['accuracy']*100, 1)}%**。"
         )
     if total_fail:
-        exec_lines.append(f"**{total_fail}** sample failure case(s) were inspected.")
+        exec_lines.append(f"共检查了 **{total_fail}** 个失败样本。")
     executive_summary = "\n\n".join(exec_lines)
 
-    # --- Performance Analysis ---
-    perf_lines = ["| Experiment | Model | Accuracy | Avg Latency (ms) | Rows Scored | Rows Failed |",
+    # --- 性能分析 ---
+    perf_lines = ["| 实验 | 模型 | 准确率 | 平均延迟(毫秒) | 已评分行数 | 失败行数 |",
                   "|---|---|---|---|---|---|"]
     for e in exps:
         m = e.get("metrics", {})
@@ -123,24 +123,24 @@ def template_report(context: dict) -> tuple[str, dict]:
         )
     performance_analysis = "\n".join(perf_lines)
 
-    # --- Cost Analysis ---
-    cost_lines = [f"Aggregate spend: **${_fmt(total_cost)}** across **{total_tokens}** tokens."]
+    # --- 成本分析 ---
+    cost_lines = [f"总花费：**${_fmt(total_cost)}**，共 **{total_tokens}** 个令牌。"]
     if cheapest:
         cost_lines.append(
-            f"Cheapest experiment: **{cheapest['name']}** "
-            f"(${_fmt(cheapest['total_cost'])}, {cheapest['model_name']})."
+            f"最省钱的实验：**{cheapest['name']}** "
+            f"（${_fmt(cheapest['total_cost'])}，{cheapest['model_name']}）。"
         )
     for e in exps:
         cost_lines.append(
-            f"- {e['name']}: ${_fmt(e.get('total_cost'))} "
-            f"({e.get('total_tokens') or 0} tokens)"
+            f"- {e['name']}：${_fmt(e.get('total_cost'))} "
+            f"（{e.get('total_tokens') or 0} 个令牌）"
         )
     cost_analysis = "\n".join(cost_lines)
 
-    # --- Failure Analysis ---
+    # --- 失败分析 ---
     fail_lines = []
     if total_fail == 0:
-        fail_lines.append("No sample failures were detected in the inspected results.")
+        fail_lines.append("在检查的结果中未检测到失败样本。")
     else:
         for e in exps:
             fs = e.get("failures") or []
@@ -149,39 +149,39 @@ def template_report(context: dict) -> tuple[str, dict]:
             fail_lines.append(f"### {e['name']} ({e['model_name']})")
             for f in fs:
                 fail_lines.append(
-                    f"- Row {f['row_idx']}: score={_fmt(f.get('score'))}, "
-                    f"error={f.get('error') or 'score < 1'}"
+                    f"- 第 {f['row_idx']} 行：得分={_fmt(f.get('score'))}，"
+                    f"错误={f.get('error') or '得分 < 1'}"
                 )
-    failure_analysis = "\n".join(fail_lines) if fail_lines else "No failures recorded."
+    failure_analysis = "\n".join(fail_lines) if fail_lines else "未记录失败。"
 
-    # --- Recommendations ---
+    # --- 建议 ---
     rec_lines = []
     if best_acc:
         rec_lines.append(
-            f"Adopt **{best_acc['model_name']}** ({best_acc['name']}) as the baseline "
-            f"for accuracy-sensitive workloads (best observed "
-            f"{_fmt(best_acc['metrics']['accuracy']*100, 1)}%)."
+            f"在对准确率敏感的场景中，采用 **{best_acc['model_name']}**（{best_acc['name']}）"
+            f"作为基线（实测最高准确率为 "
+            f"{_fmt(best_acc['metrics']['accuracy']*100, 1)}%）。"
         )
     if cheapest and best_acc and cheapest["name"] != best_acc["name"]:
         rec_lines.append(
-            f"For cost-sensitive paths, consider **{cheapest['model_name']}** "
-            f"(${_fmt(cheapest['total_cost'])}) as a cheaper alternative."
+            f"在对成本敏感的路径中，可考虑 **{cheapest['model_name']}** "
+            f"（${_fmt(cheapest['total_cost'])}）作为更省钱的替代方案。"
         )
     if high_fail and len(high_fail.get("failures") or []):
         rec_lines.append(
-            f"Investigate **{high_fail['name']}** — it shows the highest number of "
-            f"sample failures and may need prompt or data fixes."
+            f"排查 **{high_fail['name']}** —— 其失败样本数最多，"
+            f"可能需要调整提示词或数据。"
         )
     if not rec_lines:
-        rec_lines.append("Re-run experiments with broader datasets to gather comparable metrics.")
+        rec_lines.append("使用更大的数据集重新运行实验，以获得可对比的指标。")
     recommendations = "\n".join(rec_lines)
 
-    # --- Next Actions ---
+    # --- 下一步行动 ---
     next_actions = (
-        "1. Review the Performance and Failure Analysis sections per experiment.\n"
-        "2. Promote the highest-accuracy model where quality is critical.\n"
-        "3. Tune prompts or filtering for experiments with elevated failure rates.\n"
-        "4. Re-generate this report after applying changes to track improvement."
+        "1. 逐个实验查看「性能分析」与「失败分析」部分。\n"
+        "2. 在质量关键处推广使用准确率最高的模型。\n"
+        "3. 针对失败率偏高的实验，调优提示词或筛选逻辑。\n"
+        "4. 应用改动后重新生成本报告，以跟踪改进情况。"
     )
 
     sections = {
@@ -193,7 +193,7 @@ def template_report(context: dict) -> tuple[str, dict]:
         "next_actions": next_actions,
     }
 
-    markdown = "# AI Report\n\n" + "\n\n".join(
+    markdown = "# AI 评测报告\n\n" + "\n\n".join(
         f"## {_TITLE(key)}\n\n{val}" for key, val in sections.items()
     )
     return markdown, sections
@@ -205,12 +205,12 @@ def _pct(v):
 
 def _TITLE(key: str) -> str:
     return {
-        "executive_summary": "Executive Summary",
-        "performance_analysis": "Performance Analysis",
-        "cost_analysis": "Cost Analysis",
-        "failure_analysis": "Failure Analysis",
-        "recommendations": "Recommendations",
-        "next_actions": "Next Actions",
+        "executive_summary": "执行摘要",
+        "performance_analysis": "性能分析",
+        "cost_analysis": "成本分析",
+        "failure_analysis": "失败分析",
+        "recommendations": "建议",
+        "next_actions": "下一步行动",
     }[key]
 
 
@@ -249,6 +249,13 @@ _KEY_BY_TITLE = {
     "failure analysis": "failure_analysis",
     "recommendations": "recommendations",
     "next actions": "next_actions",
+    # Chinese titles (used by the Chinese AI report prompt).
+    "执行摘要": "executive_summary",
+    "性能分析": "performance_analysis",
+    "成本分析": "cost_analysis",
+    "失败分析": "failure_analysis",
+    "建议": "recommendations",
+    "下一步行动": "next_actions",
     # Accept a leading "# " title line too.
 }
 
@@ -265,10 +272,10 @@ async def ai_report(
                 ChatMessage(
                     role="system",
                     content=(
-                        "You are an AI evaluation analyst. Write a clear, data-driven "
-                        "report. Use exactly these six `## ` section headers in order: "
-                        "Executive Summary, Performance Analysis, Cost Analysis, "
-                        "Failure Analysis, Recommendations, Next Actions. Use Markdown."
+                        "你是一名 AI 评测分析师。请撰写一份清晰、以数据为依据的报告。"
+                        "严格按照以下六个 `## ` 章节标题的顺序输出："
+                        "执行摘要、性能分析、成本分析、失败分析、建议、下一步行动。"
+                        "使用中文，并使用 Markdown 格式。"
                     ),
                 ),
                 ChatMessage(role="user", content=prompt),
