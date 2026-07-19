@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from app.core.security import require_auth
 from app.schemas.model import ModelCreate, ModelRead, ModelUpdate
 from app.services.model_service import ModelService, get_model_service
 
 router = APIRouter(prefix="/models", tags=["models"])
+
+
+class ModelBulkDelete(BaseModel):
+    ids: list[str] = []
 
 
 @router.post("/", response_model=ModelRead, status_code=201)
@@ -44,6 +49,17 @@ async def list_openrouter_models(
 ) -> list[dict]:
     """Live catalog of models available on OpenRouter (no API key required)."""
     return await service.list_openrouter_models()
+
+
+@router.delete("/bulk", status_code=200)
+async def bulk_delete_models(
+    payload: ModelBulkDelete,
+    service: ModelService = Depends(get_model_service),
+    _: None = Depends(require_auth),
+) -> dict:
+    """Delete the given models. With an empty `ids` list, deletes ALL models."""
+    deleted = await service.delete_many(payload.ids or None)
+    return {"deleted": deleted}
 
 
 @router.get("/{model_pk}", response_model=ModelRead)

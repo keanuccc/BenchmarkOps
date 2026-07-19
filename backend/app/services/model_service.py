@@ -132,6 +132,10 @@ class ModelService:
         obj = await self.get(model_pk)
         await self.repo.delete(obj)
 
+    async def delete_many(self, ids: list[str] | None = None) -> int:
+        """Delete the given models (or all models when `ids` is empty/None)."""
+        return await self.repo.delete_many(ids)
+
     async def list_presets(self) -> list[dict]:
         """Catalog of built-in models available to add individually."""
         return [dict(spec) for spec in _DEFAULT_MODELS]
