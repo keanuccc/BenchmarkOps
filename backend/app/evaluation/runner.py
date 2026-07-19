@@ -268,7 +268,9 @@ async def run_experiment(experiment_id: str) -> None:
 
         processed += 1
         if processed % _PROGRESS_EVERY == 0:
-            await _persist_progress(experiment_id, processed, len(rows), cells_done, cells_error)
+            await _persist_progress(
+                experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
+            )
         if rate_limited:
             break
 
