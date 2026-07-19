@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -17,7 +18,9 @@ from app.core.config import settings
 
 # check_same_thread only applies to SQLite; harmless key otherwise since we gate it.
 _connect_args = (
-    {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    {"check_same_thread": False, "timeout": 30}
+    if settings.database_url.startswith("sqlite")
+    else {}
 )
 
 engine = create_async_engine(
@@ -26,6 +29,28 @@ engine = create_async_engine(
     future=True,
     connect_args=_connect_args,
 )
+
+# SQLite is a single-writer store: concurrent writes (request thread + background
+# evaluation tasks) otherwise raise "database is locked" and fail the operation.
+# WAL lets readers and a writer proceed concurrently and survives a writer mid-flight,
+# which is what the in-process task queue + live polling need. Applied per raw
+# connection so every session gets it.
+if settings.database_url.startswith("sqlite"):
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, _conn_record):  # noqa: ANN001
+        cur = dbapi_conn.cursor()
+        try:
+            cur.execute("PRAGMA journal_mode=WAL")
+            # 15s: long enough that legitimate short write transactions (a run's
+            # batch persist, or several runs' persists queued behind the single
+            # WAL writer) wait their turn instead of being spuriously failed as
+            # "database is locked"; short enough that the frontend's 30s fetch
+            # timeout still surfaces a real deadlock to the user.
+            cur.execute("PRAGMA busy_timeout=15000")
+        finally:
+            cur.close()
+
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
