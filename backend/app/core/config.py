@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     eval_max_workers: int = 4
     eval_request_timeout: int = 60
 
+    # Free-model throttle (measured, not assumed): probing showed tencent/hy3:free
+    # sustains ~10 concurrent requests with zero 429 and RPM >= 325. We therefore do
+    # NOT space calls with a fixed sleep; instead we cap in-flight rows per run
+    # (free_model_concurrency) and cap overall send rate via a token bucket
+    # (free_model_rpm_cap), both well under the measured ceiling for headroom.
+    free_model_concurrency: int = 8
+    free_model_rpm_cap: int = 300
+
     # Dataset upload limits (resource-exhaustion protection)
     max_upload_bytes: int = 50 * 1024 * 1024  # 50 MB
     max_dataset_rows: int = 100_000

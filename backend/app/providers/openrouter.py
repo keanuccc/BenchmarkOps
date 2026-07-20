@@ -28,7 +28,15 @@ _BACKOFF_MAX = 30.0
 # Cross-row circuit breaker: once we see this many *consecutive* 429s (no
 # successful response in between) the upstream is clearly throttled and will not
 # recover on its own, so we abort the whole run instead of spinning row-by-row.
-_RATE_LIMIT_BURST = 5
+# Raised from 5 to 10: free models (e.g. hy3:free) can hit a few consecutive 429s
+# on cold start even under proper throttling, and we must not abort a healthy run.
+_RATE_LIMIT_BURST = 10
+
+# Models whose id ends with this marker are OpenRouter free tiers. Probing showed
+# hy3:free sustains high concurrency + RPM>=325, so we throttle with a token bucket
+# (free_model_rpm_cap) rather than a fixed sleep — the bucket is sized well under the
+# measured ceiling and rarely blocks in practice.
+_FREE_MODEL_MARKER = ":free"
 # Per-call 429 retry cap: a single row backs off at most this many times on 429.
 # Guards against an alternating 429/200 pattern where the cross-row breaker never
 # trips (each 200 resets the count) yet one row would otherwise spin until timeout.
@@ -42,13 +50,56 @@ class OpenRouterProvider(LLMProvider):
         self._api_key = settings.openrouter_api_key
         self._base_url = settings.openrouter_base_url.rstrip("/")
         self._timeout = settings.eval_request_timeout
+        # Free-model token bucket (throttle, not serialize): caps overall send rate
+        # under free_model_rpm_cap. Free models measured RPM>=325, so the bucket is
+        # sized for headroom and rarely blocks. Created lazily on first use to bind
+        # to whatever event loop the call runs on (provider is built once per run).
+        self._free_bucket_lock: asyncio.Lock | None = None
+        self._free_tokens: float = 0.0
+        self._free_last_refill: float = 0.0
         # Consecutive 429 counter, reset on any successful response. The runner
         # calls get_provider() once per run, so this instance is scoped to a single
         # experiment run — the breaker never trips because of *another* run's
         # throttling (it only reacts to this run's own consecutive 429s).
         self._consecutive_429 = 0
 
+    def _is_free_model(self, model_id: str) -> bool:
+        return model_id.endswith(_FREE_MODEL_MARKER)
+
     async def complete(self, request: CompletionRequest) -> CompletionResult:
+        # Free models: throttle via a token bucket (measured RPM>=325, so the bucket
+        # is sized for headroom and rarely blocks) instead of a fixed sleep. This lets
+        # the runner fire many rows concurrently without self-inflicting 429s. Non-free
+        # models skip the bucket and keep their current high-throughput path.
+        if self._is_free_model(request.model_id):
+            await self._acquire_free_token()
+            return await self._call(request)
+        return await self._call(request)
+
+    async def _acquire_free_token(self) -> None:
+        """Block until a free-tier send token is available (token-bucket rate limit).
+
+        Refills `free_model_rpm_cap` tokens per minute; caps in-flight send rate without
+        forcing a fixed per-call sleep. Under normal load the bucket stays full and this
+        returns immediately. Lazily initialized on first use to bind to the call's loop.
+        """
+        if self._free_bucket_lock is None:
+            self._free_bucket_lock = asyncio.Lock()
+            self._free_tokens = float(settings.free_model_rpm_cap)
+            self._free_last_refill = time.perf_counter()
+        async with self._free_bucket_lock:
+            capacity = float(settings.free_model_rpm_cap)
+            refill_per_sec = capacity / 60.0
+            while self._free_tokens < 1.0:
+                elapsed = time.perf_counter() - self._free_last_refill
+                self._free_tokens = min(capacity, self._free_tokens + elapsed * refill_per_sec)
+                self._free_last_refill = time.perf_counter()
+                if self._free_tokens < 1.0:
+                    # Sleep just long enough for one token, then re-check under the lock.
+                    await asyncio.sleep((1.0 - self._free_tokens) / refill_per_sec)
+            self._free_tokens -= 1.0
+
+    async def _call(self, request: CompletionRequest) -> CompletionResult:
         payload: dict = {
             "model": request.model_id,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],

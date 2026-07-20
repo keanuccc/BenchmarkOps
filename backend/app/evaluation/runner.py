@@ -193,7 +193,11 @@ async def run_experiment(experiment_id: str) -> None:
     rate_limited_msg = ""
     started = time.perf_counter()
 
-    for row in rows:
+    async def _process_row(row):
+        """Run one dataset row: render prompt, call the provider, score, build the
+        result object. Returns (ExperimentResult, is_rate_limited). Pure per-row work;
+        callers merge the returned object into shared accumulators after gather so the
+        concurrent phase never touches shared state across an await point."""
         rendered = _render_prompt(template, variables, row.input)
         req = CompletionRequest(
             model_id=model_ref,
@@ -207,72 +211,104 @@ async def run_experiment(experiment_id: str) -> None:
                 provider.complete(req),
                 timeout=settings.eval_request_timeout,
             )
-            score = float(
-                metric_fn(completion.text, expected_str, **(metric_config or {}))
+            score = float(metric_fn(completion.text, expected_str, **(metric_config or {})))
+            cost = _cost(pricing or {}, completion.prompt_tokens, completion.completion_tokens)
+            res = ExperimentResult(
+                experiment_id=experiment_id,
+                row_idx=row.idx,
+                input=row.input,
+                expected=row.expected,
+                output=completion.text,
+                score=score,
+                latency_ms=completion.latency_ms,
+                tokens=completion.total_tokens,
+                cost=cost,
             )
-            cost = _cost(
-                pricing or {},
-                completion.prompt_tokens,
-                completion.completion_tokens,
-            )
-            result_objs.append(
-                ExperimentResult(
-                    experiment_id=experiment_id,
-                    row_idx=row.idx,
-                    input=row.input,
-                    expected=row.expected,
-                    output=completion.text,
-                    score=score,
-                    latency_ms=completion.latency_ms,
-                    tokens=completion.total_tokens,
-                    cost=cost,
-                )
-            )
-            total_score += score
-            total_cost += cost
-            total_tokens += completion.total_tokens
-            total_latency += completion.latency_ms
-            scored += 1
-            cells_done += 1
+            return res, False
         except ProviderRateLimitedError as exc:
-            provider_errors += 1
-            cells_error += 1
-            result_objs.append(
-                ExperimentResult(
-                    experiment_id=experiment_id,
-                    row_idx=row.idx,
-                    input=row.input,
-                    expected=row.expected,
-                    output="",
-                    score=0.0,
-                    error=str(exc)[:500],
-                )
+            res = ExperimentResult(
+                experiment_id=experiment_id,
+                row_idx=row.idx,
+                input=row.input,
+                expected=row.expected,
+                output="",
+                score=0.0,
+                error=str(exc)[:500],
             )
-            rate_limited = True
-            rate_limited_msg = str(exc)[:500]
-            break
+            return res, True
         except Exception as exc:
+            res = ExperimentResult(
+                experiment_id=experiment_id,
+                row_idx=row.idx,
+                input=row.input,
+                expected=row.expected,
+                output="",
+                score=0.0,
+                error=str(exc)[:500],
+            )
+            return res, False
+
+    def _merge(res, is_rate_limited):
+        """Fold one processed row into the shared accumulators. Called after gather, so
+        no two merges run concurrently — safe without extra locking."""
+        nonlocal scored, cells_done, cells_error, provider_errors, total_score, total_cost
+        nonlocal total_tokens, total_latency, rate_limited, rate_limited_msg
+        result_objs.append(res)
+        if is_rate_limited:
             provider_errors += 1
             cells_error += 1
-            result_objs.append(
-                ExperimentResult(
-                    experiment_id=experiment_id,
-                    row_idx=row.idx,
-                    input=row.input,
-                    expected=row.expected,
-                    output="",
-                    score=0.0,
-                    error=str(exc)[:500],
-                )
-            )
+            rate_limited = True
+            rate_limited_msg = (res.error or "")[:500]
+        else:
+            # A successful completion vs a non-429 failure is distinguished by score/error.
+            if res.error:
+                provider_errors += 1
+                cells_error += 1
+            else:
+                total_score += res.score
+                total_cost += res.cost
+                total_tokens += res.tokens
+                total_latency += res.latency_ms
+                scored += 1
+                cells_done += 1
 
-        processed += 1
-        if processed % _PROGRESS_EVERY == 0:
+    is_free = model_ref.endswith(":free")
+    if is_free:
+        # Free models measured RPM>=325 + high burst; run rows concurrently (bounded by
+        # free_model_concurrency) and merge results serially. No fixed per-row sleep.
+        sem = asyncio.Semaphore(settings.free_model_concurrency)
+
+        async def _guarded(row):
+            async with sem:
+                return await _process_row(row)
+
+        for i in range(0, len(rows), settings.free_model_concurrency):
+            batch = rows[i : i + settings.free_model_concurrency]
+            outcomes = await asyncio.gather(*(_guarded(r) for r in batch))
+            for res, is_rl in outcomes:
+                _merge(res, is_rl)
+            processed += len(batch)
+            # Report progress per batch (batch size == free_model_concurrency, well
+            # under _PROGRESS_EVERY), so the UI bar advances without waiting
+            # for a full _PROGRESS_EVERY worth of rows under concurrency.
             await _persist_progress(
                 experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
             )
-        if rate_limited:
-            break
+            if rate_limited:
+                break
+    else:
+        # Non-free models: keep the original strict-serial behavior (rate safety is
+        # handled by the task queue's eval_max_workers, not by in-run concurrency).
+        for row in rows:
+            res, is_rl = await _process_row(row)
+            _merge(res, is_rl)
+            processed += 1
+            if processed % _PROGRESS_EVERY == 0:
+                await _persist_progress(
+                    experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
+                )
+            if rate_limited:
+                break
 
     n = len(result_objs)
     accuracy = (total_score / scored) if scored else 0.0

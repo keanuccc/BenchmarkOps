@@ -98,7 +98,7 @@ def project_and_parts(client):
     return {"project_id": pid, "dataset_id": ds["id"], "benchmark_id": bm["id"], "prompt_id": pr["id"]}
 
 
-def _wait_completed(client, exp_id: str, label: str, timeout: int = 90) -> dict:
+def _wait_completed(client, exp_id: str, label: str, timeout: int = 300) -> dict:
     final = None
     for _ in range(timeout * 2):
         time.sleep(0.5)
