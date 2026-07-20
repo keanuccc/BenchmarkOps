@@ -38,7 +38,7 @@ class _PartialProvider(LLMProvider):
 @pytest.fixture()
 def patched_partial(monkeypatch):
     monkeypatch.setattr(
-        "app.evaluation.runner.get_provider", lambda: _PartialProvider()
+        "app.evaluation.runner.get_provider", lambda name=None: _PartialProvider()
     )
     yield
 
@@ -115,7 +115,7 @@ def test_runner_all_success_counts_only_cells_done(client, patched_partial, monk
                 text="yes", prompt_tokens=1, completion_tokens=1, latency_ms=5
             )
 
-    monkeypatch.setattr("app.evaluation.runner.get_provider", lambda: _OkProvider())
+    monkeypatch.setattr("app.evaluation.runner.get_provider", lambda name=None: _OkProvider())
     eid = _build_experiment(client)
     asyncio.run(run_experiment(eid))
 

@@ -206,6 +206,14 @@ export interface OpenRouterModel {
 export const listOpenRouterModels = () =>
   api.get<OpenRouterModel[]>("/models/openrouter");
 
+export interface QiniuModel {
+  id: string;
+  name: string;
+  owned_by: string;
+}
+export const listQiniuModels = () =>
+  api.get<QiniuModel[]>("/models/qiniu");
+
 export interface ModelCreate {
   name: string;
   provider: string;

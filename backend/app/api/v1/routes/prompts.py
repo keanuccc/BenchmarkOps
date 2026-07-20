@@ -56,7 +56,7 @@ async def update_prompt(
     return await service.update(prompt_id, data)
 
 
-@router.delete("/{prompt_id}", status_code=204)
+@router.delete("/{prompt_id}", status_code=204, response_model=None)
 async def delete_prompt(
     prompt_id: str,
     service: PromptService = Depends(get_prompt_service),

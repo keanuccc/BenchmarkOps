@@ -57,7 +57,7 @@ async def archive_project(
     return await service.archive(project_id)
 
 
-@router.delete("/{project_id}", status_code=204)
+@router.delete("/{project_id}", status_code=204, response_model=None)
 async def delete_project(
     project_id: str,
     service: ProjectService = Depends(get_project_service),

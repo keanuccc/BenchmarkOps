@@ -51,6 +51,14 @@ async def list_openrouter_models(
     return await service.list_openrouter_models()
 
 
+@router.get("/qiniu")
+async def list_qiniu_models(
+    service: ModelService = Depends(get_model_service),
+) -> list[dict]:
+    """Live catalog of models available on Qiniu Cloud AI (requires API key)."""
+    return await service.list_qiniu_models()
+
+
 @router.delete("/bulk", status_code=200)
 async def bulk_delete_models(
     payload: ModelBulkDelete,
@@ -80,7 +88,7 @@ async def update_model(
     return await service.update(model_pk, data)
 
 
-@router.delete("/{model_pk}", status_code=204)
+@router.delete("/{model_pk}", status_code=204, response_model=None)
 async def delete_model(
     model_pk: str,
     service: ModelService = Depends(get_model_service),

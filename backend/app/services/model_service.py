@@ -140,6 +140,38 @@ class ModelService:
         """Catalog of built-in models available to add individually."""
         return [dict(spec) for spec in _DEFAULT_MODELS]
 
+    async def list_qiniu_models(self) -> list[dict]:
+        """Live Qiniu Cloud AI model catalog (requires API key).
+
+        Qiniu exposes an OpenAI-compatible GET /v1/models that returns the real
+        model ids available on the account. Unlike OpenRouter it does not include
+        pricing/context_length, so those fields are left at defaults and can be
+        edited after the model is added. Returns an empty list when no key is set.
+        """
+        if not settings.qiniu_api_key.strip():
+            return []
+        url = f"{settings.qiniu_base_url.rstrip('/')}/models"
+        headers = {"Authorization": f"Bearer {settings.qiniu_api_key}"}
+        async with httpx.AsyncClient(timeout=settings.eval_request_timeout) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            payload = resp.json()
+
+        out: list[dict] = []
+        for m in payload.get("data", []):
+            mid = m.get("id")
+            if not mid:
+                continue
+            out.append(
+                {
+                    "id": mid,
+                    "name": m.get("id") or mid,
+                    "owned_by": m.get("owned_by") or "qiniu",
+                }
+            )
+        # Stable dropdown order by id.
+        return sorted(out, key=lambda x: (x["id"] or "").lower())
+
     async def list_openrouter_models(self) -> list[dict]:
         """Live OpenRouter model catalog.
 

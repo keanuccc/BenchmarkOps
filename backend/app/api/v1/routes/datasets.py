@@ -129,7 +129,7 @@ async def update_dataset(
     return await service.update(dataset_id, data)
 
 
-@router.delete("/{dataset_id}", status_code=204)
+@router.delete("/{dataset_id}", status_code=204, response_model=None)
 async def delete_dataset(
     dataset_id: str,
     service: DatasetService = Depends(get_dataset_service),

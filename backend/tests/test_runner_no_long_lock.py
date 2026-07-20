@@ -37,7 +37,7 @@ class _FixedProvider(LLMProvider):
 @pytest.fixture()
 def patched_provider(monkeypatch):
     monkeypatch.setattr(
-        "app.evaluation.runner.get_provider", lambda: _FixedProvider()
+        "app.evaluation.runner.get_provider", lambda name=None: _FixedProvider()
     )
     yield
 
@@ -137,7 +137,7 @@ def test_concurrent_runs_do_not_double_execute(client, monkeypatch):
             await asyncio.sleep(0.05)
             return CompletionResult(text="yes", prompt_tokens=1, completion_tokens=1, latency_ms=50)
 
-    monkeypatch.setattr("app.evaluation.runner.get_provider", lambda: _SlowProvider())
+    monkeypatch.setattr("app.evaluation.runner.get_provider", lambda name=None: _SlowProvider())
 
     eid, _ = _build_experiment(client)
 
@@ -169,7 +169,7 @@ def test_runner_row_provider_errors_become_partial(client, patched_provider, mon
     they are NOT silently swallowed and they do NOT crash the whole run."""
     eid, _ = _build_experiment(client)
 
-    def _boom_factory():
+    def _boom_factory(name=None):
         class _Boom(LLMProvider):
             name = "boom"
 

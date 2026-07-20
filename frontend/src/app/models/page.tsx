@@ -8,9 +8,11 @@ import {
   deleteModel,
   deleteModels,
   listOpenRouterModels,
+  listQiniuModels,
   type ModelInfo,
   type ModelCreate,
   type OpenRouterModel,
+  type QiniuModel,
 } from "@/lib/api";
 import { Button, Card, Badge, EmptyState, Spinner, Modal } from "@/components/ui";
 import { Cpu, Plus, Trash2 } from "lucide-react";
@@ -25,11 +27,15 @@ export default function ModelsPage() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [orModels, setOrModels] = useState<OpenRouterModel[]>([]);
   const [orLoading, setOrLoading] = useState(false);
+  const [qnModels, setQnModels] = useState<QiniuModel[]>([]);
+  const [qnLoading, setQnLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedOr, setSelectedOr] = useState("");
   const [addingOr, setAddingOr] = useState(false);
+  const [selectedQn, setSelectedQn] = useState("");
+  const [addingQn, setAddingQn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<ConfirmState>(null);
@@ -109,6 +115,45 @@ export default function ModelsPage() {
       setError(err instanceof Error ? err.message : "添加失败");
     } finally {
       setAddingOr(false);
+    }
+  }
+
+  // Load the live Qiniu Cloud AI catalog (requires API key).
+  async function loadQiniu() {
+    setQnLoading(true);
+    setError(null);
+    try {
+      const list = await listQiniuModels();
+      setQnModels(list);
+      if (list.length > 0 && !selectedQn) setSelectedQn(list[0].id);
+    } catch {
+      setError("无法加载七牛云模型列表（未配置 key 或网络不可达）");
+    } finally {
+      setQnLoading(false);
+    }
+  }
+  useEffect(() => {
+    loadQiniu();
+  }, []);
+
+  async function onAddFromQn() {
+    const qn = qnModels.find((q) => q.id === selectedQn);
+    if (!qn) return;
+    setAddingQn(true);
+    setError(null);
+    try {
+      await createModel({
+        name: qn.name,
+        provider: "qiniu",
+        model_id: qn.id,
+        is_active: true,
+      });
+      setSelectedQn("");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "添加失败");
+    } finally {
+      setAddingQn(false);
     }
   }
 
@@ -271,6 +316,36 @@ export default function ModelsPage() {
           {addingOr ? <Spinner size={14} /> : <Plus size={15} />} 添加
         </Button>
       </Card>
+
+      <Card className="flex flex-wrap items-end gap-3 p-4">
+        <div className="flex-1 min-w-[260px]">
+          <label className={labelCls}>从七牛云 AI 添加（实时目录，默认网关）</label>
+          <select
+            value={selectedQn}
+            onChange={(e) => setSelectedQn(e.target.value)}
+            disabled={qnLoading || qnModels.length === 0}
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          >
+            {qnLoading && <option value="">加载中…</option>}
+            {!qnLoading && qnModels.length === 0 && (
+              <option value="">（加载失败，需配置 QINIU_API_KEY 或手动新建）</option>
+            )}
+            {qnModels.map((q) => (
+              <option key={q.id} value={q.id} disabled={addedIds.has(q.id)}>
+                {q.name}（{q.id}）{addedIds.has(q.id) ? " · 已添加" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Button
+          onClick={onAddFromQn}
+          disabled={!selectedQn || addingQn}
+          variant="secondary"
+        >
+          {addingQn ? <Spinner size={14} /> : <Plus size={15} />} 添加
+        </Button>
+      </Card>
+
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 

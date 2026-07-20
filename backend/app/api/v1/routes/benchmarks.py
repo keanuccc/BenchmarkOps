@@ -58,7 +58,7 @@ async def update_benchmark(
     return BenchmarkRead.model_validate(obj)
 
 
-@router.delete("/{benchmark_id}", status_code=204)
+@router.delete("/{benchmark_id}", status_code=204, response_model=None)
 async def delete_benchmark(
     benchmark_id: str,
     service: BenchmarkService = Depends(get_benchmark_service),
