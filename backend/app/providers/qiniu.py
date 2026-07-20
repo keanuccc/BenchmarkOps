@@ -1,7 +1,17 @@
-"""OpenRouter provider — single gateway to all supported models.
+"""Qiniu Cloud AI Token API provider — second model gateway.
 
-Uses the OpenAI-compatible /chat/completions endpoint OpenRouter exposes. Selected
-by the registry only when OPENROUTER_API_KEY is set; otherwise Mock is used.
+Uses the OpenAI-compatible /chat/completions endpoint Qiniu exposes
+(`https://api.qnaigc.com/v1`). Selected by the registry only when QINIU_API_KEY is
+set. Mirrors OpenRouterProvider's shape (OpenAI-compatible payload, httpx.AsyncClient,
+parse `choices[].message.content` + `usage`) so the two gateways are interchangeable
+behind the registry.
+
+Differences / robustness:
+  * 429 is classified into a transient throttle (back off + retry) vs a *quota
+    exhausted* signal (e.g. `FailedOperation.FreeQuotaExhausted` / code `429001`),
+    which raises ProviderQuotaExhaustedError so the runner stops instead of spinning.
+  * Missing `usage` / missing `choices` fall back to safe defaults instead of crashing.
+  * All network calls are wrapped in the configured eval_request_timeout.
 """
 from __future__ import annotations
 
@@ -15,6 +25,7 @@ from app.providers.base import (
     CompletionRequest,
     CompletionResult,
     LLMProvider,
+    ProviderQuotaExhaustedError,
     ProviderRateLimitedError,
 )
 
@@ -28,69 +39,74 @@ _BACKOFF_MAX = 30.0
 # Cross-row circuit breaker: once we see this many *consecutive* 429s (no
 # successful response in between) the upstream is clearly throttled and will not
 # recover on its own, so we abort the whole run instead of spinning row-by-row.
-# Raised from 5 to 10: free models (e.g. hy3:free) can hit a few consecutive 429s
-# on cold start even under proper throttling, and we must not abort a healthy run.
 _RATE_LIMIT_BURST = 10
-
-# Models whose id ends with this marker are OpenRouter free tiers. Probing showed
-# hy3:free sustains high concurrency + RPM>=325, so we throttle with a token bucket
-# (free_model_rpm_cap) rather than a fixed sleep — the bucket is sized well under the
-# measured ceiling and rarely blocks in practice.
-_FREE_MODEL_MARKER = ":free"
 # Per-call 429 retry cap: a single row backs off at most this many times on 429.
 # Guards against an alternating 429/200 pattern where the cross-row breaker never
 # trips (each 200 resets the count) yet one row would otherwise spin until timeout.
 _MAX_429_PER_CALL = 10
 
+# Qiniu error codes / messages that mean "quota exhausted" — retrying today is
+# futile, so we raise ProviderQuotaExhaustedError (the runner stops, no backoff loop).
+_QUOTA_EXHAUSTED_CODES = {"429001", "FailedOperation.FreeQuotaExhausted"}
 
-class OpenRouterProvider(LLMProvider):
-    name = "openrouter"
+
+class QiniuProvider(LLMProvider):
+    name = "qiniu"
 
     def __init__(self) -> None:
-        self._api_key = settings.openrouter_api_key
-        self._base_url = settings.openrouter_base_url.rstrip("/")
+        self._api_key = settings.qiniu_api_key
+        # Fail fast on a missing key: silently falling back to Mock would corrupt
+        # evaluation results with fake data. Callers pick this provider only when a
+        # real Qiniu key is configured, so an empty key is a misconfiguration.
+        if not self._api_key.strip():
+            raise ValueError(
+                "QiniuProvider requires QINIU_API_KEY; set it in .env (do not leave empty)"
+            )
+        self._base_url = settings.qiniu_base_url.rstrip("/")
         self._timeout = settings.eval_request_timeout
         # Free-model token bucket (throttle, not serialize): caps overall send rate
-        # under free_model_rpm_cap. Free models measured RPM>=325, so the bucket is
-        # sized for headroom and rarely blocks. Created lazily on first use to bind
-        # to whatever event loop the call runs on (provider is built once per run).
+        # under free_model_rpm_cap. Created lazily on first use to bind to whatever
+        # event loop the call runs on (provider is built once per run).
         self._free_bucket_lock: asyncio.Lock | None = None
         self._free_tokens: float = 0.0
         self._free_last_refill: float = 0.0
-        # Consecutive 429 counter, reset on any successful response. The runner
-        # calls get_provider() once per run, so this instance is scoped to a single
+        # Consecutive 429 counter, reset on any successful response. The runner calls
+        # get_provider() once per run, so this instance is scoped to a single
         # experiment run — the breaker never trips because of *another* run's
         # throttling (it only reacts to this run's own consecutive 429s).
         self._consecutive_429 = 0
 
     def _is_free_model(self, request: CompletionRequest) -> bool:
-        # Free tier when the id carries the conventional ":free" marker OR the runner
-        # flagged this model free via the control-plane request field.
-        return request.is_free or request.model_id.endswith(_FREE_MODEL_MARKER)
+        # The Qiniu model id need not carry a ":free" suffix, so free-model detection
+        # is driven by: (1) the control-plane request.is_free flag the runner sets from
+        # the model's metadata, (2) the conventional ":free" marker, (3) the configured
+        # qiniu_free_models id list as a fallback.
+        if request.is_free:
+            return True
+        if request.model_id.endswith(":free"):
+            return True
+        return request.model_id in settings.qiniu_free_set
 
     async def complete(self, request: CompletionRequest) -> CompletionResult:
-        # Free models: throttle via a token bucket (measured RPM>=325, so the bucket
-        # is sized for headroom and rarely blocks) instead of a fixed sleep. This lets
-        # the runner fire many rows concurrently without self-inflicting 429s. Non-free
-        # models skip the bucket and keep their current high-throughput path.
+        # Free-model throttling via a token bucket (measured RPM well above the cap),
+        # so the runner can fire many rows concurrently without self-inflicting 429s.
         if self._is_free_model(request):
             await self._acquire_free_token()
-            return await self._call(request)
         return await self._call(request)
 
     async def _acquire_free_token(self) -> None:
         """Block until a free-tier send token is available (token-bucket rate limit).
 
-        Refills `free_model_rpm_cap` tokens per minute; caps in-flight send rate without
+        Refills `qiniu_rpm_cap` tokens per minute; caps in-flight send rate without
         forcing a fixed per-call sleep. Under normal load the bucket stays full and this
         returns immediately. Lazily initialized on first use to bind to the call's loop.
         """
         if self._free_bucket_lock is None:
             self._free_bucket_lock = asyncio.Lock()
-            self._free_tokens = float(settings.free_model_rpm_cap)
+            self._free_tokens = float(settings.qiniu_rpm_cap)
             self._free_last_refill = time.perf_counter()
         async with self._free_bucket_lock:
-            capacity = float(settings.free_model_rpm_cap)
+            capacity = float(settings.qiniu_rpm_cap)
             refill_per_sec = capacity / 60.0
             while self._free_tokens < 1.0:
                 elapsed = time.perf_counter() - self._free_last_refill
@@ -113,8 +129,6 @@ class OpenRouterProvider(LLMProvider):
 
         headers = {
             "Authorization": f"Bearer {self._api_key}",
-            "HTTP-Referer": settings.openrouter_http_referer,
-            "X-Title": settings.openrouter_app_title,
             "Content-Type": "application/json",
         }
 
@@ -122,10 +136,7 @@ class OpenRouterProvider(LLMProvider):
         last_exc: Exception | None = None
         # Instant-retry counter for transient non-rate-limit failures (5xx/timeout).
         transient_attempts = 0
-        # Per-call 429 retry cap. A single row must not retry 429 forever: under an
-        # alternating 429/200 pattern the cross-row breaker never trips (each 200
-        # resets the count), so without this cap one slow row could spin until the
-        # runner's wait_for timeout. Hitting the cap aborts this row like the breaker.
+        # Per-call 429 retry cap. A single row must not retry 429 forever.
         call_429 = 0
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             while True:
@@ -134,16 +145,22 @@ class OpenRouterProvider(LLMProvider):
                         f"{self._base_url}/chat/completions", json=payload, headers=headers
                     )
                     if resp.status_code == 429:
+                        # Quota-exhausted signal: retrying today is futile — stop the
+                        # run rather than backing off forever.
+                        if self._is_quota_exhausted(resp):
+                            raise ProviderQuotaExhaustedError(
+                                "Qiniu quota exhausted (free/daily quota used up); "
+                                "stopping run until quota resets"
+                            )
                         # Persistent throttle: keep backing off, but count it toward
                         # the cross-row circuit breaker. When the burst threshold is
                         # hit the upstream clearly won't recover on its own, so we
-                        # abort the whole run (runner turns it into a 'failed' status)
-                        # instead of spinning row-by-row for hours.
+                        # abort the whole run instead of spinning row-by-row.
                         self._consecutive_429 += 1
                         call_429 += 1
                         if call_429 >= _MAX_429_PER_CALL or self._consecutive_429 >= _RATE_LIMIT_BURST:
                             raise ProviderRateLimitedError(
-                                "OpenRouter rate limited (429) persistently; aborting run"
+                                "Qiniu rate limited (429) persistently; aborting run"
                             )
                         last_exc = httpx.HTTPStatusError(
                             "upstream returned 429",
@@ -157,7 +174,9 @@ class OpenRouterProvider(LLMProvider):
                         # times, distinct from the rate-limit circuit breaker.
                         transient_attempts += 1
                         if transient_attempts >= _RETRY_COUNT:
-                            resp.raise_for_status()
+                            raise ProviderRateLimitedError(
+                                f"Qiniu returned {resp.status_code} persistently; aborting run"
+                            )
                         last_exc = httpx.HTTPStatusError(
                             f"upstream returned {resp.status_code}",
                             request=resp.request,
@@ -165,6 +184,17 @@ class OpenRouterProvider(LLMProvider):
                         )
                         await self._backoff(resp, transient_attempts)
                         continue
+                    if resp.status_code >= 400:
+                        # Client error other than 429 (e.g. 400/401/404): the request
+                        # is bad or the key is invalid — retrying won't help, surface
+                        # it immediately with the upstream detail.
+                        try:
+                            detail = resp.json()
+                        except Exception:  # noqa: BLE001
+                            detail = resp.text
+                        raise ProviderRateLimitedError(
+                            f"Qiniu returned {resp.status_code}: {detail}"
+                        )
                     resp.raise_for_status()
                     data = resp.json()
                     # Any successful response resets the throttle counter.
@@ -181,15 +211,48 @@ class OpenRouterProvider(LLMProvider):
 
         latency_ms = int((time.perf_counter() - started) * 1000)
 
-        text = data["choices"][0]["message"]["content"] or ""
+        # Robust parsing: tolerate missing usage / choices without crashing.
+        choices = data.get("choices") or []
+        if not choices:
+            raise ProviderRateLimitedError(
+                "Qiniu returned no choices in response"
+            )
+        first = choices[0] or {}
+        message = first.get("message") or {}
+        text = message.get("content") or ""
         usage = data.get("usage", {}) or {}
         return CompletionResult(
             text=text,
             prompt_tokens=int(usage.get("prompt_tokens", 0)),
             completion_tokens=int(usage.get("completion_tokens", 0)),
             latency_ms=latency_ms,
-            raw={"provider": "openrouter", "id": data.get("id")},
+            raw={"provider": "qiniu", "id": data.get("id")},
         )
+
+    @staticmethod
+    def _is_quota_exhausted(resp: httpx.Response) -> bool:
+        """Detect a quota-exhausted 429 (vs a transient throttle).
+
+        Qiniu signals this via an error body whose `code`/`error.code` is one of
+        _QUOTA_EXHAUSTED_CODES, or a message containing the free-quota marker. Best
+        effort: if we cannot read the body, treat it as a normal throttle and let the
+        retry/breaker logic handle it.
+        """
+        try:
+            body = resp.json()
+        except Exception:  # noqa: BLE001
+            return False
+        # Qiniu nests the code either at top-level `code` or under `error.code`.
+        code = str(body.get("code") or (body.get("error") or {}).get("code") or "")
+        if code in _QUOTA_EXHAUSTED_CODES:
+            return True
+        # Secondary, high-confidence message signal: only the precise free-quota
+        # marker. A plain 429 whose message merely mentions "quota" must NOT be
+        # misclassified as exhausted — that would abort a healthy run that just needs
+        # to back off. We deliberately avoid fuzzy "quota" + "exhaust" substring
+        # matching for that reason.
+        message = str(body.get("message") or (body.get("error") or {}).get("message") or "")
+        return "FreeQuotaExhausted" in message
 
     async def _backoff(self, resp: httpx.Response | None, attempt: int) -> None:
         if resp is not None:

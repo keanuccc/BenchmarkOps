@@ -36,6 +36,24 @@ class Settings(BaseSettings):
     openrouter_http_referer: str = "http://localhost:3000"
     openrouter_app_title: str = "BenchmarkOps"
 
+    # Provider routing. The default gateway used when a model does not pin its own
+    # provider. User wants Qiniu AI as the default gateway. Allowed: openrouter|qiniu|mock.
+    default_provider: str = "qiniu"
+
+    # Qiniu Cloud AI Token API (OpenAI-compatible), the second gateway. Empty key ->
+    # provider disabled (Mock fallback unless explicitly requested). The key lives only
+    # in .env, which is git-ignored; never hardcode it here.
+    qiniu_api_key: str = ""
+    qiniu_base_url: str = "https://api.qnaigc.com/v1"
+    # RPM / RPD token-bucket caps for Qiniu. Qiniu has no global fixed RPM/RPD — the
+    # real ceiling is per-API-key quota — so these are our local safety caps. User
+    # runs large daily batches, so set high: ~300 RPM, 5000 requests/day.
+    qiniu_rpm_cap: int = 300
+    qiniu_rpd_cap: int = 5000
+    # Comma-separated Qiniu model ids that are free-tier (need token-bucket throttle
+    # even without a ":free" suffix). Complements the conventional ":free" marker.
+    qiniu_free_models: str = ""
+
     # Evaluation runner
     eval_max_workers: int = 4
     eval_request_timeout: int = 60
@@ -57,9 +75,14 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
 
     @property
+    def qiniu_free_set(self) -> set[str]:
+        """Parsed set of free-tier Qiniu model ids (from qiniu_free_models)."""
+        return {m.strip() for m in self.qiniu_free_models.split(",") if m.strip()}
+
+    @property
     def provider_enabled(self) -> bool:
-        """True when a real provider key is configured; else Mock is used."""
-        return bool(self.openrouter_api_key.strip())
+        """True when any real provider key is configured; else Mock is used."""
+        return bool(self.openrouter_api_key.strip()) or bool(self.qiniu_api_key.strip())
 
 
 @lru_cache

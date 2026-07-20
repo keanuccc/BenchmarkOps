@@ -151,12 +151,23 @@ async def run_experiment(experiment_id: str) -> None:
         if msnap:
             model_ref = msnap.get("model_id")
             pricing = msnap.get("pricing", {}) or {}
+            # Routing: honor the model's pinned provider if present in the snapshot,
+            # else fall back to the configured default provider.
+            model_provider = msnap.get("provider") or settings.default_provider
+            model_is_free = bool(msnap.get("is_free", False))
         else:
             model = await load_session.get(Model, experiment.model_id)
             if model is None:
                 return await _mark_failed(experiment_id, "Experiment references a missing model")
             model_ref = model.model_id
             pricing = model.pricing
+            model_provider = model.provider or settings.default_provider
+            # Model table has no is_free column; derive from the ":free" suffix
+            # convention and, for Qiniu, the configured free-model set.
+            model_is_free = (
+                model.model_id.endswith(":free")
+                or (model.provider == "qiniu" and model.model_id in settings.qiniu_free_set)
+            )
 
         if not metric_name:
             return await _mark_failed(experiment_id, "Experiment has no scoring metric")
@@ -174,7 +185,9 @@ async def run_experiment(experiment_id: str) -> None:
             offset += len(batch)
 
         metric_fn = get_metric(metric_name)
-        provider = get_provider()
+        # Route by the model's pinned provider (falling back to the configured default).
+        # The registry raises if the named gateway has no key configured.
+        provider = get_provider(model_provider)
         params = experiment.params or {}
         temperature = float(params.get("temperature", 0.0))
         max_tokens = params.get("max_tokens")
@@ -204,6 +217,7 @@ async def run_experiment(experiment_id: str) -> None:
             messages=[ChatMessage(role="user", content=rendered)],
             temperature=temperature,
             max_tokens=max_tokens,
+            is_free=model_is_free,
         )
         expected_str = _first_value(row.expected)
         try:
@@ -272,10 +286,12 @@ async def run_experiment(experiment_id: str) -> None:
                 scored += 1
                 cells_done += 1
 
-    is_free = model_ref.endswith(":free")
+    is_free = model_is_free
     if is_free:
         # Free models measured RPM>=325 + high burst; run rows concurrently (bounded by
         # free_model_concurrency) and merge results serially. No fixed per-row sleep.
+        # Applies to OpenRouter ":free" models and Qiniu free-tier models alike, since
+        # the provider layer throttles them via its own token bucket.
         sem = asyncio.Semaphore(settings.free_model_concurrency)
 
         async def _guarded(row):
