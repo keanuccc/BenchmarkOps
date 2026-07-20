@@ -46,9 +46,12 @@ class Settings(BaseSettings):
     qiniu_api_key: str = ""
     qiniu_base_url: str = "https://api.qnaigc.com/v1"
     # RPM / RPD token-bucket caps for Qiniu. Qiniu has no global fixed RPM/RPD — the
-    # real ceiling is per-API-key quota — so these are our local safety caps. User
-    # runs large daily batches, so set high: ~300 RPM, 5000 requests/day.
-    qiniu_rpm_cap: int = 300
+    # real ceiling is the per-API-key invisible rate window (free/basic tiers hit
+    # "rate limit reached for RPM" around ~15-40 RPM, confirmed from request logs).
+    # These are LOCAL safety caps sized BELOW that window so the bucket throttles
+    # locally instead of wasting calls on 429s. Start conservative; raise gradually
+    # while watching 请求日志.csv for 429s to find the true ceiling.
+    qiniu_rpm_cap: int = 15
     qiniu_rpd_cap: int = 5000
     # Comma-separated Qiniu model ids that are free-tier (need token-bucket throttle
     # even without a ":free" suffix). Complements the conventional ":free" marker.
@@ -58,12 +61,10 @@ class Settings(BaseSettings):
     eval_max_workers: int = 4
     eval_request_timeout: int = 60
 
-    # Free-model throttle (measured, not assumed): probing showed tencent/hy3:free
-    # sustains ~10 concurrent requests with zero 429 and RPM >= 325. We therefore do
-    # NOT space calls with a fixed sleep; instead we cap in-flight rows per run
-    # (free_model_concurrency) and cap overall send rate via a token bucket
-    # (free_model_rpm_cap), both well under the measured ceiling for headroom.
-    free_model_concurrency: int = 8
+    # Free-model throttle: cap in-flight rows per run. Lowered to 3 so a single
+    # experiment does not fire 8 concurrent calls in one instant and trip Qiniu's
+    # invisible per-key RPM window (observed 429s in 请求日志.csv at higher burst).
+    free_model_concurrency: int = 3
     free_model_rpm_cap: int = 300
 
     # Dataset upload limits (resource-exhaustion protection)

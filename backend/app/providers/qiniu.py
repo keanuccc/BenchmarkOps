@@ -184,10 +184,32 @@ class QiniuProvider(LLMProvider):
                         )
                         await self._backoff(resp, transient_attempts)
                         continue
+                    if resp.status_code == 403:
+                        # 403 "access denied for invalid user" was observed as a
+                        # transient, one-off event in request logs (the same model
+                        # succeeds on adjacent calls). Retry it sparingly like a 5xx
+                        # rather than failing the row instantly; a sustained 403
+                        # (truly invalid key) will still exhaust _RETRY_COUNT fast.
+                        transient_attempts += 1
+                        if transient_attempts >= _RETRY_COUNT:
+                            try:
+                                detail = resp.json()
+                            except Exception:  # noqa: BLE001
+                                detail = resp.text
+                            raise ProviderRateLimitedError(
+                                f"Qiniu returned 403: {detail}"
+                            )
+                        last_exc = httpx.HTTPStatusError(
+                            f"upstream returned 403",
+                            request=resp.request,
+                            response=resp,
+                        )
+                        await self._backoff(resp, transient_attempts)
+                        continue
                     if resp.status_code >= 400:
-                        # Client error other than 429 (e.g. 400/401/404): the request
-                        # is bad or the key is invalid — retrying won't help, surface
-                        # it immediately with the upstream detail.
+                        # Client error other than 403/429 (e.g. 400/401/404): the
+                        # request is bad or the key is invalid — retrying won't help,
+                        # surface it immediately with the upstream detail.
                         try:
                             detail = resp.json()
                         except Exception:  # noqa: BLE001
