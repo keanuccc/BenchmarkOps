@@ -291,7 +291,7 @@ def test_init_without_key_raises(monkeypatch):
 # concurrency: free-model token bucket does not block under light load
 # ---------------------------------------------------------------------------
 async def test_free_model_concurrent_token_bucket(monkeypatch):
-    """8 concurrent free-model calls all succeed without exhausting the RPM bucket."""
+    """5 concurrent free-model calls (matching free_model_concurrency) all succeed without exhausting the RPM bucket."""
     _patch_client(monkeypatch, [_ok_resp() for _ in range(8)])
     provider = _provider()
 

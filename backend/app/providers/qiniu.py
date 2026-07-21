@@ -65,7 +65,7 @@ class QiniuProvider(LLMProvider):
         self._base_url = settings.qiniu_base_url.rstrip("/")
         self._timeout = settings.eval_request_timeout
         # Free-model token bucket (throttle, not serialize): caps overall send rate
-        # under free_model_rpm_cap. Created lazily on first use to bind to whatever
+        # under qiniu_rpm_cap=75. Created lazily on first use to bind to whatever
         # event loop the call runs on (provider is built once per run).
         self._free_bucket_lock: asyncio.Lock | None = None
         self._free_tokens: float = 0.0
