@@ -101,7 +101,28 @@ class ExperimentResultRead(BaseModel):
     expected: dict | None
     output: str
     score: float
+    cleaned_prediction: str | None = None
+    expected_canonical: str | None = None
+    score_reason: str | None = None
     latency_ms: int
     tokens: int
     cost: float
     error: str | None
+
+
+class ExperimentRecomputeDifference(BaseModel):
+    row_idx: int
+    stored_score: float
+    recomputed_score: float
+    cleaned_prediction: str
+    expected_canonical: str
+    score_reason: str
+
+
+class ExperimentRecomputeReport(BaseModel):
+    metric: str
+    rows_total: int
+    stored_accuracy: float
+    recomputed_accuracy: float
+    changed_rows: int
+    differences: list[ExperimentRecomputeDifference]

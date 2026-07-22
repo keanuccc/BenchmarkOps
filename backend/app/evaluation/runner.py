@@ -6,14 +6,16 @@ import logging
 import re
 import time
 
-from sqlalchemy.exc import SQLAlchemyError
-
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, with_retry_on_lock
-from app.evaluation.metrics import _call_metric, get_metric
+from app.evaluation.metrics import (
+    _call_metric,
+    get_metric,
+    has_metric_suite,
+    normalize_metric_suite,
+)
 from app.models.benchmark import Benchmark
-from app.models.dataset import DatasetRow
-from app.models.experiment import Experiment, ExperimentResult
+from app.models.experiment import ExperimentResult
 from app.models.model import Model
 from app.models.prompt import Prompt
 from app.providers.base import ChatMessage, CompletionRequest, ProviderRateLimitedError
@@ -30,6 +32,11 @@ _BATCH_SIZE = 500
 _PROGRESS_EVERY = 50
 
 logger = logging.getLogger(__name__)
+
+_ANSWER_PREFIX_RE = re.compile(
+    r"^(?:答[案题]?[：:\s]*|answer[s]?[：:]?\s*|final\s+answer\s*[：:]?\s*|结论[：:\s]*|最终答案[：:\s]*)",
+    flags=re.IGNORECASE,
+)
 
 
 def _first_value(d: dict | None) -> str:
@@ -116,16 +123,11 @@ def _extract_answer(text: str) -> str:
     lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
     if not lines:
         return ""
-    last = lines[-1]
+    last = next((line for line in reversed(lines) if _ANSWER_PREFIX_RE.match(line)), lines[-1])
 
     # Strip common answer-prefixes (case-insensitive, handles Chinese/English
     # colons including full-width ： and ：).
-    last = re.sub(
-        r"^(?:答[案题]?[：:\s]*|answer[s]?:?\s*|final\s+answer\s*:?\s*|结论[：:\s]*|最终答案[：:\s]*)",
-        "",
-        last,
-        flags=re.IGNORECASE,
-    )
+    last = _ANSWER_PREFIX_RE.sub("", last)
 
     # Remove surrounding quotes that some models add.
     last = last.strip().strip('"').strip("'").strip()
@@ -139,7 +141,7 @@ def _extract_answer(text: str) -> str:
     # the first value "40".
     if "，" in last:
         last = last.split("，", 1)[0].strip()
-    elif "," in last:
+    elif "," in last and not re.fullmatch(r"[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?", last):
         last = last.split(",", 1)[0].strip()
 
     # Strip leading labels like "面积=" / "半周长=" / "体积=" etc.
@@ -166,6 +168,20 @@ def _extract_answer(text: str) -> str:
     last = re.sub(r"\s+", "", last)
 
     return last
+
+
+def _score_reason(
+    metric_name: str, score: float, cleaned_prediction: str, expected_canonical: str
+) -> str:
+    outcome = "matched" if score >= 1.0 else "did not match"
+    if cleaned_prediction == expected_canonical:
+        detail = "cleaned prediction equals expected canonical answer"
+    else:
+        detail = (
+            f"cleaned prediction {cleaned_prediction!r} vs expected "
+            f"{expected_canonical!r}"
+        )
+    return f"{metric_name}: {outcome}; {detail}"
 
 
 def _render_prompt(template: str, variables: list[str], row_input: dict) -> str:
@@ -276,12 +292,16 @@ async def run_experiment(experiment_id: str) -> None:
         if bsnap:
             metric_name = bsnap.get("metric")
             metric_config = bsnap.get("metric_config", {}) or {}
+            benchmark_spec = bsnap.get("spec", {}) or {}
+            benchmark_type = bsnap.get("type")
         else:
             benchmark = await load_session.get(Benchmark, experiment.benchmark_id)
             if benchmark is None:
                 return await _mark_failed(experiment_id, "Experiment references a missing benchmark")
             metric_name = benchmark.metric
             metric_config = benchmark.metric_config
+            benchmark_spec = {}
+            benchmark_type = benchmark.type
 
         msnap = experiment.model_snapshot
         if msnap:
@@ -320,7 +340,10 @@ async def run_experiment(experiment_id: str) -> None:
             rows.extend(batch)
             offset += len(batch)
 
-        metric_fn = get_metric(metric_name)
+        metric_suite = normalize_metric_suite(metric_name, metric_config, benchmark_spec)
+        explicit_metric_suite = has_metric_suite(metric_config, benchmark_spec)
+        metric_fns = {item["name"]: get_metric(item["name"]) for item in metric_suite}
+        total_weight = sum(item["weight"] for item in metric_suite) or 1.0
         # Route by the model's pinned provider (falling back to the configured default).
         # The registry raises if the named gateway has no key configured.
         provider = get_provider(model_provider)
@@ -366,17 +389,26 @@ async def run_experiment(experiment_id: str) -> None:
             cleaned_expected = expected_str.strip()
             cleaned_prediction = _extract_answer(completion.text).strip()
 
-            # Resolve benchmark_type for metrics that need it (e.g. llm_judge).
-            benchmark_type = bsnap.get("type") if bsnap else None
-
-            score = float(await _call_metric(
-                metric_fn,
-                cleaned_prediction,
-                cleaned_expected,
-                expected_raw=row.expected,
-                benchmark_type=benchmark_type,
-                **(metric_config or {}),
-            ))
+            metric_scores: dict[str, float] = {}
+            weighted_score = 0.0
+            for item in metric_suite:
+                kwargs = dict(item["config"])
+                kwargs.setdefault("benchmark_type", benchmark_type)
+                metric_score = float(
+                    await _call_metric(
+                        metric_fns[item["name"]],
+                        cleaned_prediction,
+                        cleaned_expected,
+                        expected_raw=row.expected,
+                        **kwargs,
+                    )
+                )
+                metric_scores[item["name"]] = metric_score
+                weighted_score += metric_score * item["weight"]
+            score = weighted_score / total_weight
+            score_reason = _score_reason(
+                metric_name, score, cleaned_prediction, cleaned_expected
+            )
 
             cost = _cost(pricing or {}, completion.prompt_tokens, completion.completion_tokens)
             res = ExperimentResult(
@@ -386,11 +418,14 @@ async def run_experiment(experiment_id: str) -> None:
                 expected=row.expected,
                 output=completion.text,
                 score=score,
+                cleaned_prediction=cleaned_prediction,
+                expected_canonical=cleaned_expected,
+                score_reason=score_reason,
                 latency_ms=completion.latency_ms,
                 tokens=completion.total_tokens,
                 cost=cost,
             )
-            return res, False
+            return res, False, metric_scores
         except ProviderRateLimitedError as exc:
             res = ExperimentResult(
                 experiment_id=experiment_id,
@@ -401,7 +436,7 @@ async def run_experiment(experiment_id: str) -> None:
                 score=0.0,
                 error=str(exc)[:500],
             )
-            return res, True
+            return res, True, {}
         except Exception as exc:
             res = ExperimentResult(
                 experiment_id=experiment_id,
@@ -412,9 +447,11 @@ async def run_experiment(experiment_id: str) -> None:
                 score=0.0,
                 error=str(exc)[:500],
             )
-            return res, False
+            return res, False, {}
 
-    def _merge(res, is_rate_limited):
+    metric_totals: dict[str, float] = {item["name"]: 0.0 for item in metric_suite}
+
+    def _merge(res, is_rate_limited, metric_scores):
         """Fold one processed row into the shared accumulators. Called after gather, so
         no two merges run concurrently — safe without extra locking."""
         nonlocal scored, cells_done, cells_error, provider_errors, total_score, total_cost
@@ -435,6 +472,8 @@ async def run_experiment(experiment_id: str) -> None:
                 total_cost += res.cost or 0.0
                 total_tokens += res.tokens or 0
                 total_latency += res.latency_ms or 0
+                for name, metric_score in metric_scores.items():
+                    metric_totals[name] = metric_totals.get(name, 0.0) + metric_score
                 scored += 1
                 cells_done += 1
 
@@ -453,8 +492,8 @@ async def run_experiment(experiment_id: str) -> None:
         for i in range(0, len(rows), settings.free_model_concurrency):
             batch = rows[i : i + settings.free_model_concurrency]
             outcomes = await asyncio.gather(*(_guarded(r) for r in batch))
-            for res, is_rl in outcomes:
-                _merge(res, is_rl)
+            for res, is_rl, metric_scores in outcomes:
+                _merge(res, is_rl, metric_scores)
             processed += len(batch)
             # Report progress per batch (batch size == free_model_concurrency, well
             # under _PROGRESS_EVERY), so the UI bar advances without waiting
@@ -468,8 +507,8 @@ async def run_experiment(experiment_id: str) -> None:
         # Non-free models: keep the original strict-serial behavior (rate safety is
         # handled by the task queue's eval_max_workers, not by in-run concurrency).
         for row in rows:
-            res, is_rl = await _process_row(row)
-            _merge(res, is_rl)
+            res, is_rl, metric_scores = await _process_row(row)
+            _merge(res, is_rl, metric_scores)
             processed += 1
             if processed % _PROGRESS_EVERY == 0:
                 await _persist_progress(
@@ -482,9 +521,16 @@ async def run_experiment(experiment_id: str) -> None:
     accuracy = (total_score / scored) if scored else 0.0
     avg_latency = (total_latency / scored) if scored else 0.0
     status = "failed" if rate_limited else ("partial" if provider_errors > 0 else "completed")
+    metrics_by_name = {
+        name: metric_total / scored
+        for name, metric_total in metric_totals.items()
+        if scored
+    }
     metrics = {
-        "metric": metric_name,
+        "metric": "metric_suite" if explicit_metric_suite else metric_name,
         "accuracy": round(accuracy, 4),
+        "primary_score": round(accuracy, 4),
+        "metrics_by_name": metrics_by_name,
         "avg_latency_ms": round(avg_latency, 1),
         "rows_total": n,
         "rows_scored": scored,

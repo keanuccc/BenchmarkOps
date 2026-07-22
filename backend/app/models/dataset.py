@@ -19,6 +19,14 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
     tags: Mapped[list] = mapped_column(JSONType, default=list)
     stats: Mapped[dict] = mapped_column(JSONType, default=dict)
     column_schema: Mapped[list] = mapped_column(JSONType, default=list)
+    task_type: Mapped[str] = mapped_column(String(50), default="qa")
+    field_mapping: Mapped[dict] = mapped_column(JSONType, default=dict)
+    contract: Mapped[dict] = mapped_column(JSONType, default=dict)
+    source_filename: Mapped[str | None] = mapped_column(Text)
+    content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    import_status: Mapped[str] = mapped_column(String(20), default="ready")
+    import_errors: Mapped[list] = mapped_column(JSONType, default=list)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1)
 
 
 class DatasetRow(Base, UUIDMixin, TimestampMixin):

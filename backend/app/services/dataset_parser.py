@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from typing import Any
 
 from app.core.exceptions import ValidationError
 
@@ -78,7 +79,126 @@ def compute_stats(rows: list[dict]) -> dict:
     }
 
 
-def split_input_expected(row: dict) -> tuple[dict, dict | None]:
+def _field_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        if text.startswith("["):
+            try:
+                value = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValidationError(f"Invalid field list JSON: {exc}") from exc
+        else:
+            return [part.strip() for part in text.split(",") if part.strip()]
+    if isinstance(value, (list, tuple)):
+        return [str(item).strip() for item in value if str(item).strip()]
+    raise ValidationError("Field lists must be arrays or comma-separated strings")
+
+
+def _json_object(value: Any, label: str) -> dict:
+    if value is None:
+        return {}
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValidationError(f"Invalid {label} JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValidationError(f"{label} must be a JSON object")
+    return value
+
+
+def build_dataset_contract(
+    rows: list[dict],
+    *,
+    task_type: str | None = None,
+    input_fields: Any = None,
+    expected_fields: Any = None,
+    metadata_fields: Any = None,
+    required_fields: Any = None,
+    field_types: Any = None,
+    answer_policy: Any = None,
+    contract: Any = None,
+) -> dict:
+    """Build a lightweight dataset contract for import and validation."""
+    payload = _json_object(contract, "contract")
+    columns = infer_schema(rows)
+
+    mapped_input = _field_list(
+        input_fields if input_fields is not None else payload.get("input_fields")
+    )
+    mapped_expected = _field_list(
+        expected_fields if expected_fields is not None else payload.get("expected_fields")
+    )
+    mapped_metadata = _field_list(
+        metadata_fields if metadata_fields is not None else payload.get("metadata_fields")
+    )
+
+    if not mapped_expected:
+        mapped_expected = [col for col in columns if col in _EXPECTED_KEYS]
+    if not mapped_input:
+        excluded = set(mapped_expected) | set(mapped_metadata)
+        mapped_input = [col for col in columns if col not in excluded]
+
+    roles = {
+        "input": set(mapped_input),
+        "expected": set(mapped_expected),
+        "metadata": set(mapped_metadata),
+    }
+    overlap = (
+        (roles["input"] & roles["expected"])
+        | (roles["input"] & roles["metadata"])
+        | (roles["expected"] & roles["metadata"])
+    )
+    if overlap:
+        field = sorted(overlap)[0]
+        raise ValidationError(f"Field mapped to multiple roles: {field}")
+
+    normalized = {
+        "schema_version": int(payload.get("schema_version", 1) or 1),
+        "task_type": task_type or payload.get("task_type") or "qa",
+        "input_fields": mapped_input,
+        "expected_fields": mapped_expected,
+        "metadata_fields": mapped_metadata,
+        "required_fields": _field_list(
+            required_fields if required_fields is not None else payload.get("required_fields")
+        ),
+        "field_types": _json_object(
+            field_types if field_types is not None else payload.get("field_types"),
+            "field_types",
+        ),
+        "answer_policy": _json_object(
+            answer_policy if answer_policy is not None else payload.get("answer_policy"),
+            "answer_policy",
+        ),
+    }
+    normalized["field_mapping"] = {
+        "input_fields": normalized["input_fields"],
+        "expected_fields": normalized["expected_fields"],
+        "metadata_fields": normalized["metadata_fields"],
+    }
+    return normalized
+
+
+def _source_has_field(row: dict, field: str) -> bool:
+    if field in row and row[field] not in (None, ""):
+        return True
+    expected = row.get("expected")
+    return isinstance(expected, dict) and expected.get(field) not in (None, "")
+
+
+def validate_required_fields(row: dict, contract: dict, row_idx: int) -> list[str]:
+    issues: list[str] = []
+    for field in contract.get("required_fields", []) or []:
+        if not _source_has_field(row, field):
+            issues.append(f"Row {row_idx} missing required field: {field}")
+    return issues
+
+
+def split_input_expected(row: dict, contract: dict | None = None) -> tuple[dict, dict | None]:
     """Separate a dataset row into input fields and expected answer fields.
 
     Strategy:
@@ -95,27 +215,56 @@ def split_input_expected(row: dict) -> tuple[dict, dict | None]:
     * ``{"text": "...", "label": "正面"}`` → input={text}, expected={label:正面}
     * ``{"question": "...", "expected": {"answer": "北京"}}`` → input={question}, expected={answer:北京}
     """
+    source = dict(row)
+    mapping = (contract or {}).get("field_mapping", contract or {})
+    input_fields = mapping.get("input_fields") or []
+    expected_fields = mapping.get("expected_fields") or []
+    metadata_fields = mapping.get("metadata_fields") or []
+
+    if input_fields or expected_fields or metadata_fields:
+        input_data = {field: source[field] for field in input_fields if field in source}
+        metadata = {field: source[field] for field in metadata_fields if field in source}
+        if metadata:
+            input_data["_metadata"] = metadata
+
+        expected: dict = {}
+        nested_expected = source.get("expected")
+        for field in expected_fields:
+            if field == "expected" and "expected" in source:
+                expected_val = source["expected"]
+                if isinstance(expected_val, dict):
+                    expected.update(expected_val)
+                elif isinstance(expected_val, list):
+                    expected["answer"] = expected_val
+                else:
+                    expected["answer"] = expected_val
+            elif field in source:
+                expected[field] = source[field]
+            elif isinstance(nested_expected, dict) and field in nested_expected:
+                expected[field] = nested_expected[field]
+        return input_data, expected or None
+
     # Step 1: Check for explicit "expected" key (could be a dict or list).
-    if "expected" in row:
-        expected_val = row.pop("expected")
+    if "expected" in source:
+        expected_val = source.pop("expected")
         if isinstance(expected_val, dict):
-            return row, expected_val
+            return source, expected_val
         elif isinstance(expected_val, list):
             # Wrap list of answers into a single expected dict.
-            return row, {"answer": expected_val}
+            return source, {"answer": expected_val}
         else:
-            return row, {"answer": expected_val}
+            return source, {"answer": expected_val}
 
     # Step 2: Look for known answer keys and collect them.
     expected_keys = set()
-    for key in row:
+    for key in source:
         if key in _EXPECTED_KEYS:
             expected_keys.add(key)
 
     if expected_keys:
         expected = {}
         remaining = {}
-        for key, value in row.items():
+        for key, value in source.items():
             if key in expected_keys:
                 expected[key] = value
             else:
@@ -123,4 +272,4 @@ def split_input_expected(row: dict) -> tuple[dict, dict | None]:
         return remaining, expected if expected else None
 
     # Step 3: No expected fields found — treat entire row as input.
-    return row, None
+    return source, None

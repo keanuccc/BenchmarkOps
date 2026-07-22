@@ -4,12 +4,11 @@ from __future__ import annotations
 from typing import Sequence
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import get_session
 from app.core.exceptions import ValidationError
 from app.core.security import require_auth
+from app.models.dataset import Dataset, DatasetRow
 from app.schemas.dataset import DatasetRead, DatasetRowRead, DatasetUpdate
 from app.services.dataset_parser import parse_dataset
 from app.services.dataset_service import DatasetService, get_dataset_service
@@ -26,6 +25,14 @@ async def upload_dataset(
     description: str | None = Form(None),
     tags: str | None = Form(None),
     format: str | None = Form(None),
+    task_type: str | None = Form(None),
+    input_fields: str | None = Form(None),
+    expected_fields: str | None = Form(None),
+    metadata_fields: str | None = Form(None),
+    required_fields: str | None = Form(None),
+    field_types: str | None = Form(None),
+    answer_policy: str | None = Form(None),
+    contract: str | None = Form(None),
     file: UploadFile = File(...),
     service: DatasetService = Depends(get_dataset_service),
     _: None = Depends(require_auth),
@@ -71,6 +78,15 @@ async def upload_dataset(
         tags=tag_list,
         fmt=fmt,
         raw_bytes=raw,
+        task_type=task_type,
+        input_fields=input_fields,
+        expected_fields=expected_fields,
+        metadata_fields=metadata_fields,
+        required_fields=required_fields,
+        field_types=field_types,
+        answer_policy=answer_policy,
+        contract=contract,
+        source_filename=file.filename,
     )
 
 
@@ -113,10 +129,16 @@ async def dataset_stats(
 @router.post("/{dataset_id}/validate", response_model=dict)
 async def validate_dataset(
     dataset_id: str,
+    prompt_variables: str | None = Query(None),
     service: DatasetService = Depends(get_dataset_service),
     _: None = Depends(require_auth),
 ) -> dict:
-    return await service.validate(dataset_id)
+    variables = (
+        [v.strip() for v in prompt_variables.split(",") if v.strip()]
+        if prompt_variables
+        else None
+    )
+    return await service.validate(dataset_id, prompt_variables=variables)
 
 
 @router.patch("/{dataset_id}", response_model=DatasetRead)

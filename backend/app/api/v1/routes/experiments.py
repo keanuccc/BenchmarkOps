@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.core.security import require_auth
 from app.schemas.experiment import (
     ExperimentCreate,
+    ExperimentRecomputeReport,
     ExperimentRead,
     ExperimentResultRead,
     ExperimentUpdate,
@@ -65,6 +66,16 @@ async def get_results(
     service: ExperimentService = Depends(get_experiment_service),
 ):
     return await service.list_results(experiment_id, offset=offset, limit=limit)
+
+
+@router.post("/{experiment_id}/recompute-scores", response_model=ExperimentRecomputeReport)
+async def recompute_scores(
+    experiment_id: str,
+    diff_limit: int = 100,
+    service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(require_auth),
+):
+    return await service.recompute_scores(experiment_id, diff_limit=diff_limit)
 
 
 @router.patch("/{experiment_id}", response_model=ExperimentRead)

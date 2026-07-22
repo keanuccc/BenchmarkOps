@@ -97,6 +97,59 @@ async def _upgrade_experiment_progress_cells(conn) -> None:  # type: ignore[no-u
 MIGRATIONS[11] = _upgrade_experiment_progress_cells
 
 
+async def _upgrade_experiment_result_diagnostics(conn) -> None:  # type: ignore[no-untyped-def]
+    """Add row-level scoring diagnostics to experiment_results."""
+    cols = {
+        "cleaned_prediction": "TEXT",
+        "expected_canonical": "TEXT",
+        "score_reason": "TEXT",
+    }
+    existing = {
+        r[1]
+        for r in await conn.execute(sa.text("PRAGMA table_info(experiment_results)"))
+        if r and len(r) > 1
+    }
+    for col, dtype in cols.items():
+        if col not in existing:
+            await conn.execute(
+                sa.text(f"ALTER TABLE experiment_results ADD COLUMN {col} {dtype}")
+            )
+
+
+MIGRATIONS[12] = _upgrade_experiment_result_diagnostics
+
+
+async def _upgrade_dataset_contract_columns(conn) -> None:  # type: ignore[no-untyped-def]
+    """Add lightweight dataset contract/import metadata columns."""
+    cols = {
+        "task_type": "VARCHAR(50) NOT NULL DEFAULT 'qa'",
+        "field_mapping": "JSON NOT NULL DEFAULT '{}'",
+        "contract": "JSON NOT NULL DEFAULT '{}'",
+        "source_filename": "TEXT",
+        "content_hash": "VARCHAR(64)",
+        "import_status": "VARCHAR(20) NOT NULL DEFAULT 'ready'",
+        "import_errors": "JSON NOT NULL DEFAULT '[]'",
+        "schema_version": "INTEGER NOT NULL DEFAULT 1",
+    }
+    existing = {
+        r[1]
+        for r in await conn.execute(sa.text("PRAGMA table_info(datasets)"))
+        if r and len(r) > 1
+    }
+    for col, dtype in cols.items():
+        if col not in existing:
+            await conn.execute(sa.text(f"ALTER TABLE datasets ADD COLUMN {col} {dtype}"))
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_datasets_content_hash "
+            "ON datasets (content_hash)"
+        )
+    )
+
+
+MIGRATIONS[13] = _upgrade_dataset_contract_columns
+
+
 async def _ensure_version_table(conn: sa.ext.asyncio.AsyncConnection) -> None:
     """Create the framework `schema_version` table if it does not exist."""
     await conn.execute(

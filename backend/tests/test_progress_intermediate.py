@@ -35,7 +35,7 @@ class _SlowOkProvider(LLMProvider):
 @pytest.fixture()
 def patched_slow(monkeypatch):
     monkeypatch.setattr(
-        "app.evaluation.runner.get_provider", lambda: _SlowOkProvider()
+        "app.evaluation.runner.get_provider", lambda _name=None: _SlowOkProvider()
     )
     yield
 

@@ -3,7 +3,18 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class DatasetContract(BaseModel):
+    task_type: str = "qa"
+    input_fields: list[str] = Field(default_factory=list)
+    expected_fields: list[str] = Field(default_factory=list)
+    metadata_fields: list[str] = Field(default_factory=list)
+    required_fields: list[str] = Field(default_factory=list)
+    field_types: dict = Field(default_factory=dict)
+    answer_policy: dict = Field(default_factory=dict)
+    schema_version: int = 1
 
 
 class DatasetCreate(BaseModel):
@@ -32,6 +43,14 @@ class DatasetRead(BaseModel):
     tags: list
     stats: dict
     column_schema: list
+    task_type: str = "qa"
+    field_mapping: dict = Field(default_factory=dict)
+    contract: dict = Field(default_factory=dict)
+    source_filename: str | None = None
+    content_hash: str | None = None
+    import_status: str = "ready"
+    import_errors: list = Field(default_factory=list)
+    schema_version: int = 1
     created_at: datetime
     updated_at: datetime
 

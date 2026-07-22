@@ -21,7 +21,7 @@ from app.repositories.experiment import ExperimentRepository, ExperimentResultRe
 def force_mock_provider(monkeypatch):
     """Keep this an offline race test: never hit the real OpenRouter API."""
     monkeypatch.setattr(
-        "app.evaluation.runner.get_provider", lambda: MockProvider()
+        "app.evaluation.runner.get_provider", lambda _name=None: MockProvider()
     )
 
 

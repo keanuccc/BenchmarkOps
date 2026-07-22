@@ -14,7 +14,7 @@ import tempfile
 import uuid
 
 import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.migrations import MIGRATIONS, run_migrations
 
@@ -84,3 +84,38 @@ async def test_registered_migration_applied_once() -> None:
         await engine.dispose()
         MIGRATIONS.clear()
         MIGRATIONS.update(original)
+
+
+async def test_dataset_contract_migration_creates_content_hash_index() -> None:
+    """The dataset contract migration matches Dataset.content_hash index=True."""
+    engine = _make_engine()
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                sa.text(
+                    """
+                    CREATE TABLE datasets (
+                        id VARCHAR(36) PRIMARY KEY,
+                        project_id VARCHAR(36) NOT NULL,
+                        name VARCHAR(200) NOT NULL,
+                        description TEXT,
+                        format VARCHAR(10) NOT NULL,
+                        version INTEGER NOT NULL DEFAULT 1,
+                        row_count INTEGER NOT NULL DEFAULT 0,
+                        tags JSON NOT NULL DEFAULT '[]',
+                        stats JSON NOT NULL DEFAULT '{}',
+                        column_schema JSON NOT NULL DEFAULT '[]',
+                        created_at TIMESTAMP NOT NULL,
+                        updated_at TIMESTAMP NOT NULL
+                    )
+                    """
+                )
+            )
+            await MIGRATIONS[13](conn)
+
+            indexes = await conn.execute(sa.text("PRAGMA index_list(datasets)"))
+            index_names = {row[1] for row in indexes.fetchall()}
+
+        assert "ix_datasets_content_hash" in index_names
+    finally:
+        await engine.dispose()

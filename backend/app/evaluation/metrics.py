@@ -61,6 +61,75 @@ def list_metrics() -> list[str]:
     return sorted(_METRICS)
 
 
+def _explicit_metric_suite(metric_config: dict | None) -> list | None:
+    config = metric_config or {}
+    spec_config = config.get("spec") or {}
+    suite = config.get("metric_suite") or spec_config.get("metric_suite")
+    return suite if isinstance(suite, list) else None
+
+
+def has_metric_suite(metric_config: dict | None, spec: dict | None = None) -> bool:
+    return bool(_explicit_metric_suite(metric_config))
+
+
+def _configured_metric_suite(metric_config: dict | None, spec: dict | None = None) -> list | None:
+    explicit = _explicit_metric_suite(metric_config)
+    if explicit:
+        return explicit
+    suite = (spec or {}).get("metric_suite")
+    return suite if isinstance(suite, list) else None
+
+
+def normalize_metric_suite(
+    metric_name: str,
+    metric_config: dict | None = None,
+    spec: dict | None = None,
+) -> list[dict]:
+    """Return a normalized MetricSuite list.
+
+    Backward compatibility: benchmarks without an explicit ``metric_suite`` are
+    represented as a one-item suite using the legacy metric and full config.
+    """
+    suite = _configured_metric_suite(metric_config, spec)
+    if not suite:
+        return [{"name": metric_name, "weight": 1.0, "config": metric_config or {}}]
+
+    normalized: list[dict] = []
+    for item in suite:
+        if not isinstance(item, dict):
+            raise ValidationError("metric_suite entries must be objects")
+        name = item.get("name")
+        if not isinstance(name, str) or not name:
+            raise ValidationError("metric_suite entries require a metric name")
+        try:
+            weight = float(item.get("weight", 1.0))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(f"Invalid weight for metric {name!r}") from exc
+        config = item.get("config") or {}
+        if not isinstance(config, dict):
+            raise ValidationError(f"Config for metric {name!r} must be an object")
+        normalized.append(
+            {
+                "name": name,
+                "weight": weight,
+                "config": config,
+            }
+        )
+    return normalized
+
+
+def validate_metric_suite(metric_name: str, metric_config: dict | None = None) -> None:
+    suite = normalize_metric_suite(metric_name, metric_config)
+    total_weight = 0.0
+    for item in suite:
+        get_metric(item["name"])
+        if item["weight"] < 0:
+            raise ValidationError(f"Metric {item['name']!r} has negative weight")
+        total_weight += item["weight"]
+    if total_weight <= 0:
+        raise ValidationError("metric_suite requires a positive total weight")
+
+
 async def _call_metric(metric_fn: Metric, *args, **kwargs) -> float:
     """Invoke a metric function, handling both sync and async callables.
 
@@ -87,6 +156,38 @@ DEFAULT_METRIC_FOR_TYPE: dict[str, str] = {
 }
 
 
+def _flatten_strings(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (int, float, bool)):
+        return [str(value)]
+    if isinstance(value, list):
+        out: list[str] = []
+        for item in value:
+            out.extend(_flatten_strings(item))
+        return out
+    if isinstance(value, dict):
+        out: list[str] = []
+        for key in ("answer", "label", "output", "target", "ground_truth", "value", "text"):
+            if key in value:
+                out.extend(_flatten_strings(value[key]))
+        return out
+    return [str(value)]
+
+
+def _exact_ci_candidates(expected: str | None, expected_raw: dict | list | None) -> list[str]:
+    values = [expected or ""]
+    if isinstance(expected_raw, list):
+        values.extend(_flatten_strings(expected_raw))
+    elif isinstance(expected_raw, dict):
+        values.extend(_flatten_strings(expected_raw))
+        aliases = expected_raw.get("aliases", [])
+        values.extend(_flatten_strings(aliases))
+    return [re.sub(r"\s+", "", v.strip()).lower() for v in values if v and v.strip()]
+
+
 @register("exact_match")
 def exact_match(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
     pred = prediction.strip()
@@ -101,23 +202,11 @@ def exact_match(prediction: str, expected: str | None, *, expected_raw: dict | l
 
 @register("exact_match_ci")
 def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
-    pred = prediction.strip()
-    exp = (expected or "").strip()
-    if not exp:
+    pred_n = re.sub(r"\s+", "", prediction.strip()).lower()
+    candidates = _exact_ci_candidates(expected, expected_raw)
+    if not candidates:
         return 0.0
-    # If expected_raw contains a list of valid answers, match any of them.
-    if isinstance(expected_raw, list):
-        return 1.0 if pred in [str(a).strip().lower() for a in expected_raw] else 0.0
-    # Normalize whitespace on both sides so "18 世纪" matches "18世纪".
-    pred_n = re.sub(r"\s+", "", pred).lower()
-    exp_n = re.sub(r"\s+", "", exp).lower()
-    if pred_n == exp_n:
-        return 1.0
-    # Substring fallback: if the expected answer appears inside the prediction,
-    # treat it as correct. This handles cases like:
-    #   expected="今天", prediction="今天更冷"
-    #   expected="40", prediction="40平方厘米" (after unit stripping, still catches partial)
-    if exp_n and exp_n in pred_n:
+    if pred_n in candidates:
         return 1.0
     return 0.0
 
@@ -140,8 +229,31 @@ def contains(prediction: str, expected: str | None, *, expected_raw: dict | list
 
 @register("f1_token")
 def f1_token(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
-    pred_tokens = prediction.lower().split()
-    exp_tokens = (expected or "").lower().split()
+    """Token-level F1 metric that handles both CJK and Latin scripts.
+
+    For texts containing CJK characters (Chinese/Japanese/Korean), uses *jieba*
+    for word segmentation; otherwise falls back to whitespace splitting.
+    """
+
+    def _tokenize(text: str) -> list[str]:
+        # Detect CJK presence — if any character falls in the CJK Unicode range,
+        # use jieba for proper word segmentation.
+        has_cjk = any("　" <= ch <= "鿿" for ch in text)
+        if not has_cjk:
+            return text.lower().split()
+        try:
+            import jieba
+            return [t for t in jieba.lcut(text.lower()) if t.strip()]
+        except ImportError:
+            # Fallback: character-level n-grams when jieba is unavailable.
+            # This is imperfect but still better than treating the whole string
+            # as a single token.
+            chars = [ch for ch in text.lower() if ch.strip()]
+            bigrams = ["".join(chars[i:i+2]) for i in range(len(chars)-1)]
+            return chars + bigrams
+
+    pred_tokens = _tokenize(prediction)
+    exp_tokens = _tokenize(expected or "")
     if not pred_tokens or not exp_tokens:
         return 0.0
     common = set(pred_tokens) & set(exp_tokens)
@@ -155,9 +267,13 @@ def f1_token(prediction: str, expected: str | None, *, expected_raw: dict | list
 @register("numeric_match")
 def numeric_match(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
     def _to_float(value: str | None) -> float | None:
-        cleaned = re.sub(r"[^0-9.\-]", "", (value or "").strip())
-        if cleaned in ("", "-", ".", "-."):
+        match = re.search(
+            r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?",
+            (value or "").strip(),
+        )
+        if match is None:
             return None
+        cleaned = match.group(0).replace(",", "")
         try:
             return float(cleaned)
         except ValueError:

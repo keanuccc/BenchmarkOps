@@ -67,6 +67,9 @@ class ExperimentResult(Base, UUIDMixin, TimestampMixin):
     output: Mapped[str] = mapped_column(Text, default="")
 
     score: Mapped[float] = mapped_column(Float, default=0.0)
+    cleaned_prediction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expected_canonical: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost: Mapped[float] = mapped_column(Float, default=0.0)
