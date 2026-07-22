@@ -21,6 +21,7 @@ from app.repositories.experiment import (
     ExperimentResultRepository,
 )
 from app.schemas.experiment import ExperimentCreate, ExperimentUpdate
+from app.services.benchmark_service import build_benchmark_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +57,7 @@ class ExperimentService:
             "variables": prompt.variables,
             "version": prompt.version,
         }
-        benchmark_snapshot = {
-            "metric": benchmark.metric,
-            "metric_config": benchmark.metric_config,
-        }
+        benchmark_snapshot = build_benchmark_snapshot(benchmark)
         model_snapshot = {
             "model_id": model.model_id,
             "name": model.name,
@@ -149,6 +147,9 @@ class ExperimentService:
             prompt_id=src.prompt_id,
             model_id=src.model_id,
             params=dict(src.params or {}),
+            prompt_snapshot=src.prompt_snapshot,
+            benchmark_snapshot=src.benchmark_snapshot,
+            model_snapshot=src.model_snapshot,
             status="pending",
         )
         return await self.experiments.create(clone)

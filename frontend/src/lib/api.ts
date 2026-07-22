@@ -11,6 +11,35 @@ export const API_BASE_URL =
 /** Default per-request timeout. Overridable by passing `signal`/`timeoutMs` in init. */
 export const DEFAULT_TIMEOUT_MS = 30000;
 
+// --- Token storage -----------------------------------------------------------
+// The API token is stored in sessionStorage (cleared on tab close). For
+// persistence across sessions use localStorage instead — but be aware that
+// tokens in localStorage are accessible to any script running on the page.
+let _token: string | null = null;
+
+try {
+  _token = sessionStorage.getItem("benchmarkops_api_token");
+} catch {
+  /* sessionStorage may be unavailable in some browsers */
+}
+
+export function setApiToken(token: string | null): void {
+  _token = token;
+  try {
+    if (token) {
+      sessionStorage.setItem("benchmarkops_api_token", token);
+    } else {
+      sessionStorage.removeItem("benchmarkops_api_token");
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getApiToken(): string | null {
+  return _token;
+}
+
 export interface ApiError {
   code: string;
   message: string;
@@ -55,7 +84,13 @@ export async function request<T>(path: string, init?: RequestOptions): Promise<T
 
   try {
     const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+        // Attach token if one is configured (the user set it in Settings).
+        // When no token is set, the backend runs in demo mode and ignores auth.
+        ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+      },
       cache: "no-store",
       ...init,
       signal,
@@ -72,6 +107,12 @@ export async function request<T>(path: string, init?: RequestOptions): Promise<T
         }
       } catch {
         /* non-JSON error body */
+      }
+      // When the server rejects with 401, clear the stale token so future
+      // requests don't keep failing. The user will see a network_error on the
+      // next attempt and can navigate to Settings to re-enter their token.
+      if (res.status === 401) {
+        setApiToken(null);
       }
       throw new ApiRequestError(res.status, code, message);
     }
@@ -453,3 +494,15 @@ export async function exportReport(id: string, title?: string): Promise<void> {
   // Defer revocation so the browser has time to start the download.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// --- Settings / API Token ---
+export interface ApiTokenStatus {
+  enabled: boolean;
+  masked: string;
+}
+
+export const getApiTokenStatus = () =>
+  api.get<ApiTokenStatus>("/settings/api-token");
+
+export const updateApiToken = (token: string) =>
+  api.post<ApiTokenStatus>("/settings/api-token", { token });

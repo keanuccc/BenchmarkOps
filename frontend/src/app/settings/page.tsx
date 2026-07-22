@@ -1,28 +1,75 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getHealth, type HealthResponse } from "@/lib/api";
-import { Card, Badge, EmptyState, Spinner, SectionTitle } from "@/components/ui";
-import { Settings, Server, KeyRound } from "lucide-react";
+import { getHealth, getApiTokenStatus, updateApiToken, type HealthResponse, type ApiTokenStatus } from "@/lib/api";
+import { setApiToken as setLocalToken } from "@/lib/api";
+import { Card, Badge, EmptyState, Spinner, SectionTitle, Button } from "@/components/ui";
+import { Settings, Server, KeyRound, Shield, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
 
 export default function SettingsPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<ApiTokenStatus | null>(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenForm, setTokenForm] = useState({ token: "", confirmPassword: "" });
+  const [tokenFeedback, setTokenFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const h = await getHealth();
+    Promise.all([
+      getHealth(),
+      getApiTokenStatus().catch(() => null),
+    ])
+      .then(([h, t]) => {
         setHealth(h);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load health.");
-      } finally {
-        setLoading(false);
-      }
-    })();
+        setTokenStatus(t);
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : "加载数据失败,请检查后端是否在线。");
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  async function handleSaveToken() {
+    if (!tokenForm.token.trim()) {
+      setTokenFeedback({ ok: false, msg: "请输入 API Token" });
+      return;
+    }
+    if (tokenForm.token !== tokenForm.confirmPassword) {
+      setTokenFeedback({ ok: false, msg: "两次输入的 Token 不一致" });
+      return;
+    }
+    setTokenLoading(true);
+    setTokenFeedback(null);
+    try {
+      const result = await updateApiToken(tokenForm.token);
+      setTokenStatus(result);
+      setLocalToken(tokenForm.token);
+      setTokenForm({ token: "", confirmPassword: "" });
+      setTokenFeedback({ ok: true, msg: "API Token 已保存，写入成功。" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "保存失败";
+      setTokenFeedback({ ok: false, msg });
+    } finally {
+      setTokenLoading(false);
+    }
+  }
+
+  async function handleRemoveToken() {
+    setTokenLoading(true);
+    try {
+      await updateApiToken("");
+      setTokenStatus({ enabled: false, masked: "" });
+      setLocalToken(null);
+      setTokenFeedback({ ok: true, msg: "API Token 已移除。" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "移除失败";
+      setTokenFeedback({ ok: false, msg });
+    } finally {
+      setTokenLoading(false);
+    }
+  }
 
   if (loading) {
     return <EmptyState message="Loading…" icon={<Spinner size={20} />} />;
@@ -33,7 +80,7 @@ export default function SettingsPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
         <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
-          后端连接与环境配置。
+          后端连接、认证配置与环境参数。
         </p>
       </header>
 
@@ -45,6 +92,106 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* --- API Token Management --- */}
+      <Card className="p-5">
+        <SectionTitle>
+          <span className="flex items-center gap-2">
+            <Shield size={14} /> 认证 Token
+          </span>
+        </SectionTitle>
+
+        {tokenStatus ? (
+          <div className="space-y-4">
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Row label="状态" value={
+                tokenStatus.enabled
+                  ? <Badge status="active">已启用</Badge>
+                  : <Badge status="pending">未启用（演示模式）</Badge>
+              } />
+              <Row label="Token 值" value={
+                tokenStatus.enabled ? (
+                  <span className="font-mono text-xs">
+                    {showToken ? tokenStatus.masked : "••••••••••••"}
+                    <button
+                      onClick={() => setShowToken(!showToken)}
+                      className="ml-2 inline-flex items-center gap-1 text-[var(--ocd-text-muted)] hover:text-[var(--ocd-text)]"
+                      title={showToken ? "隐藏" : "显示"}
+                    >
+                      {showToken ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
+                  </span>
+                ) : (
+                  <span className="text-[var(--ocd-text-faint)]">—</span>
+                )
+              } />
+            </dl>
+
+            {/* Token form — only visible when auth is disabled or token exists */}
+            <div className="rounded-lg p-4" style={{ background: "var(--ocd-surface-2)" }}>
+              <p className="mb-3 text-sm font-medium">
+                {tokenStatus.enabled ? "修改 API Token" : "配置 API Token 以启用认证"}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  type={showToken ? "text" : "password"}
+                  placeholder="输入新的 API Token"
+                  className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                  style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                  value={tokenForm.token}
+                  onChange={(e) => setTokenForm((f) => ({ ...f, token: e.target.value }))}
+                />
+                <input
+                  type={showToken ? "text" : "password"}
+                  placeholder="确认新 Token"
+                  className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                  style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                  value={tokenForm.confirmPassword}
+                  onChange={(e) => setTokenForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                />
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <Button
+                  onClick={handleSaveToken}
+                  disabled={tokenLoading || !tokenForm.token}
+                >
+                  {tokenLoading ? <Spinner size={14} /> : "保存 Token"}
+                </Button>
+                {tokenStatus.enabled && (
+                  <Button variant="danger" onClick={handleRemoveToken} disabled={tokenLoading}>
+                    移除 Token
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {tokenFeedback && (
+              <div
+                className="flex items-center gap-2 rounded-lg p-3 text-sm"
+                style={{
+                  background: tokenFeedback.ok
+                    ? "color-mix(in oklch, var(--ocd-ok) 12%, transparent)"
+                    : "color-mix(in oklch, var(--ocd-bad) 12%, transparent)",
+                  color: tokenFeedback.ok ? "var(--ocd-ok)" : "var(--ocd-bad)",
+                }}
+              >
+                {tokenFeedback.ok ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                {tokenFeedback.msg}
+              </div>
+            )}
+
+            <p className="text-xs text-[var(--ocd-text-faint)]">
+              保存后，所有写操作（POST/PATCH/DELETE）将需要携带此 Token。
+              读操作（GET）保持公开以便演示浏览。
+              Token 保存在浏览器 sessionStorage 中，关闭标签页后清除。
+              修改后的 Token 写入后端的 .env 文件，重启后端仍生效。
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--ocd-text-faint)]">暂无 Token 状态信息。</p>
+        )}
+      </Card>
+
+      {/* --- Backend Connection --- */}
       <Card className="p-5">
         <SectionTitle>
           <span className="flex items-center gap-2">
@@ -67,6 +214,7 @@ export default function SettingsPage() {
         )}
       </Card>
 
+      {/* --- Provider Mode --- */}
       <Card className="p-5">
         <SectionTitle>
           <span className="flex items-center gap-2">
@@ -83,10 +231,12 @@ export default function SettingsPage() {
           当供应商模式为 <code className="text-[var(--ocd-text-muted)]">mock</code> 时,
           后端使用合成供应商。在后端配置环境变量{" "}
           <code className="text-[var(--ocd-text-muted)]">OPENROUTER_API_KEY</code>
+          或 <code className="text-[var(--ocd-text-muted)]">QINIU_API_KEY</code>{" "}
           即可启用真实模型供应商。
         </p>
       </Card>
 
+      {/* --- Appearance --- */}
       <Card className="p-5">
         <SectionTitle>
           <span className="flex items-center gap-2">
@@ -98,6 +248,7 @@ export default function SettingsPage() {
         </p>
       </Card>
 
+      {/* --- CORS --- */}
       <Card className="p-5">
         <SectionTitle>CORS</SectionTitle>
         <p className="text-sm text-[var(--ocd-text-faint)]">

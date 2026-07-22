@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     api_v1_prefix: str = "/api/v1"
 
-    # Auth (empty -> no auth enforced, demo/Mock mode; set a value to enable global token auth)
+    # Auth: empty -> no auth enforced (demo/Mock mode); set a value to require Bearer token.
     api_token: str = ""
 
     # Database
@@ -81,8 +81,13 @@ class Settings(BaseSettings):
         """True when any real provider key is configured; else Mock is used."""
         return bool(self.openrouter_api_key.strip()) or bool(self.qiniu_api_key.strip())
 
+    @property
+    def auth_enabled(self) -> bool:
+        """True when a global API token is set (auth enforced on write endpoints)."""
+        return bool(self.api_token.strip())
 
-@lru_cache
+
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
 
