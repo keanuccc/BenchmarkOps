@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, with_retry_on_lock
-from app.evaluation.metrics import get_metric
+from app.evaluation.metrics import _call_metric, get_metric
 from app.models.benchmark import Benchmark
 from app.models.dataset import DatasetRow
 from app.models.experiment import Experiment, ExperimentResult
@@ -32,10 +33,139 @@ logger = logging.getLogger(__name__)
 
 
 def _first_value(d: dict | None) -> str:
+    """Extract the answer string from an expected-row dict.
+
+    Datasets may store the answer under different key names (``answer``, ``label``,
+    ``output``, ``target``, ``ground_truth``). We check those explicitly before
+    falling back to ``next(iter(...))``.
+
+    Handles common shapes:
+
+    * ``{"answer": "北京"}`` → ``"北京"``
+    * ``{"answer": ["北京", "北京市"]}`` → ``"北京"`` (first valid element)
+    * ``{"answer": {"text": "北京", "confidence": 0.9}}`` → ``"北京"``
+    * ``{"answer": 42}`` → ``"42"``
+    * ``{"result": "北京"}`` → ``"北京"`` (fallback to first value)
+    * ``None`` / empty → ``""``
+    """
     if not d:
         return ""
+
+    def _flatten(value: object) -> str:
+        """Recursively extract a string from nested dicts/lists."""
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, (int, float, bool)):
+            return str(value)
+        if isinstance(value, list):
+            for item in value:
+                s = _flatten(item)
+                if s:
+                    return s
+            return ""
+        if isinstance(value, dict):
+            # Prefer known answer keys, then first non-empty value.
+            for key in ("answer", "label", "output", "target", "ground_truth", "value", "text"):
+                if key in value:
+                    s = _flatten(value[key])
+                    if s:
+                        return s
+            for v in value.values():
+                s = _flatten(v)
+                if s:
+                    return s
+            return ""
+        return str(value).strip()
+
+    # First pass: look for known answer keys at the top level.
+    for key in ("answer", "label", "output", "target", "ground_truth"):
+        if key in d:
+            result = _flatten(d[key])
+            if result:
+                return result
+
+    # Fallback: flatten the first value.
     val = next(iter(d.values()), "")
-    return "" if val is None else str(val)
+    result = _flatten(val)
+    return "" if not result else result
+
+
+def _extract_answer(text: str) -> str:
+    """Strip the model's formatting noise so the metric compares against the
+    bare answer.
+
+    Handles the common patterns produced by the current prompt template:
+
+    * ``答案：亚洲`` / ``答案: 亚洲`` / ``答案: 亚洲`` / ``Answer: Asia``
+    * ``最终答案：xxx`` / ``结论：xxx``
+    * Multi-line CoT output — takes the last non-empty line and strips the
+      prefix from it.
+    * Trailing units / parentheticals that pollute exact-match scoring
+      (e.g. ``31元``, ``40平方厘米``, ``碳（C）``).
+    * Whitespace inside the answer (e.g. ``18 世纪`` -> ``18世纪``).
+    * Comma-separated multi-answer lines (e.g. ``答案：40平方厘米，13厘米``):
+      extracts the first numeric or short token before the comma, since the
+      expected value usually targets a single answer.
+    """
+    if not text:
+        return ""
+
+    # Split into lines; take the last non-empty line.
+    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+    if not lines:
+        return ""
+    last = lines[-1]
+
+    # Strip common answer-prefixes (case-insensitive, handles Chinese/English
+    # colons including full-width ： and ：).
+    last = re.sub(
+        r"^(?:答[案题]?[：:\s]*|answer[s]?:?\s*|final\s+answer\s*:?\s*|结论[：:\s]*|最终答案[：:\s]*)",
+        "",
+        last,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove surrounding quotes that some models add.
+    last = last.strip().strip('"').strip("'").strip()
+
+    # Drop a trailing parenthetical annotation (e.g. "碳（C）" -> "碳").
+    last = re.sub(r"\s*[（(][^）)]*[）)]\s*$", "", last)
+
+    # If the answer contains a Chinese comma suggesting multiple values were
+    # given, take only the first segment. This handles cases like
+    # "40平方厘米，13厘米" -> "40平方厘米" where the expected answer is just
+    # the first value "40".
+    if "，" in last:
+        last = last.split("，", 1)[0].strip()
+    elif "," in last:
+        last = last.split(",", 1)[0].strip()
+
+    # Strip leading labels like "面积=" / "半周长=" / "体积=" etc.
+    last = re.sub(r"^(?:面积|周长|半周长|体积|质量|速度|时间|长度|宽度|高度)[=：:\s]*", "", last)
+
+    # Drop trailing Chinese currency / measurement units that the model often appends.
+    # Order matters: match compound units (e.g. 平方千米, 立方米) before atomic units
+    # (米, 厘米) to avoid partial stripping like "100立方" from "100立方厘米".
+    last = re.sub(r"(?:元|块|美元|人民币|元/|$/)?$", "", last)
+    last = re.sub(
+        r"(?:平方千米|平方公里|平方米|平方厘米|平方毫米|"
+        r"立方米|立方分米|立方厘米|立方毫米|"
+        r"公顷|千米|公里|米|厘米|毫米|"
+        r"毫升|升|千克|克|吨|秒|分钟|小时|天|年|万元|亿元|个|只|头|条|张|本|辆|架|"
+        r"倍|分|度|℃|°C|°F|kg|g|mg|ml|L|m|cm|mm|km)$",
+        "",
+        last,
+    )
+
+    # Strip trailing punctuation that snuck into the answer.
+    last = last.rstrip("。,.!?！，、；：")
+
+    # Normalize whitespace inside the answer so "18 世纪" matches "18世纪".
+    last = re.sub(r"\s+", "", last)
+
+    return last
 
 
 def _render_prompt(template: str, variables: list[str], row_input: dict) -> str:
@@ -50,9 +180,15 @@ def _render_prompt(template: str, variables: list[str], row_input: dict) -> str:
 
 
 def _cost(pricing: dict, prompt_tokens: int, completion_tokens: int) -> float:
-    inp = float(pricing.get("input_per_1k", 0.0)) * (prompt_tokens / 1000.0)
-    out = float(pricing.get("output_per_1k", 0.0)) * (completion_tokens / 1000.0)
-    return round(inp + out, 6)
+    """Compute cost from per-1k pricing. Returns 0.0 when no pricing info is available."""
+    try:
+        if not pricing:
+            return 0.0
+        inp = float(pricing.get("input_per_1k", 0.0)) * (prompt_tokens / 1000.0)
+        out = float(pricing.get("output_per_1k", 0.0)) * (completion_tokens / 1000.0)
+        return round(inp + out, 6)
+    except Exception:
+        return 0.0
 
 
 async def _mark_failed(experiment_id: str, error: str) -> None:
@@ -225,7 +361,23 @@ async def run_experiment(experiment_id: str) -> None:
                 provider.complete(req),
                 timeout=settings.eval_request_timeout,
             )
-            score = float(metric_fn(completion.text, expected_str, **(metric_config or {})))
+            # Clean both sides before scoring: expected may come from a dict key,
+            # prediction may carry prompt-enforced prefixes like 「答案：」.
+            cleaned_expected = expected_str.strip()
+            cleaned_prediction = _extract_answer(completion.text).strip()
+
+            # Resolve benchmark_type for metrics that need it (e.g. llm_judge).
+            benchmark_type = bsnap.get("type") if bsnap else None
+
+            score = float(await _call_metric(
+                metric_fn,
+                cleaned_prediction,
+                cleaned_expected,
+                expected_raw=row.expected,
+                benchmark_type=benchmark_type,
+                **(metric_config or {}),
+            ))
+
             cost = _cost(pricing or {}, completion.prompt_tokens, completion.completion_tokens)
             res = ExperimentResult(
                 experiment_id=experiment_id,
@@ -279,10 +431,10 @@ async def run_experiment(experiment_id: str) -> None:
                 provider_errors += 1
                 cells_error += 1
             else:
-                total_score += res.score
-                total_cost += res.cost
-                total_tokens += res.tokens
-                total_latency += res.latency_ms
+                total_score += res.score or 0.0
+                total_cost += res.cost or 0.0
+                total_tokens += res.tokens or 0
+                total_latency += res.latency_ms or 0
                 scored += 1
                 cells_done += 1
 

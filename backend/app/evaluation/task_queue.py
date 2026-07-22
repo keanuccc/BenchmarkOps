@@ -54,14 +54,14 @@ class AsyncioTaskQueue(TaskQueue):
         self._ready.set()
         self._loop.run_forever()
 
-    def submit(self, coro_factory: Callable[[], Awaitable[None]]) -> None:
+    def submit(self, coro_factory: Callable[[], Awaitable[None]], *, experiment_id: str | None = None) -> None:
         # Schedule on the queue's own loop, independent of the caller's loop,
         # so the job survives the caller's loop shutting down after the request.
-        fut = asyncio.run_coroutine_threadsafe(self._guard(coro_factory), self._loop)
+        fut = asyncio.run_coroutine_threadsafe(self._guard(coro_factory, experiment_id=experiment_id), self._loop)
         self._futures.add(fut)
         fut.add_done_callback(self._futures.discard)
 
-    async def _guard(self, coro_factory: Callable[[], Awaitable[None]]) -> None:
+    async def _guard(self, coro_factory: Callable[[], Awaitable[None]], *, experiment_id: str | None = None) -> None:
         # Acquire the concurrency slot only when work actually begins, then run.
         # try/finally guarantees the slot is always released, even on failure.
         await self._sem.acquire()
@@ -69,8 +69,33 @@ class AsyncioTaskQueue(TaskQueue):
             await coro_factory()
         except Exception:  # noqa: BLE001
             logger.exception("Background evaluation task failed")
+            if experiment_id:
+                await _mark_experiment_failed(experiment_id)
         finally:
             self._sem.release()
+
+
+async def _mark_experiment_failed(experiment_id: str) -> None:
+    """Best-effort: mark an experiment as 'failed' when its background task crashes.
+
+    Must not be called while holding the long-running runner's session — this opens
+    its own isolated connection. Retries on transient 'database is locked'.
+    """
+    from app.core.database import AsyncSessionLocal, with_retry_on_lock
+    from app.repositories.experiment import ExperimentRepository
+
+    async def _write() -> None:
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentRepository(session)
+            exp = await repo.get(experiment_id)
+            if exp is not None and exp.status == "running":
+                await repo.update(exp, {"status": "failed"})
+                await session.commit()
+
+    try:
+        await with_retry_on_lock(_write)
+    except Exception:  # noqa: BLE001
+        logger.exception("failed to mark experiment %s as failed", experiment_id)
 
 
 # Singleton for v1 (swap for a Celery-backed impl later).

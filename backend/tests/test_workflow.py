@@ -12,7 +12,7 @@ from app.providers.mock import MockProvider
 def force_mock_provider(monkeypatch):
     """Keep this an offline smoke test: never hit the real OpenRouter API."""
     monkeypatch.setattr(
-        "app.evaluation.runner.get_provider", lambda: MockProvider()
+        "app.evaluation.runner.get_provider", lambda name=None: MockProvider()
     )
 
 

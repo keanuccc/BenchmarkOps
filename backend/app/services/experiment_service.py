@@ -129,7 +129,7 @@ class ExperimentService:
         # Mark queued immediately so the UI reflects receipt before work begins.
         await self.experiments.update(exp, {"status": "queued", "error": None})
         await self.session.commit()
-        task_queue.submit(lambda: run_experiment(experiment_id))
+        task_queue.submit(lambda: run_experiment(experiment_id), experiment_id=experiment_id)
         return exp
 
     async def retry(self, experiment_id: str) -> Experiment:
