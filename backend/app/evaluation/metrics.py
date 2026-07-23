@@ -362,8 +362,157 @@ async def llm_judge(
     text = (completion.text or "").strip().upper()
     # Check negative signals first — "NO_MATCH" contains "MATCH", so order matters.
     if any(tok in text for tok in ("NO_MATCH", "NO", "INCORRECT", "FALSE")):
+        score = 0.0
+    elif any(tok in text for tok in ("MATCH", "YES", "CORRECT", "TRUE")):
+        score = 1.0
+    else:
+        # Ambiguous / malformed response: default to 0.0 (conservative).
+        score = 0.0
+
+    # Cache the result for identical prediction+expected pairs.
+    _llm_judge_cached(prediction, expected, cached_value=score)
+    return score
+
+
+# --- LLM Judge Cache ----------------------------------------------------------
+# Simple in-process LRU cache for llm_judge results. Same (prediction, expected)
+# pair always returns the same score without re-calling the provider.
+
+_llm_judge_cache: dict[str, float] = {}
+_MAX_CACHE_SIZE = 4096
+
+
+def _llm_judge_cache_key(prediction: str, expected: str) -> str:
+    """Deterministic cache key from prediction+expected strings."""
+    import hashlib
+    raw = f"{prediction.strip()}|||{expected.strip()}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+def _llm_judge_cached(
+    prediction: str,
+    expected: str,
+    *,
+    cached_value: float,
+) -> float:
+    """Check the LLM judge cache; if hit, return cached value and evict LRU on miss."""
+    key = _llm_judge_cache_key(prediction, expected)
+    if key in _llm_judge_cache:
+        return _llm_judge_cache[key]
+    # On miss, store the result and evict oldest if full
+    if len(_llm_judge_cache) >= _MAX_CACHE_SIZE:
+        # Pop first inserted key (Python 3.7+ dicts preserve insertion order)
+        _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
+    _llm_judge_cache[key] = cached_value
+    return cached_value
+
+
+# --- Fuzzy Match Metric -------------------------------------------------------
+
+def _levenshtein_distance(s1: str, s2: str) -> int:
+    """Compute Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return _levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+
+    prev_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        curr_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = prev_row[j + 1] + 1
+            deletions = curr_row[j] + 1
+            substitutions = prev_row[j] + (c1 != c2)
+            curr_row.append(min(insertions, deletions, substitutions))
+        prev_row = curr_row
+
+    return prev_row[-1]
+
+
+@register("fuzzy_match")
+def fuzzy_match(
+    prediction: str,
+    expected: str | None,
+    *,
+    expected_raw: dict | list | None = None,
+    threshold: float = 0.8,
+    **kwargs,
+) -> float:
+    """Fuzzy string match using normalized Levenshtein distance.
+
+    Returns 1.0 when the prediction is within ``threshold`` similarity of the
+    expected answer, 0.0 otherwise. The threshold defaults to 0.8 (80% similarity).
+
+    Config key ``threshold`` can be passed via metric_config.
+
+    Handles CJK by normalizing whitespace and case before comparison.
+    """
+    exp = (expected or "").strip()
+    if not exp:
         return 0.0
-    if any(tok in text for tok in ("MATCH", "YES", "CORRECT", "TRUE")):
+
+    pred = prediction.strip()
+    if not pred:
+        return 0.0
+
+    # Normalize: remove whitespace, lowercase
+    pred_n = re.sub(r"\s+", "", pred).lower()
+    exp_n = re.sub(r"\s+", "", exp).lower()
+
+    if pred_n == exp_n:
         return 1.0
-    # Ambiguous / malformed response: default to 0.0 (conservative).
-    return 0.0
+
+    max_len = max(len(pred_n), len(exp_n))
+    if max_len == 0:
+        return 0.0
+
+    dist = _levenshtein_distance(pred_n, exp_n)
+    similarity = 1.0 - (dist / max_len)
+
+    return 1.0 if similarity >= threshold else 0.0
+
+
+@register("fuzzy_match_ci")
+def fuzzy_match_ci(
+    prediction: str,
+    expected: str | None,
+    *,
+    expected_raw: dict | list | None = None,
+    threshold: float = 0.8,
+    **kwargs,
+) -> float:
+    """Case-insensitive fuzzy match with multiple candidate answers.
+
+    Like exact_match_ci but uses fuzzy matching instead of exact equality.
+    Checks all candidates from expected_raw (aliases, lists, etc.).
+    Returns 1.0 if ANY candidate matches within the threshold.
+    """
+    exp = (expected or "").strip()
+    if not exp:
+        return 0.0
+
+    pred = prediction.strip()
+    if not pred:
+        return 0.0
+
+    # Normalize
+    pred_n = re.sub(r"\s+", "", pred).lower()
+
+    candidates = _exact_ci_candidates(expected, expected_raw)
+    if not candidates:
+        return 0.0
+
+    best_score = 0.0
+    for cand in candidates:
+        cand_n = re.sub(r"\s+", "", cand).lower()
+        if not cand_n:
+            continue
+        max_len = max(len(pred_n), len(cand_n))
+        if max_len == 0:
+            continue
+        dist = _levenshtein_distance(pred_n, cand_n)
+        similarity = 1.0 - (dist / max_len)
+        if similarity > best_score:
+            best_score = similarity
+
+    return 1.0 if best_score >= threshold else 0.0
