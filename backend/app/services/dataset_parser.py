@@ -12,12 +12,21 @@ _EXPECTED_KEYS = ("expected", "answer", "label", "output", "target", "ground_tru
 _SUPPORTED = ("csv", "json", "jsonl")
 
 
+def _decode_bytes(raw_bytes: bytes) -> str:
+    """Decode raw file bytes to text, trying UTF-8 first then falling back to GBK."""
+    try:
+        return raw_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        # Fallback for Windows-exported CSVs (GBK/GB2312 encoding).
+        return raw_bytes.decode("gbk")
+
+
 def parse_dataset(raw_bytes: bytes, fmt: str) -> list[dict]:
     fmt = (fmt or "").strip().lower()
     if fmt not in _SUPPORTED:
         raise ValidationError(f"Unsupported format: {fmt!r}")
 
-    text = raw_bytes.decode("utf-8")
+    text = _decode_bytes(raw_bytes)
     rows: list[dict]
 
     if fmt == "csv":

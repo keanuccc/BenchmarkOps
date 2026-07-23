@@ -19,6 +19,7 @@ from app.api.v1.routes import (
     prompts,
     reports,
     settings,
+    sse,
 )
 
 api_router = APIRouter()
@@ -31,5 +32,6 @@ api_router.include_router(datasets.router)
 api_router.include_router(prompts.router)
 api_router.include_router(benchmarks.router)
 api_router.include_router(experiments.router)
+api_router.include_router(sse.router)
 api_router.include_router(analytics.router)
 api_router.include_router(reports.router)

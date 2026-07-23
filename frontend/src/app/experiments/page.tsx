@@ -30,7 +30,7 @@ import {
   ProgressBar,
 } from "@/components/ui";
 import { Combobox } from "@/components/Combobox";
-import { Play, Plus, Search, Activity, X } from "lucide-react";
+import { Play, Plus, Activity } from "lucide-react";
 
 // --- Combobox helper types ---------------------------------------------------
 type SelectItem = { id: string; label: string; subtitle?: string };

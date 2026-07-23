@@ -9,6 +9,7 @@ import {
   type Prompt,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
+import { Eye } from "lucide-react";
 
 export function PromptsTab({
   projectId,
@@ -22,6 +23,10 @@ export function PromptsTab({
   const [template, setTemplate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewModal, setPreviewModal] = useState<{
+    template: string;
+    variables: string[];
+  } | null>(null);
 
   async function refresh() {
     setItems(await listPrompts(projectId));
@@ -97,30 +102,71 @@ export function PromptsTab({
                     ))}
                   </div>
                 </div>
-                <Button
-                  variant="danger"
-                  className="ml-3"
-                  disabled={busy}
-                  onClick={async () => {
-                    if (!confirm(`确定删除提示词「${p.name}」？`)) return;
-                    setBusy(true);
-                    setError(null);
-                    try {
-                      await deletePrompt(p.id);
-                      refresh();
-                      onChange();
-                    } catch (err) {
-                      setError(err instanceof ApiRequestError ? err.message : "删除失败");
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  删除
-                </Button>
+                <div className="ml-3 flex shrink-0 gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setPreviewModal({ template: p.template, variables: p.variables })}
+                    disabled={busy}
+                  >
+                    <Eye size={14} /> 预览
+                  </Button>
+                  <Button
+                    variant="danger"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!confirm(`确定删除提示词「${p.name}」？`)) return;
+                      setBusy(true);
+                      setError(null);
+                      try {
+                        await deletePrompt(p.id);
+                        refresh();
+                        onChange();
+                      } catch (err) {
+                        setError(err instanceof ApiRequestError ? err.message : "删除失败");
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    删除
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <Card className="mx-4 w-full max-w-lg p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">提示词渲染预览</h3>
+              <button
+                onClick={() => setPreviewModal(null)}
+                className="text-xs text-[var(--ocd-text-muted)] hover:text-[var(--ocd-text)]"
+              >
+                关闭
+              </button>
+            </div>
+            <div className="rounded-md border bg-slate-50 p-3 font-mono text-xs text-slate-700">
+              <p className="text-slate-400 mb-2">模板：</p>
+              <pre className="whitespace-pre-wrap break-all">{previewModal.template}</pre>
+              {previewModal.variables.length > 0 && (
+                <>
+                  <p className="text-slate-400 mt-3 mb-2">变量（未赋值）：</p>
+                  <ul className="list-inside list-disc">
+                    {previewModal.variables.map((v) => (
+                      <li key={v} className="text-blue-600">
+                        {`{${v}}`} → (空)
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </Card>
         </div>
       )}
     </div>

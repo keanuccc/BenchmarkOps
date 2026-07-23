@@ -543,6 +543,8 @@ async def run_experiment(experiment_id: str) -> None:
     n = len(result_objs)
     accuracy = (total_score / scored) if scored else 0.0
     avg_latency = (total_latency / scored) if scored else 0.0
+    runtime_s = (time.perf_counter() - started) if scored > 0 else 0
+    avg_ms_per_row = (runtime_s * 1000 / scored) if scored > 0 else 0
     status = "failed" if rate_limited else ("partial" if provider_errors > 0 else "completed")
     metrics_by_name = {
         name: metric_total / scored
@@ -555,6 +557,7 @@ async def run_experiment(experiment_id: str) -> None:
         "primary_score": round(accuracy, 4),
         "metrics_by_name": metrics_by_name,
         "avg_latency_ms": round(avg_latency, 1),
+        "avg_ms_per_row": round(avg_ms_per_row, 1),
         "rows_total": n,
         "rows_scored": scored,
         "rows_failed": n - scored,

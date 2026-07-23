@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   getExperiment,
-  getExperimentResults,
+  getExperimentResultsPaginated,
   runExperiment,
   cancelExperiment,
   retryExperiment,
   duplicateExperiment,
   deleteExperiment,
   ApiRequestError,
+  createExperimentStream,
   type Experiment,
   type ExperimentResult,
+  type ExperimentSSEEvent,
 } from "@/lib/api";
 import {
   Button,
@@ -42,6 +44,17 @@ function scoreColor(score: number) {
   return "var(--ocd-bad)";
 }
 
+/** Format seconds as "X分Y秒" or "X小时Y分". */
+function formatDuration(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "—";
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) return `${hours}小时${minutes}分`;
+  if (minutes > 0) return `${minutes}分${seconds > 0 ? seconds + "秒" : ""}`;
+  return `${seconds}秒`;
+}
+
 export default function ExperimentDetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -53,6 +66,9 @@ export default function ExperimentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
+
+  // Ref to hold the SSE cleanup function so we can close it on unmount
+  const streamRef = useRef<(() => void) | null>(null);
 
   async function refresh() {
     const e = await getExperiment(experimentId);
@@ -80,17 +96,56 @@ export default function ExperimentDetailPage() {
     }
   }
 
+  // SSE-based real-time updates — replaces the old 1s polling interval.
   useEffect(() => {
-    refresh();
-  }, [experimentId]);
+    let closed = false;
 
-  // Poll while the experiment is running/pending/cancelled (waiting for final state).
-  useEffect(() => {
-    const active = exp?.status === "running" || exp?.status === "pending" || exp?.status === "queued";
-    if (!active) return;
-    const t = setInterval(refresh, 1000);
-    return () => clearInterval(t);
-  }, [exp?.status]);
+    function handleProgress(data: ExperimentSSEEvent) {
+      if (closed) return;
+      // Merge SSE data into a partial Experiment object for the UI
+      setExp((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: data.status,
+          progress: data.progress,
+          rows_total: data.rows_total ?? prev.rows_total,
+          cells_done: data.cells_done,
+          cells_error: data.cells_error,
+          accuracy: data.accuracy,
+          metrics: data.metrics as any,
+          total_cost: data.total_cost,
+          total_tokens: data.total_tokens,
+          runtime_ms: data.runtime_ms,
+          updated_at: data.updated_at ?? prev.updated_at,
+        };
+      });
+
+      // If terminal state reached, do a full refresh and stop streaming
+      const terminal = ["completed", "failed", "cancelled", "partial"];
+      if (terminal.includes(data.status)) {
+        closed = true;
+        streamRef.current?.();
+        streamRef.current = null;
+        refresh();
+      }
+    }
+
+    function handleDone() {
+      if (closed) return;
+      closed = true;
+      refresh();
+    }
+
+    streamRef.current = createExperimentStream(experimentId, handleProgress, handleDone);
+
+    return () => {
+      closed = true;
+      streamRef.current?.();
+      streamRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [experimentId]);
 
   async function withBusy(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -112,6 +167,17 @@ export default function ExperimentDetailPage() {
     exp.status === "completed"
       ? `${(Number(exp.metrics.accuracy) * 100).toFixed(1)}%`
       : "—";
+
+  // Compute ETA from avg_latency_ms and remaining rows
+  const etaText = (() => {
+    if (exp.status !== "running" && exp.status !== "pending") return null;
+    const metrics = exp.metrics as Record<string, unknown> | undefined;
+    const avgMsPerRow = metrics?.avg_ms_per_row as number | undefined;
+    if (!avgMsPerRow || !exp.rows_total) return null;
+    const remaining = Math.max(0, (exp.rows_total ?? 0) - exp.progress);
+    const etaSeconds = Math.ceil((remaining * avgMsPerRow) / 1000);
+    return `预计剩余 ${formatDuration(etaSeconds)}`;
+  })();
 
   return (
     <div className="space-y-6">
@@ -198,11 +264,19 @@ export default function ExperimentDetailPage() {
             <span className="font-semibold text-[var(--ocd-text)]">
               {exp.rows_total ?? "—"}
             </span>
+            {etaText && (
+              <>
+                {" · "}
+                <span className="font-semibold text-[var(--ocd-info)]">
+                  {etaText}
+                </span>
+              </>
+            )}
           </p>
         </Card>
       )}
 
-  if (exp.error || exp.status === "cancelled") {
+      {(exp.error || exp.status === "cancelled") && (
         <Card
           className="border p-4 text-sm"
           style={{ borderColor: "var(--ocd-warn)", color: "var(--ocd-warn)" }}

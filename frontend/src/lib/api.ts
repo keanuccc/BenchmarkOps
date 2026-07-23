@@ -566,3 +566,59 @@ export const createBackup = () =>
   api.post<DbBackupResult>("/db/backup");
 export const listBackups = () =>
   api.get<DbBackupEntry[]>("/db/backup/list");
+
+// --- SSE (Server-Sent Events) ---------------------------------------------------
+// EventSource doesn't support custom headers, so we pass the token as a query param.
+// The backend SSE endpoint accepts `?token=` for auth when needed.
+
+export interface ExperimentSSEEvent {
+  id: string;
+  status: string;
+  progress: number;
+  rows_total: number | null;
+  cells_done: number;
+  cells_error: number;
+  accuracy: number;
+  metrics: Record<string, unknown>;
+  total_cost: number;
+  total_tokens: number;
+  runtime_ms: number;
+  updated_at: string | null;
+}
+
+/**
+ * Create an EventSource connection for real-time experiment progress updates.
+ * Returns a function that closes the connection when called.
+ */
+export function createExperimentStream(
+  experimentId: string,
+  onMessage: (event: ExperimentSSEEvent) => void,
+  onDone?: () => void,
+): () => void {
+  const token = getApiToken();
+  const qs = token ? `?token=${encodeURIComponent(token)}` : "";
+  const url = `${API_BASE_URL}/experiments/${experimentId}/stream${qs}`;
+  const es = new EventSource(url);
+
+  es.addEventListener("progress", (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as ExperimentSSEEvent;
+      onMessage(data);
+    } catch {
+      /* ignore malformed SSE data */
+    }
+  });
+
+  es.addEventListener("error", (e: Event) => {
+    // Non-fatal — EventSource auto-reconnects on network errors.
+    // On terminal state, the server closes the connection.
+    if (es.readyState === EventSource.CLOSED) {
+      onDone?.();
+    }
+  });
+
+  // Return a close function
+  return () => {
+    es.close();
+  };
+}

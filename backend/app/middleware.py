@@ -84,8 +84,22 @@ def setup_structured_logging() -> None:
             format="%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s",
         )
     except ImportError:
-        # python-json-logger not installed — use default format with request_id
-        pass
+        # python-json-logger not installed — use default format with request_id fallback
+        # We keep the request_id placeholder in the format string; if a LogRecord doesn't
+        # have it (e.g. non-request logs), it falls back to "-" via our custom formatter.
+        _original_factory = logging.getLogRecordFactory()
+
+        def _factory(*args, **kwargs):
+            record = _original_factory(*args, **kwargs)
+            # Ensure request_id attribute exists so %(request_id)s never raises
+            record.request_id = getattr(record, "request_id", "-")  # type: ignore[attr-defined]
+            return record
+
+        logging.setLogRecordFactory(_factory)
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s",
+        )
 
 
 def get_metrics_summary() -> dict[str, Any]:
