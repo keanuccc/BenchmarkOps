@@ -11,11 +11,12 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.exceptions import register_exception_handlers
+from app.middleware import get_metrics_summary, setup_structured_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+# Configure structured logging
+setup_structured_logging()
+
+logger = logging.getLogger("benchmarkops")
 
 
 @asynccontextmanager
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -69,6 +71,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/metrics")
+    async def metrics() -> dict:
+        """Basic application metrics endpoint (no Prometheus client needed)."""
+        return get_metrics_summary()
 
     register_exception_handlers(app)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
