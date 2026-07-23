@@ -7,6 +7,7 @@ import {
   getExperiment,
   getExperimentResults,
   runExperiment,
+  cancelExperiment,
   retryExperiment,
   duplicateExperiment,
   deleteExperiment,
@@ -22,7 +23,7 @@ import {
   Spinner,
   ProgressBar,
 } from "@/components/ui";
-import { Play, RefreshCw, Copy, Trash2, ArrowLeft } from "lucide-react";
+import { Play, RefreshCw, Copy, Trash2, ArrowLeft, Square } from "lucide-react";
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
@@ -67,9 +68,9 @@ export default function ExperimentDetailPage() {
     refresh();
   }, [experimentId]);
 
-  // Poll while the experiment is running/pending.
+  // Poll while the experiment is running/pending/cancelled (waiting for final state).
   useEffect(() => {
-    const active = exp?.status === "running" || exp?.status === "pending";
+    const active = exp?.status === "running" || exp?.status === "pending" || exp?.status === "queued";
     if (!active) return;
     const t = setInterval(refresh, 1000);
     return () => clearInterval(t);
@@ -114,6 +115,11 @@ export default function ExperimentDetailPage() {
             {exp.status !== "completed" && exp.status !== "running" && (
               <Button onClick={() => withBusy(() => runExperiment(exp.id))} disabled={busy}>
                 <Play size={14} /> 运行
+              </Button>
+            )}
+            {exp.status === "running" && (
+              <Button variant="danger" onClick={() => withBusy(() => cancelExperiment(exp.id))} disabled={busy}>
+                <Square size={14} /> 取消
               </Button>
             )}
             <Button variant="secondary" onClick={() => withBusy(() => retryExperiment(exp.id))} disabled={busy}>
@@ -180,12 +186,12 @@ export default function ExperimentDetailPage() {
         </Card>
       )}
 
-      {exp.error && (
+  if (exp.error || exp.status === "cancelled") {
         <Card
           className="border p-4 text-sm"
-          style={{ borderColor: "var(--ocd-bad)", color: "var(--ocd-bad)" }}
+          style={{ borderColor: "var(--ocd-warn)", color: "var(--ocd-warn)" }}
         >
-          {exp.error}
+          {exp.status === "cancelled" ? "实验已被用户取消。" : exp.error}
         </Card>
       )}
 

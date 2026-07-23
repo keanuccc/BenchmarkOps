@@ -3,6 +3,13 @@
 v1 uses an in-process asyncio task runner (`AsyncioTaskQueue`) so no Redis/Celery
 is required. The Evaluation Engine depends only on `TaskQueue`, so swapping to
 Celery later means implementing one class and changing a single wiring line.
+
+Task persistence:
+- Task state (queued/running/completed/failed) lives in the experiments DB table.
+- On startup, any experiment stuck in "running" or "queued" is auto-recovered
+  (marked as failed with a diagnostic message).
+- A running task can be cancelled by setting its status to "cancelled" — the
+  runner checks this between rows and exits gracefully.
 """
 from __future__ import annotations
 
@@ -21,6 +28,16 @@ class TaskQueue(ABC):
     @abstractmethod
     def submit(self, coro_factory: Callable[[], Awaitable[None]]) -> None:
         """Schedule background work. Must not block the caller."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_running_tasks(self) -> list[str]:
+        """Return experiment_ids of tasks currently executing."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def cancel_task(self, experiment_id: str) -> bool:
+        """Cancel a running task. Returns True if cancellation was requested."""
         raise NotImplementedError
 
 
@@ -42,7 +59,7 @@ class AsyncioTaskQueue(TaskQueue):
         # asyncio primitives bind to a loop at construction time and the loop
         # only exists once the background thread starts.
         self._sem: asyncio.Semaphore | None = None
-        self._futures: set[asyncio.Future] = set()
+        self._futures: dict[str, asyncio.Future] = {}  # experiment_id -> future
         self._ready = threading.Event()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
@@ -57,9 +74,14 @@ class AsyncioTaskQueue(TaskQueue):
     def submit(self, coro_factory: Callable[[], Awaitable[None]], *, experiment_id: str | None = None) -> None:
         # Schedule on the queue's own loop, independent of the caller's loop,
         # so the job survives the caller's loop shutting down after the request.
-        fut = asyncio.run_coroutine_threadsafe(self._guard(coro_factory, experiment_id=experiment_id), self._loop)
-        self._futures.add(fut)
-        fut.add_done_callback(self._futures.discard)
+        fut = asyncio.run_coroutine_threadsafe(
+            self._guard(coro_factory, experiment_id=experiment_id), self._loop
+        )
+        if experiment_id:
+            self._futures[experiment_id] = fut
+        else:
+            self._futures[id(fut)] = fut
+        fut.add_done_callback(lambda f: self._futures.pop(next((k for k, v in self._futures.items() if v is f), None), None))
 
     async def _guard(self, coro_factory: Callable[[], Awaitable[None]], *, experiment_id: str | None = None) -> None:
         # Acquire the concurrency slot only when work actually begins, then run.
@@ -67,12 +89,31 @@ class AsyncioTaskQueue(TaskQueue):
         await self._sem.acquire()
         try:
             await coro_factory()
+        except asyncio.CancelledError:
+            logger.info("Background evaluation task cancelled%s", f" ({experiment_id})" if experiment_id else "")
+            if experiment_id:
+                await _mark_experiment_cancelled(experiment_id)
         except Exception:  # noqa: BLE001
             logger.exception("Background evaluation task failed")
             if experiment_id:
                 await _mark_experiment_failed(experiment_id)
         finally:
             self._sem.release()
+
+    def get_running_tasks(self) -> list[str]:
+        """Return experiment_ids of futures that are still running (not done)."""
+        return [
+            eid for eid, fut in self._futures.items()
+            if isinstance(eid, str) and not fut.done()
+        ]
+
+    def cancel_task(self, experiment_id: str) -> bool:
+        """Cancel a running task by experiment_id. Returns True if found and cancelled."""
+        fut = self._futures.get(experiment_id)
+        if fut and not fut.done():
+            fut.cancel()
+            return True
+        return False
 
 
 async def _mark_experiment_failed(experiment_id: str) -> None:
@@ -96,6 +137,25 @@ async def _mark_experiment_failed(experiment_id: str) -> None:
         await with_retry_on_lock(_write)
     except Exception:  # noqa: BLE001
         logger.exception("failed to mark experiment %s as failed", experiment_id)
+
+
+async def _mark_experiment_cancelled(experiment_id: str) -> None:
+    """Best-effort: mark an experiment as 'cancelled' when the user cancels it."""
+    from app.core.database import AsyncSessionLocal, with_retry_on_lock
+    from app.repositories.experiment import ExperimentRepository
+
+    async def _write() -> None:
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentRepository(session)
+            exp = await repo.get(experiment_id)
+            if exp is not None and exp.status == "running":
+                await repo.update(exp, {"status": "cancelled"})
+                await session.commit()
+
+    try:
+        await with_retry_on_lock(_write)
+    except Exception:  # noqa: BLE001
+        logger.exception("failed to mark experiment %s as cancelled", experiment_id)
 
 
 # Singleton for v1 (swap for a Celery-backed impl later).

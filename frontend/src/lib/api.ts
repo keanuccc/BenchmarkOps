@@ -404,6 +404,8 @@ export const createExperiment = (body: {
 }) => api.post<Experiment>("/experiments/", body);
 export const runExperiment = (id: string) =>
   api.post<Experiment>(`/experiments/${id}/run`);
+export const cancelExperiment = (id: string) =>
+  api.post<Experiment>(`/experiments/${id}/cancel`);
 export const retryExperiment = (id: string) =>
   api.post<Experiment>(`/experiments/${id}/retry`);
 export const duplicateExperiment = (id: string) =>
@@ -459,6 +461,15 @@ export interface Report {
 }
 export const listReports = (projectId: string) =>
   api.get<Report[]>(`/reports/?project_id=${projectId}`);
+
+// --- Running tasks ---
+export interface RunningTaskInfo {
+  experiment_id: string;
+  name: string | null;
+  project_id: string | null;
+}
+export const getRunningTasks = () =>
+  api.get<RunningTaskInfo[]>("/experiments/running");
 export const generateReport = (body: {
   project_id: string;
   experiment_ids: string[];

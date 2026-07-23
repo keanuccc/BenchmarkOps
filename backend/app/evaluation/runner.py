@@ -25,6 +25,7 @@ from app.repositories.experiment import (
     ExperimentRepository,
     ExperimentResultRepository,
 )
+from app.evaluation.task_queue import _mark_experiment_cancelled
 
 logger = logging.getLogger(__name__)
 
@@ -503,6 +504,17 @@ async def run_experiment(experiment_id: str) -> None:
             )
             if rate_limited:
                 break
+            # Check for cancellation between batches
+            try:
+                async with AsyncSessionLocal() as check_session:
+                    check_repo = ExperimentRepository(check_session)
+                    current_exp = await check_repo.get(experiment_id)
+                    if current_exp and current_exp.status == "cancelled":
+                        logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
+                        await _mark_experiment_cancelled(experiment_id)
+                        return
+            except Exception:  # noqa: BLE001
+                pass  # best-effort only — don't fail the run if check fails
     else:
         # Non-free models: keep the original strict-serial behavior (rate safety is
         # handled by the task queue's eval_max_workers, not by in-run concurrency).
@@ -516,6 +528,17 @@ async def run_experiment(experiment_id: str) -> None:
                 )
             if rate_limited:
                 break
+            # Check for cancellation every row (cheap read-only DB query)
+            try:
+                async with AsyncSessionLocal() as check_session:
+                    check_repo = ExperimentRepository(check_session)
+                    current_exp = await check_repo.get(experiment_id)
+                    if current_exp and current_exp.status == "cancelled":
+                        logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
+                        await _mark_experiment_cancelled(experiment_id)
+                        return
+            except Exception:  # noqa: BLE001
+                pass
 
     n = len(result_objs)
     accuracy = (total_score / scored) if scored else 0.0

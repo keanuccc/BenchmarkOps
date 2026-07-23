@@ -6,7 +6,9 @@ import logging
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 
+from app.core.exceptions import ConflictError
 from app.core.security import require_auth
+from app.evaluation.task_queue import task_queue
 from app.schemas.experiment import (
     ExperimentCreate,
     ExperimentRecomputeReport,
@@ -129,3 +131,49 @@ async def delete_experiment(
     _: None = Depends(require_auth),
 ):
     await service.delete(experiment_id)
+
+
+@router.post("/{experiment_id}/cancel", response_model=ExperimentRead)
+async def cancel_experiment(
+    experiment_id: str,
+    service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(require_auth),
+) -> ExperimentRead:
+    """Cancel a running experiment. The runner will stop after the current row."""
+    exp = await service.get(experiment_id)
+    if exp.status not in ("running", "queued"):
+        raise ConflictError(f"Cannot cancel experiment with status '{exp.status}'")
+    # Signal cancellation at the DB level (runner checks this between rows)
+    from app.core.database import AsyncSessionLocal
+    from app.repositories.experiment import ExperimentRepository
+
+    async with AsyncSessionLocal() as session:
+        repo = ExperimentRepository(session)
+        await repo.update(exp, {"status": "cancelled"})
+        await session.commit()
+    # Also signal the background task to cancel immediately
+    task_queue.cancel_task(experiment_id)
+    return await service.get(experiment_id)
+
+
+class RunningTaskInfo(BaseModel):
+    """Info about a currently running background task."""
+    experiment_id: str
+    name: str | None = None
+    project_id: str | None = None
+
+
+@router.get("/running", response_model=list[RunningTaskInfo])
+async def get_running_tasks(
+    service: ExperimentService = Depends(get_experiment_service),
+) -> list[RunningTaskInfo]:
+    """List experiments that are currently being evaluated (status=running)."""
+    running_exps = await service.list(status="running")
+    return [
+        RunningTaskInfo(
+            experiment_id=e.id,
+            name=e.name,
+            project_id=e.project_id,
+        )
+        for e in running_exps
+    ]

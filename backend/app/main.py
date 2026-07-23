@@ -19,10 +19,39 @@ logging.basicConfig(
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):  # type: ignore[override]
     # v1: create tables on startup. Later: Alembic migrations.
     await init_db()
+    # Recover any experiments stuck in "running" or "queued" from a previous crash.
+    await _recover_stale_experiments()
     yield
+
+
+async def _recover_stale_experiments() -> None:
+    """Mark experiments stuck in 'running'/'queued' as 'failed' on startup.
+
+    If the server crashed or was killed while an experiment was running, the
+    DB will have stale status entries. This function scans for them and marks
+    them as failed with a diagnostic message so the UI can show the user that
+    the run did not complete successfully.
+    """
+    from app.core.database import AsyncSessionLocal
+    from app.repositories.experiment import ExperimentRepository
+
+    async with AsyncSessionLocal() as session:
+        repo = ExperimentRepository(session)
+        stale = await repo.list(filters={"status": "running"})
+        queued = await repo.list(filters={"status": "queued"})
+        total = len(stale) + len(queued)
+        if total == 0:
+            return
+        logger.info("recovering %d stale experiment(s)", total)
+        for exp in list(stale) + list(queued):
+            await repo.update(exp, {
+                "status": "failed",
+                "error": f"Server shutdown during execution (was {'running' if exp.status == 'running' else 'queued'})",
+            })
+        await session.commit()
 
 
 def create_app() -> FastAPI:
