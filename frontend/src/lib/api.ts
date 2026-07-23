@@ -415,6 +415,16 @@ export const deleteExperiment = (id: string) =>
 export const getExperimentResults = (id: string) =>
   api.get<ExperimentResult[]>(`/experiments/${id}/results`);
 
+export async function getExperimentResultsPaginated(
+  id: string,
+  params: { offset: number; limit: number },
+): Promise<ExperimentResult[]> {
+  const qs = new URLSearchParams();
+  qs.set("offset", String(params.offset));
+  qs.set("limit", String(params.limit));
+  return api.get<ExperimentResult[]>(`/experiments/${id}/results?${qs.toString()}`);
+}
+
 // --- Analytics ---
 export interface LeaderboardEntry {
   experiment_id: string;

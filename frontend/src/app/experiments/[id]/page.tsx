@@ -51,17 +51,33 @@ export default function ExperimentDetailPage() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   async function refresh() {
     const e = await getExperiment(experimentId);
     setExp(e);
+    // Paginate results: load first page only
     try {
-      const r = await getExperimentResults(experimentId);
+      const r = await getExperimentResultsPaginated(experimentId, { offset: 0, limit: PAGE_SIZE });
       setResults(r);
     } catch {
       setResults([]);
     }
     setLoading(false);
+  }
+
+  async function loadPage(p: number) {
+    setPage(p);
+    try {
+      const r = await getExperimentResultsPaginated(experimentId, {
+        offset: (p - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+      });
+      setResults(r);
+    } catch {
+      setResults([]);
+    }
   }
 
   useEffect(() => {
@@ -213,7 +229,7 @@ export default function ExperimentDetailPage() {
 
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--ocd-text-muted)]">
-          逐行结果 ({results.length})
+          逐行结果 (第 {((page - 1) * PAGE_SIZE + 1)}–{page * PAGE_SIZE} 条)
         </h2>
         {results.length === 0 ? (
           <EmptyState message="暂无结果。请先运行实验。" />
@@ -221,7 +237,7 @@ export default function ExperimentDetailPage() {
           <Card className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead
-                className="border-b text-left text-[var(--ocd-text-faint)]"
+                className="border-b text-left text-[var(--ocd-text-faint)] sticky top-0 z-10"
                 style={{ borderColor: "var(--ocd-border)", background: "var(--ocd-surface-2)" }}
               >
                 <tr>
@@ -270,6 +286,28 @@ export default function ExperimentDetailPage() {
                 ))}
               </tbody>
             </table>
+            {/* Pagination */}
+            <div className="flex items-center justify-between border-t px-4 py-3 text-xs" style={{ borderColor: "var(--ocd-border-soft)" }}>
+              <span className="text-[var(--ocd-text-muted)]">每页 {PAGE_SIZE} 条</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => loadPage(page - 1)}
+                  disabled={page <= 1}
+                  className="rounded px-2 py-1 text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)] disabled:opacity-30"
+                >
+                  ← 上一页
+                </button>
+                <span className="font-medium text-[var(--ocd-text)]">
+                  第 {page} 页
+                </span>
+                <button
+                  onClick={() => loadPage(page + 1)}
+                  className="rounded px-2 py-1 text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)]"
+                >
+                  下一页 →
+                </button>
+              </div>
+            </div>
           </Card>
         )}
       </section>
