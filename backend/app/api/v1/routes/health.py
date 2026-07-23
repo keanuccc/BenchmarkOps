@@ -7,13 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_session
+from app.services.db_service import get_db_info
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
 async def health(session: AsyncSession = Depends(get_session)) -> dict:
-    """Liveness + basic DB connectivity + provider mode."""
+    """Liveness + basic DB connectivity + provider mode + DB backend info."""
     db_ok = True
     try:
         await session.execute(text("SELECT 1"))
@@ -26,4 +27,5 @@ async def health(session: AsyncSession = Depends(get_session)) -> dict:
         "env": settings.app_env,
         "database": "ok" if db_ok else "error",
         "provider_mode": "openrouter" if settings.provider_enabled else "mock",
+        "db_backend": get_db_info(settings.database_url),
     }

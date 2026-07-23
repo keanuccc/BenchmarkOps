@@ -2,6 +2,12 @@
 
 The Repository layer is the only consumer of Session, so swapping the database
 backend (SQLite -> Postgres) requires changing only DATABASE_URL.
+
+Production notes:
+- SQLite (v1): WAL mode + busy_timeout + connection pool tuned for single-writer.
+  Suitable for low-to-moderate concurrency (<50 concurrent requests).
+- Postgres: set DATABASE_URL to ``postgresql+asyncpg://...`` and the same
+  code path works with a proper connection pool (see pool_size/max_overflow below).
 """
 from __future__ import annotations
 
@@ -19,38 +25,56 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
-# check_same_thread only applies to SQLite; harmless key otherwise since we gate it.
+# --- Connection pool configuration -------------------------------------------
+# SQLite: use NullPool (no pooling — each request opens/closes a connection).
+# This avoids "database is locked" from stale pooled connections that were
+# created by a different process/thread.
+# Postgres: use QueuePool with sensible defaults.
+_is_sqlite = settings.database_url.startswith("sqlite")
+
 _connect_args = (
     {"check_same_thread": False, "timeout": 30}
-    if settings.database_url.startswith("sqlite")
+    if _is_sqlite
     else {}
 )
+
+# Engine pool size differs by backend:
+# - SQLite: pool_size=0 → NullPool (safe for file-based)
+# - Postgres: pool_size=5, max_overflow=10 (tune via env vars later)
+_pool_size = 5 if not _is_sqlite else 0
+_max_overflow = 10 if not _is_sqlite else 0
+_pool_recycle = 3600 if not _is_sqlite else -1  # -1 = no recycle (NullPool ignores, safe for SQLite)
 
 engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
     connect_args=_connect_args,
+    pool_size=_pool_size,
+    max_overflow=_max_overflow,
+    pool_pre_ping=True,  # verify connections before use (PG connection health)
+    pool_recycle=_pool_recycle,  # recycle PG connections after 1h; -1 = no recycle for SQLite
 )
 
-# SQLite is a single-writer store: concurrent writes (request thread + background
-# evaluation tasks) otherwise raise "database is locked" and fail the operation.
-# WAL lets readers and a writer proceed concurrently and survives a writer mid-flight,
-# which is what the in-process task queue + live polling need. Applied per raw
-# connection so every session gets it.
-if settings.database_url.startswith("sqlite"):
+# SQLite-specific pragmas — applied per raw connection so every session gets them.
+if _is_sqlite:
 
     @event.listens_for(engine.sync_engine, "connect")
     def _set_sqlite_pragmas(dbapi_conn, _conn_record):  # noqa: ANN001
         cur = dbapi_conn.cursor()
         try:
+            # WAL: allows readers and a writer to proceed concurrently.
             cur.execute("PRAGMA journal_mode=WAL")
-            # 15s: long enough that legitimate short write transactions (a run's
-            # batch persist, or several runs' persists queued behind the single
-            # WAL writer) wait their turn instead of being spuriously failed as
-            # "database is locked"; short enough that the frontend's 30s fetch
-            # timeout still surfaces a real deadlock to the user.
+            # 15s busy timeout — long enough for short write transactions to wait,
+            # short enough that the frontend's 30s fetch timeout still surfaces real
+            # deadlocks to the user.
             cur.execute("PRAGMA busy_timeout=15000")
+            # synchronous=NORMAL (default) is fine for WAL; FULL would be safer but
+            # adds disk sync overhead. For evaluation workloads NORMAL is sufficient.
+            # cache_size=-2000 → -2 MB shared cache (negative = KiB in SQLite)
+            cur.execute("PRAGMA cache_size=-2000")
+            # temp_store=MEMORY → temporary tables/indexes in memory
+            cur.execute("PRAGMA temp_store=MEMORY")
         finally:
             cur.close()
 

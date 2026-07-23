@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
+from app.core.database import engine
 from app.core.security import require_auth
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -22,6 +23,31 @@ class ApiTokenResponse(BaseModel):
     masked: str = Field(
         description="First 4 and last 4 chars of the token, middle hidden with ***."
     )
+
+
+class MigrationInfo(BaseModel):
+    """Migration system info."""
+    version: int
+    name: str
+
+
+class MigrationStatus(BaseModel):
+    """Current migration status."""
+    current_version: int | None
+    pending: list[MigrationInfo] = []
+    applied: list[MigrationInfo] = []
+
+
+class DbConfigResponse(BaseModel):
+    """Database configuration info for the UI."""
+    url_prefix: str  # first 30 chars of DB URL (never full path)
+    backend: str     # "SQLite" or "PostgreSQL"
+    pool_size: int | None
+    max_overflow: int
+    is_sqlite: bool
+    wal_enabled: bool
+    migration_versions: list[int]  # registered migration versions
+    highest_version: int | None
 
 
 class ApiTokenUpdate(BaseModel):
@@ -112,4 +138,72 @@ async def update_api_token(
     return ApiTokenResponse(
         enabled=bool(payload.token.strip()),
         masked=masked,
+    )
+
+
+# --- Migration & DB Config ---------------------------------------------------
+
+# Map version numbers to human-readable names for display in the UI.
+_MIGRATION_NAMES: dict[int, str] = {
+    10: "experiment_snapshot_and_metrics",
+    11: "experiment_progress_cells",
+    12: "experiment_result_diagnostics",
+    13: "dataset_contract_columns",
+}
+
+
+@router.get("/migrations/status", response_model=MigrationStatus)
+async def get_migration_status() -> MigrationStatus:
+    """Return the current migration status — which versions are applied and pending."""
+    from app.migrations import MIGRATIONS
+
+    # Read applied versions from the schema_version table
+    applied: list[int] = []
+    try:
+        from app.core.database import AsyncSessionLocal
+
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                "SELECT version FROM schema_version ORDER BY version"
+            )
+            applied = [row[0] for row in result.fetchall()]
+    except Exception:  # noqa: BLE001
+        pass  # Table may not exist on a fresh install
+
+    all_versions = sorted(MIGRATIONS.keys())
+    applied_set = set(applied)
+
+    return MigrationStatus(
+        current_version=max(applied) if applied else None,
+        pending=[
+            MigrationInfo(version=v, name=_MIGRATION_NAMES.get(v, f"migration_{v}"))
+            for v in all_versions
+            if v not in applied_set
+        ],
+        applied=[
+            MigrationInfo(version=v, name=_MIGRATION_NAMES.get(v, f"migration_{v}"))
+            for v in all_versions
+            if v in applied_set
+        ],
+    )
+
+
+@router.get("/db/config", response_model=DbConfigResponse)
+async def get_db_config() -> DbConfigResponse:
+    """Return database configuration details for the Settings UI."""
+    from app.migrations import MIGRATIONS
+
+    is_sqlite = settings.database_url.startswith("sqlite")
+    # Show only the driver part of the URL, never the full path/credentials
+    url_prefix = settings.database_url[:30] + ("…" if len(settings.database_url) > 30 else "")
+
+    return DbConfigResponse(
+        url_prefix=url_prefix,
+        backend="SQLite" if is_sqlite else "PostgreSQL",
+        pool_size=engine.pool.size() if hasattr(engine.pool, "size") else None,
+        max_overflow=getattr(engine.pool, "max_overflow", 10),
+        is_sqlite=is_sqlite,
+        wal_enabled=is_sqlite,
+        migration_versions=list(sorted(MIGRATIONS.keys())),
+        highest_version=max(MIGRATIONS.keys()) if MIGRATIONS else None,
     )

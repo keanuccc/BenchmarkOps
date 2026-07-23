@@ -506,3 +506,42 @@ export const getApiTokenStatus = () =>
 
 export const updateApiToken = (token: string) =>
   api.post<ApiTokenStatus>("/settings/api-token", { token });
+
+// --- Database Management ---
+export interface DbConfigInfo {
+  url_prefix: string;
+  backend: string;
+  pool_size: number | null;
+  max_overflow: number;
+  is_sqlite: boolean;
+  wal_enabled: boolean;
+  migration_versions: number[];
+  highest_version: number | null;
+}
+
+export interface MigrationStatusData {
+  current_version: number | null;
+  pending: Array<{ version: number; name: string }>;
+  applied: Array<{ version: number; name: string }>;
+}
+
+export interface DbBackupResult {
+  backup_path: string;
+  filename: string;
+  size_mb: number;
+  timestamp: string;
+}
+
+export interface DbBackupEntry {
+  filename: string;
+  size_mb: number;
+  modified: number;
+}
+
+export const getDbConfig = () => api.get<DbConfigInfo>("/settings/db/config");
+export const getMigrationStatus = () =>
+  api.get<MigrationStatusData>("/settings/migrations/status");
+export const createBackup = () =>
+  api.post<DbBackupResult>("/db/backup");
+export const listBackups = () =>
+  api.get<DbBackupEntry[]>("/db/backup/list");

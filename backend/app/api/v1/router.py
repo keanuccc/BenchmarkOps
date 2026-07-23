@@ -11,6 +11,7 @@ from app.api.v1.routes import (
     analytics,
     benchmarks,
     datasets,
+    db,
     experiments,
     health,
     models,
@@ -22,6 +23,7 @@ from app.api.v1.routes import (
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(db.router)
 api_router.include_router(settings.router)
 api_router.include_router(projects.router)
 api_router.include_router(models.router)
