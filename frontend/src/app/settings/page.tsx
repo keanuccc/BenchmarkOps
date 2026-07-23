@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { getHealth, getApiTokenStatus, updateApiToken, getDbConfig, getMigrationStatus, createBackup, listBackups, type HealthResponse, type ApiTokenStatus, type DbConfigInfo, type MigrationStatusData, type DbBackupEntry } from "@/lib/api";
 import { setApiToken as setLocalToken } from "@/lib/api";
 import { Card, Badge, EmptyState, Spinner, SectionTitle, Button } from "@/components/ui";
+import { useToast } from "@/components/notifications";
 import { Settings, Server, KeyRound, Shield, Eye, EyeOff, CheckCircle, XCircle, Database, HardDrive, GitBranch, Download, Trash2 } from "lucide-react";
 
 export default function SettingsPage() {
+  const { addToast } = useToast();
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +58,8 @@ export default function SettingsPage() {
       setTokenStatus(result);
       setLocalToken(tokenForm.token);
       setTokenForm({ token: "", confirmPassword: "" });
-      setTokenFeedback({ ok: true, msg: "API Token 已保存，写入成功。" });
+      addToast("success", "API Token 已保存。");
+      setTokenFeedback(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "保存失败";
       setTokenFeedback({ ok: false, msg });
@@ -71,7 +74,8 @@ export default function SettingsPage() {
       await updateApiToken("");
       setTokenStatus({ enabled: false, masked: "" });
       setLocalToken(null);
-      setTokenFeedback({ ok: true, msg: "API Token 已移除。" });
+      addToast("success", "API Token 已移除。");
+      setTokenFeedback(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "移除失败";
       setTokenFeedback({ ok: false, msg });
@@ -88,9 +92,10 @@ export default function SettingsPage() {
       // Refresh backup list
       const list = await listBackups();
       setBackups(list);
-      setBackupFeedback({ ok: true, msg: `备份创建成功 (${list.length} 个文件)` });
+      addToast("success", `备份创建成功 (${list.length} 个文件)`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "备份失败";
+      addToast("error", msg);
       setBackupFeedback({ ok: false, msg });
     } finally {
       setBackupLoading(false);
