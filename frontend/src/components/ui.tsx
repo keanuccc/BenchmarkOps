@@ -36,6 +36,7 @@ const STATUS: Record<string, { color: string; bg: string }> = {
   running: { color: "var(--ocd-info)", bg: "color-mix(in oklch, var(--ocd-info) 16%, transparent)" },
   completed: { color: "var(--ocd-ok)", bg: "color-mix(in oklch, var(--ocd-ok) 16%, transparent)" },
   failed: { color: "var(--ocd-bad)", bg: "color-mix(in oklch, var(--ocd-bad) 16%, transparent)" },
+  cancelled: { color: "var(--ocd-warn)", bg: "color-mix(in oklch, var(--ocd-warn) 16%, transparent)" },
 };
 
 export function Badge({

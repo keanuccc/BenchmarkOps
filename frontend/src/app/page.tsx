@@ -116,6 +116,16 @@ export default function DashboardPage() {
           delta={`${completed.length} 已完成 · ${running} 运行中`}
           icon={<FlaskConical size={18} />}
         />
+        {running > 0 && (
+          <Link href="/experiments">
+            <KpiCard
+              label="运行中"
+              value={running}
+              icon={<Activity size={18} />}
+              accent="var(--ocd-info)"
+            />
+          </Link>
+        )}
         <KpiCard
           label="模型"
           value={models.length}

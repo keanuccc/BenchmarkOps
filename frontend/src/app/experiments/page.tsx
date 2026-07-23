@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   listExperiments,
@@ -10,12 +10,14 @@ import {
   listBenchmarks,
   listPrompts,
   createExperiment,
+  getRunningTasks,
   type Experiment,
   type ModelInfo,
   type Project,
   type Dataset,
   type Benchmark,
   type Prompt,
+  type RunningTaskInfo,
 } from "@/lib/api";
 import {
   Button,
@@ -25,7 +27,48 @@ import {
   Modal,
   SectionTitle,
   Spinner,
+  ProgressBar,
 } from "@/components/ui";
+import { Combobox } from "@/components/Combobox";
+import { Play, Plus, Search, Activity, X } from "lucide-react";
+
+// --- Combobox helper types ---------------------------------------------------
+type SelectItem = { id: string; label: string; subtitle?: string };
+
+function toSelectItems<T extends { id: string }>(items: T[], labelKey: keyof T, subtitleKey?: keyof T): SelectItem[] {
+  return items.map((i) => ({
+    id: i.id,
+    label: String(i[labelKey] ?? i.id),
+    subtitle: subtitleKey ? String((i[subtitleKey] as any) ?? "") : undefined,
+  }));
+}
+
+// --- Running banner ----------------------------------------------------------
+function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
+  if (tasks.length === 0) return null;
+  return (
+    <Card className="p-4 border-l-4" style={{ borderLeftColor: "var(--ocd-info)" }}>
+      <div className="flex items-center gap-2">
+        <Activity size={16} className="text-[var(--ocd-info)] animate-pulse" />
+        <span className="text-sm font-medium text-[var(--ocd-text)]">
+          运行中实验：{tasks.length}
+        </span>
+      </div>
+      <ul className="mt-2 space-y-1">
+        {tasks.map((t) => (
+          <li key={t.experiment_id}>
+            <Link
+              href={`/experiments/${t.experiment_id}`}
+              className="text-sm text-[var(--ocd-accent)] hover:underline"
+            >
+              {t.name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
 
 export default function ExperimentsPage() {
   const [items, setItems] = useState<Experiment[]>([]);
@@ -40,6 +83,9 @@ export default function ExperimentsPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [allExperiments, setAllExperiments] = useState<Experiment[]>([]);
   const [templateExpId, setTemplateExpId] = useState("");
+  const [runningTasks, setRunningTasks] = useState<RunningTaskInfo[]>([]);
+
+  // Form state
   const [form, setForm] = useState({
     project_id: "",
     name: "",
@@ -47,22 +93,39 @@ export default function ExperimentsPage() {
     benchmark_id: "",
     prompt_id: "",
     model_id: "",
+    temperature: 0.7,
+    max_tokens: "",
   });
 
   async function refresh() {
     setLoading(true);
-    const [list, ms] = await Promise.all([
-      listExperiments(),
-      listModels(),
-    ]);
-    setItems(list);
-    setModels(ms);
-    setAllExperiments(list);
-    setLoading(false);
+    try {
+      const [list, ms] = await Promise.all([
+        listExperiments(),
+        listModels(),
+      ]);
+      setItems(list);
+      setModels(ms);
+      setAllExperiments(list);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
   }
 
+  // Poll running tasks every 5s
   useEffect(() => {
     refresh();
+    const t = setInterval(async () => {
+      try {
+        const tasks = await getRunningTasks();
+        setRunningTasks(tasks);
+      } catch {
+        /* ignore */
+      }
+    }, 5000);
+    return () => clearInterval(t);
   }, []);
 
   function openModal() {
@@ -73,6 +136,8 @@ export default function ExperimentsPage() {
       benchmark_id: "",
       prompt_id: "",
       model_id: "",
+      temperature: 0.7,
+      max_tokens: "",
     });
     setTemplateExpId("");
     setModalOpen(true);
@@ -81,14 +146,18 @@ export default function ExperimentsPage() {
   async function onProjectChange(projectId: string) {
     setForm((f) => ({ ...f, project_id: projectId, dataset_id: "", benchmark_id: "", prompt_id: "" }));
     if (projectId) {
-      const [ds, bms, prs] = await Promise.all([
-        listDatasets(projectId),
-        listBenchmarks(projectId),
-        listPrompts(projectId),
-      ]);
-      setDatasets(ds);
-      setBenchmarks(bms);
-      setPrompts(prs);
+      try {
+        const [ds, bms, prs] = await Promise.all([
+          listDatasets(projectId),
+          listBenchmarks(projectId),
+          listPrompts(projectId),
+        ]);
+        setDatasets(ds);
+        setBenchmarks(bms);
+        setPrompts(prs);
+      } catch {
+        /* ignore */
+      }
     } else {
       setDatasets([]);
       setBenchmarks([]);
@@ -110,6 +179,8 @@ export default function ExperimentsPage() {
       benchmark_id: src.benchmark_id,
       prompt_id: src.prompt_id,
       model_id: "",
+      temperature: 0.7,
+      max_tokens: "",
     }));
   }
 
@@ -126,7 +197,19 @@ export default function ExperimentsPage() {
     }
     setSubmitting(true);
     try {
-      await createExperiment(form);
+      const body: Record<string, unknown> = {
+        project_id: form.project_id,
+        name: form.name,
+        dataset_id: form.dataset_id,
+        benchmark_id: form.benchmark_id,
+        prompt_id: form.prompt_id,
+        model_id: form.model_id,
+        params: {
+          temperature: form.temperature,
+          ...(form.max_tokens ? { max_tokens: parseInt(form.max_tokens, 10) } : {}),
+        },
+      };
+      await createExperiment(body);
       setModalOpen(false);
       await refresh();
     } finally {
@@ -135,6 +218,22 @@ export default function ExperimentsPage() {
   }
 
   const modelName = (id: string) => models.find((m) => m.id === id)?.name ?? id;
+
+  // Derived combobox items
+  const projectItems = toSelectItems(projects, "name");
+  const datasetItems = toSelectItems(datasets, "name", "description");
+  const benchmarkItems = toSelectItems(benchmarks, "name");
+  const promptItems = toSelectItems(prompts, "name");
+  const modelItems = toSelectItems(models, "name", "provider");
+  const templateItems = toSelectItems(allExperiments, "name");
+
+  const isFormValid =
+    form.project_id &&
+    form.name &&
+    form.dataset_id &&
+    form.benchmark_id &&
+    form.prompt_id &&
+    form.model_id;
 
   return (
     <div className="space-y-6">
@@ -145,8 +244,13 @@ export default function ExperimentsPage() {
             所有项目下的评测运行记录。
           </p>
         </div>
-        <Button onClick={openModal}>新建实验</Button>
+        <Button onClick={openModal}>
+          <Plus size={14} /> 新建实验
+        </Button>
       </header>
+
+      {/* Running experiments banner */}
+      <RunningBanner tasks={runningTasks} />
 
       {loading ? (
         <EmptyState message="Loading…" icon={<Spinner size={20} />} />
@@ -211,6 +315,7 @@ export default function ExperimentsPage() {
         </Card>
       )}
 
+      {/* --- New Experiment Modal --- */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="新建实验">
         <form
           className="space-y-4"
@@ -219,39 +324,27 @@ export default function ExperimentsPage() {
             submit();
           }}
         >
-          <Field label="基于已有实验(可选)">
-            <select
-              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+          {/* Template selector */}
+          <Field label="基于已有实验（可选）">
+            <Combobox
+              items={templateItems}
               value={templateExpId}
-              onChange={(e) => applyTemplate(e.target.value)}
-            >
-              <option value="">不复用 / 手动填写</option>
-              {allExperiments.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
+              onChange={(item) => applyTemplate(item.id)}
+              placeholder="搜索已有实验…（按名称或描述）"
+            />
           </Field>
 
+          {/* Project */}
           <Field label="Project">
-            <select
-              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+            <Combobox
+              items={projectItems}
               value={form.project_id}
-              onChange={(e) => onProjectChange(e.target.value)}
-              required
-            >
-              <option value="">选择项目…</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              onChange={(item) => onProjectChange(item.id)}
+              placeholder="搜索项目…"
+            />
           </Field>
 
+          {/* Name */}
           <Field label="名称">
             <input
               className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
@@ -263,82 +356,86 @@ export default function ExperimentsPage() {
             />
           </Field>
 
+          {/* Dataset */}
           <Field label="Dataset">
-            <select
-              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+            <Combobox
+              items={datasetItems}
               value={form.dataset_id}
-              onChange={(e) => setForm((f) => ({ ...f, dataset_id: e.target.value }))}
-              required
+              onChange={(item) => setForm((f) => ({ ...f, dataset_id: item.id }))}
+              placeholder="搜索数据集…"
               disabled={!form.project_id}
-            >
-              <option value="">选择数据集…</option>
-              {datasets.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            />
           </Field>
 
+          {/* Benchmark */}
           <Field label="Benchmark">
-            <select
-              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+            <Combobox
+              items={benchmarkItems}
               value={form.benchmark_id}
-              onChange={(e) => setForm((f) => ({ ...f, benchmark_id: e.target.value }))}
-              required
+              onChange={(item) => setForm((f) => ({ ...f, benchmark_id: item.id }))}
+              placeholder="搜索基准…"
               disabled={!form.project_id}
-            >
-              <option value="">选择基准…</option>
-              {benchmarks.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            />
           </Field>
 
+          {/* Prompt */}
           <Field label="Prompt">
-            <select
-              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+            <Combobox
+              items={promptItems}
               value={form.prompt_id}
-              onChange={(e) => setForm((f) => ({ ...f, prompt_id: e.target.value }))}
-              required
+              onChange={(item) => setForm((f) => ({ ...f, prompt_id: item.id }))}
+              placeholder="搜索提示词…"
               disabled={!form.project_id}
-            >
-              <option value="">选择提示词…</option>
-              {prompts.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            />
           </Field>
 
+          {/* Model */}
           <Field label="Model">
-            <select
-              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+            <Combobox
+              items={modelItems}
               value={form.model_id}
-              onChange={(e) => setForm((f) => ({ ...f, model_id: e.target.value }))}
-              required
-            >
-              <option value="">选择模型…</option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={(item) => setForm((f) => ({ ...f, model_id: item.id }))}
+              placeholder="搜索模型…"
+            />
           </Field>
 
+          {/* Params */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Temperature">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={form.temperature}
+                  onChange={(e) => setForm((f) => ({ ...f, temperature: parseFloat(e.target.value) }))}
+                  className="flex-1 accent-[var(--ocd-accent)]"
+                />
+                <span className="w-12 text-right text-sm tabular-nums">
+                  {form.temperature.toFixed(1)}
+                </span>
+              </div>
+            </Field>
+            <Field label="Max Tokens">
+              <input
+                type="number"
+                className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                value={form.max_tokens}
+                onChange={(e) => setForm((f) => ({ ...f, max_tokens: e.target.value }))}
+                placeholder="不限制则留空"
+                min={1}
+              />
+            </Field>
+          </div>
+
+          {/* Submit */}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setModalOpen(false)} type="button">
               取消
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting || !isFormValid}>
               {submitting ? <Spinner size={14} /> : "创建"}
             </Button>
           </div>
