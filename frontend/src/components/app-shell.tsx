@@ -23,7 +23,7 @@ import { HealthBadge } from "@/components/health-badge";
 import { ThemeProvider, useTheme } from "@/lib/theme";
 import { useState, useEffect, useCallback } from "react";
 
-type NavItem = { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; exact?: boolean };
+type NavItem = { href: string; label: string; icon: React.ComponentType<any>; exact?: boolean };
 type NavGroup = { title: string; items: NavItem[] };
 
 const GROUPS: NavGroup[] = [

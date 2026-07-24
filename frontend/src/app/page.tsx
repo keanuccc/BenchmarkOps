@@ -13,6 +13,7 @@ import {
   DollarSign,
   ArrowRight,
   Plus,
+  Activity,
 } from "lucide-react";
 import {
   listProjects,

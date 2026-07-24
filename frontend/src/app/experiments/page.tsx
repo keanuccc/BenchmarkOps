@@ -197,7 +197,7 @@ export default function ExperimentsPage() {
     }
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = {
+      const body = {
         project_id: form.project_id,
         name: form.name,
         dataset_id: form.dataset_id,
@@ -209,7 +209,7 @@ export default function ExperimentsPage() {
           ...(form.max_tokens ? { max_tokens: parseInt(form.max_tokens, 10) } : {}),
         },
       };
-      await createExperiment(body);
+      await createExperiment(body as Parameters<typeof createExperiment>[0]);
       setModalOpen(false);
       await refresh();
     } finally {

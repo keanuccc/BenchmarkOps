@@ -332,7 +332,7 @@ export default function SettingsPage() {
                 <p className="mb-2 font-medium text-[var(--ocd-text-muted)]">已应用的迁移</p>
                 {migrationStatus.applied.map((m) => (
                   <div key={m.version} className="flex items-center gap-2 py-0.5">
-                    <Badge status="active" v={1}>v{m.version}</Badge>
+                    <Badge status="active">v{m.version}</Badge>
                     <span className="text-[var(--ocd-text-faint)]">{m.name}</span>
                   </div>
                 ))}
@@ -341,7 +341,7 @@ export default function SettingsPage() {
                     <p className="mt-2 mb-1 font-medium text-[var(--ocd-text-muted)]">待应用的迁移</p>
                     {migrationStatus.pending.map((m) => (
                       <div key={m.version} className="flex items-center gap-2 py-0.5">
-                        <Badge status="pending" v={1}>v{m.version}</Badge>
+                        <Badge status="pending">v{m.version}</Badge>
                         <span className="text-[var(--ocd-text-faint)]">{m.name}</span>
                       </div>
                     ))}

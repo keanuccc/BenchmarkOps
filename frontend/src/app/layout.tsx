@@ -14,6 +14,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="h-full antialiased">
+      <head />
       <body className="min-h-full">
         <NetworkStatusProvider>
           <ToastProvider>

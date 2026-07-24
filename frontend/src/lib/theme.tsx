@@ -22,8 +22,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
-    const saved = (localStorage.getItem(KEY) as Theme | null) ?? "dark";
-    setTheme(saved);
+    try {
+      const saved = (localStorage.getItem(KEY) as Theme | null) ?? "dark";
+      setTheme(saved);
+    } catch {
+      /* localStorage unavailable */
+    }
   }, []);
 
   useEffect(() => {

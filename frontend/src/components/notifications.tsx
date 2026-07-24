@@ -106,31 +106,36 @@ interface NetworkBannerProps {
   visible: boolean;
   reconnecting: boolean;
   onRetry: () => void;
+  children?: React.ReactNode;
 }
 
-function NetworkBannerInner({ visible, reconnecting, onRetry }: NetworkBannerProps) {
-  if (!visible) return null;
+function NetworkBannerInner({ visible, reconnecting, onRetry, children }: NetworkBannerProps) {
   return (
-    <div
-      className="fixed top-0 left-0 right-0 z-[99] flex items-center justify-center gap-3 px-4 py-2 text-xs font-medium text-white"
-      style={{ background: "var(--ocd-bad)" }}
-    >
-      {reconnecting ? (
-        <>
-          <span className="animate-spin">⟳</span> 正在重连…
-        </>
-      ) : (
-        <>
-          <span>⚠</span> 无法连接到后端服务器
-          <button
-            onClick={onRetry}
-            className="underline hover:no-underline"
-          >
-            重试
-          </button>
-        </>
+    <>
+      {visible && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[99] flex items-center justify-center gap-3 px-4 py-2 text-xs font-medium text-white"
+          style={{ background: "var(--ocd-bad)" }}
+        >
+          {reconnecting ? (
+            <>
+              <span className="animate-spin">⟳</span> 正在重连…
+            </>
+          ) : (
+            <>
+              <span>⚠</span> 无法连接到后端服务器
+              <button
+                onClick={onRetry}
+                className="underline hover:no-underline"
+              >
+                重试
+              </button>
+            </>
+          )}
+        </div>
       )}
-    </div>
+      {children}
+    </>
   );
 }
 
