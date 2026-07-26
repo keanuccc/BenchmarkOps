@@ -199,10 +199,23 @@ uv run pytest -m e2e       # 运行端到端测试（需网络）
 - `EVAL_MAX_WORKERS` 在 v1 中为预留配置项，实际并发由进程内线程队列控制。
 - 未配置 `OPENROUTER_API_KEY` 或 `QINIU_API_KEY` 时，自动使用 **Mock Provider** 生成合成结果，可用于功能演示。
 
-### 数据集存储
+### 数据集上传注意事项
 
-- 上传的文件内容以原始字节存储在数据库中（非对象存储），受 `MAX_UPLOAD_BYTES` / `MAX_DATASET_ROWS` 保护。
-- 生产环境建议使用更大的限制或后续迁移至 MinIO 对象存储。
+- **支持格式**：JSONL（推荐）、JSON、CSV。扩展名自动识别，也可手动指定 `format`。
+- **大小限制**：单文件 ≤ 50 MB（`MAX_UPLOAD_BYTES`），行数 ≤ 100,000 行（`MAX_DATASET_ROWS`）。超出将在上传阶段被拒绝。
+- **字段约定**：每行至少包含输入字段和期望输出字段。期望输出的常见键名：`answer` / `expected` / `label` / `output` / `target` / `ground_truth`。系统会自动检测这些键。
+- **JSONL 格式示例**：
+  ```jsonl
+  {"question": "Compute 2 + 2.", "answer": "4"}
+  {"question": "Translate to French: hello", "answer": "bonjour"}
+  ```
+- **CSV 格式要求**：必须包含表头行，否则解析失败。
+- **JSON 格式**：根节点必须是数组，或包含 `data` / `rows` 键的数组。
+- **编码**：优先 UTF-8；Windows 导出的 CSV 如为 GBK/GB2312 编码会自动回退解码。
+- **空行处理**：JSONL 中空行会被跳过；CSV 中空行会报错。
+- **必填字段校验**：可通过 `required_fields` 配置哪些列不能为空。校验接口 `POST /datasets/{id}/validate` 可检查数据完整性。
+- **数据存储在数据库中**：上传内容以原始字节存入 SQLite，非对象存储。大文件会影响数据库体积和备份时间。生产环境建议控制文件大小或使用后续迭代的 MinIO 方案。
+- **字段角色冲突**：同一列不能同时映射到 input / expected / metadata 多个角色，否则上传失败。
 
 ### 前端 SSR
 
