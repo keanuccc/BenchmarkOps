@@ -3,6 +3,7 @@ import "./globals.css";
 import { AppShell } from "@/components/app-shell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ToastProvider, NetworkStatusProvider } from "@/components/notifications";
+import { ReactQueryClientProvider } from "@/lib/react-query-client";
 
 export const metadata: Metadata = {
   title: "BenchmarkOps",
@@ -16,13 +17,15 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <head />
       <body className="min-h-full">
-        <NetworkStatusProvider>
-          <ToastProvider>
-            <AppShell>
-              <ErrorBoundary>{children}</ErrorBoundary>
-            </AppShell>
-          </ToastProvider>
-        </NetworkStatusProvider>
+        <ReactQueryClientProvider>
+          <NetworkStatusProvider>
+            <ToastProvider>
+              <AppShell>
+                <ErrorBoundary>{children}</ErrorBoundary>
+              </AppShell>
+            </ToastProvider>
+          </NetworkStatusProvider>
+        </ReactQueryClientProvider>
       </body>
     </html>
   );
