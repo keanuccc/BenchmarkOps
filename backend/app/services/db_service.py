@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import shutil
 import time
 from pathlib import Path
 
@@ -105,16 +104,7 @@ def backup_database(database_url: str, dest_dir: str | None = None) -> dict:
     backup_filename = f"benchmarkops_{timestamp}.db"
     backup_path = backup_dir / backup_filename
 
-    # Copy the main DB file + WAL + SHM for consistency
-    # SQLite VACUUM INTO would be cleaner but requires an active connection;
-    # file copy is simpler and safe when no writer is active.
-    shutil.copy2(db_path, backup_path)
-
-    # Also copy WAL/SHM if they exist
-    for suffix in ("-wal", "-shm"):
-        src = Path(str(db_path) + suffix)
-        if src.exists():
-            shutil.copy2(src, Path(str(backup_path) + suffix))
+    _backup_sqlite(db_path, backup_path)
 
     size_mb = round(backup_path.stat().st_size / (1024 * 1024), 2)
     logger.info("database backup created: %s (%s MB)", backup_path, size_mb)
@@ -125,3 +115,23 @@ def backup_database(database_url: str, dest_dir: str | None = None) -> dict:
         "size_mb": size_mb,
         "timestamp": timestamp,
     }
+
+
+def _backup_sqlite(src_path: Path, dest_path: Path) -> None:
+    """Create a consistent point-in-time copy via the SQLite online backup API.
+
+    A plain file copy of a WAL-mode database can capture the main DB file and
+    its WAL at different instants, and a shipped snapshot that omits the WAL
+    loses the newest committed transactions. The backup API copies pages under
+    a read lock, so the result is internally consistent even while another
+    writer is active, and WAL contents are folded into the single output file.
+    """
+    import sqlite3
+
+    src = sqlite3.connect(str(src_path), timeout=30)
+    dest = sqlite3.connect(str(dest_path), timeout=30)
+    try:
+        src.backup(dest)
+    finally:
+        dest.close()
+        src.close()
