@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.dataset import Dataset, DatasetRow
 from app.repositories.base import BaseRepository
@@ -15,6 +15,15 @@ class DatasetRepository(BaseRepository[Dataset]):
 
 class DatasetRowRepository(BaseRepository[DatasetRow]):
     model = DatasetRow
+
+    async def count_by_dataset(self, dataset_id: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(DatasetRow)
+            .where(DatasetRow.dataset_id == dataset_id)
+        )
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def list_by_dataset(
         self, dataset_id: str, offset: int = 0, limit: int = 20

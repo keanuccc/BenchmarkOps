@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, with_retry_on_lock
+from app.evaluation.cancellation import clear_cancelled, is_cancelled
 from app.evaluation.errors import RetryableTaskError
 from app.evaluation.experiment_metrics import metric_columns
 from app.evaluation.metrics import (
@@ -39,12 +40,93 @@ logger = logging.getLogger(__name__)
 _BATCH_SIZE = 500
 _PROGRESS_EVERY = 50
 
-logger = logging.getLogger(__name__)
-
 _ANSWER_PREFIX_RE = re.compile(
     r"^(?:最\s*终\s*答\s*案[：:\s]*|答\s*案(?:\s*是)?[：:\s]*|回\s*答[：:\s]*|答\s*题?[：:\s]*|answer[s]?[：:]?\s*|final\s+answer\s*[：:]?\s*|结\s*论[：:\s]*)",
     flags=re.IGNORECASE,
 )
+
+
+async def _load_dataset_rows(
+    dataset_id: str, offset: int, limit: int
+):
+    """Fetch one page of dataset rows on a fresh session (bounded memory)."""
+    async with AsyncSessionLocal() as session:
+        repo = DatasetRowRepository(session)
+        return await repo.list_by_dataset(dataset_id, offset=offset, limit=limit)
+
+
+async def _flush_results(
+    experiment_id: str, rows: list[ExperimentResult]
+) -> None:
+    """Persist one result batch on an isolated session.
+
+    Unlike best-effort progress updates, result rows are authoritative: a
+    failure after retrying transient lock contention is raised as a terminal
+    (non-retryable) error so the distributed queue never re-runs the whole
+    experiment and double-bills provider calls.
+    """
+
+    async def _write() -> None:
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentResultRepository(session)
+            await repo.bulk_create(rows)
+            await session.commit()
+
+    try:
+        await with_retry_on_lock(_write)
+    except Exception as exc:
+        raise RuntimeError(
+            f"failed to persist result batch for experiment {experiment_id}: {exc}"
+        ) from exc
+
+
+async def _clear_results(experiment_id: str) -> None:
+    """Best-effort removal of incrementally-written result rows (cancel path)."""
+
+    async def _write() -> None:
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentResultRepository(session)
+            await repo.delete_by_experiment(experiment_id)
+            await session.commit()
+
+    try:
+        await with_retry_on_lock(_write)
+    except Exception:
+        logger.exception("failed to clear results for experiment %s", experiment_id)
+
+
+async def _clear_stale_results(experiment_id: str) -> None:
+    """Delete rows left by an earlier run before a fresh run starts writing.
+
+    Failures (after transient lock retries) propagate to the caller, which
+    marks the run failed instead of leaving stale/mixed result rows.
+    """
+
+    async def _write() -> None:
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentResultRepository(session)
+            await repo.delete_by_experiment(experiment_id)
+            await session.commit()
+
+    await with_retry_on_lock(_write)
+
+
+async def _handle_cancelled(experiment_id: str) -> None:
+    """Mark cancelled, drop partial rows, and close the task record."""
+    await _mark_experiment_cancelled(experiment_id)
+    await _clear_results(experiment_id)
+    await mark_done(experiment_id, status="cancelled")
+
+
+async def _check_cancelled_db(experiment_id: str) -> bool:
+    """Best-effort cross-process cancellation check (progress cadence only)."""
+    try:
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentRepository(session)
+            exp = await repo.get(experiment_id)
+            return exp is not None and exp.status == "cancelled"
+    except Exception:
+        return False
 
 
 def _first_value(d: dict | None) -> str:
@@ -355,11 +437,27 @@ async def _run_experiment(experiment_id: str) -> None:
             )
             await mark_done(experiment_id, status="cancelled")
             return
+        if is_cancelled(experiment_id):
+            logger.info(
+                "experiment %s was cancelled in-process; skipping queued run",
+                experiment_id,
+            )
+            await mark_done(experiment_id, status="cancelled")
+            return
 
         if not await exp_repo.set_running_if_not_running(experiment_id):
             return
+        # A fresh run now owns the experiment: drop stale cancellation markers
+        # and any rows left behind by an earlier run.
+        clear_cancelled(experiment_id)
         await load_session.commit()
         await mark_running(experiment_id)
+        try:
+            await _clear_stale_results(experiment_id)
+        except Exception as exc:
+            await _mark_failed(experiment_id, str(exc)[:500])
+            await mark_done(experiment_id, status="failed", error=str(exc)[:500])
+            return
 
         snap = experiment.prompt_snapshot
         if snap:
@@ -425,16 +523,7 @@ async def _run_experiment(experiment_id: str) -> None:
             return await _mark_failed(experiment_id, "Experiment has no scoring metric")
 
         row_repo = DatasetRowRepository(load_session)
-        rows: list = []
-        offset = 0
-        while True:
-            batch = await row_repo.list_by_dataset(
-                experiment.dataset_id, offset=offset, limit=_BATCH_SIZE
-            )
-            if not batch:
-                break
-            rows.extend(batch)
-            offset += len(batch)
+        dataset_total = await row_repo.count_by_dataset(experiment.dataset_id)
 
         metric_suite = normalize_metric_suite(metric_name, metric_config, benchmark_spec)
         explicit_metric_suite = has_metric_suite(metric_config, benchmark_spec)
@@ -447,7 +536,7 @@ async def _run_experiment(experiment_id: str) -> None:
         temperature = float(params.get("temperature", 0.0))
         max_tokens = params.get("max_tokens")
 
-    result_objs: list[ExperimentResult] = []
+    pending_results: list[ExperimentResult] = []
     total_score = 0.0
     total_cost = 0.0
     total_tokens = 0
@@ -601,7 +690,7 @@ async def _run_experiment(experiment_id: str) -> None:
         no two merges run concurrently — safe without extra locking."""
         nonlocal scored, cells_done, cells_error, provider_errors, metric_errors, total_score, total_cost
         nonlocal total_tokens, total_latency, rate_limited, rate_limited_msg
-        result_objs.append(res)
+        pending_results.append(res)
         if is_rate_limited:
             provider_errors += 1
             cells_error += 1
@@ -637,80 +726,106 @@ async def _run_experiment(experiment_id: str) -> None:
         return metrics
 
     is_free = model_is_free
-    if is_free:
-        # Free models measured RPM>=325 + high burst; run rows concurrently (bounded by
-        # free_model_concurrency) and merge results serially. No fixed per-row sleep.
-        # Applies to OpenRouter ":free" models and Qiniu free-tier models alike, since
-        # the provider layer throttles them via its own token bucket.
-        sem = asyncio.Semaphore(settings.free_model_concurrency)
 
-        async def _guarded(row):
-            async with sem:
-                return await _process_row(row)
+    async def _flush_if_due() -> None:
+        """Persist the current result batch once it reaches the configured size."""
+        if len(pending_results) >= settings.eval_result_batch_size:
+            await _flush_results(experiment_id, pending_results)
+            pending_results.clear()
 
-        for i in range(0, len(rows), settings.free_model_concurrency):
-            batch = rows[i : i + settings.free_model_concurrency]
-            outcomes = await asyncio.gather(*(_guarded(r) for r in batch))
-            for res, is_rl, metric_scores, error_kind in outcomes:
-                _merge(res, is_rl, metric_scores, error_kind)
-            processed += len(batch)
-            # Report progress per batch (batch size == free_model_concurrency, well
-            # under _PROGRESS_EVERY), so the UI bar advances without waiting
-            # for a full _PROGRESS_EVERY worth of rows under concurrency.
-            await _persist_progress(
-                experiment_id,
-                processed,
-                len(rows),
-                cells_done=cells_done,
-                cells_error=cells_error,
-                metrics_update=_progress_metrics(),
-            )
-            if rate_limited:
-                break
-            # Check for cancellation between batches
-            try:
-                async with AsyncSessionLocal() as check_session:
-                    check_repo = ExperimentRepository(check_session)
-                    current_exp = await check_repo.get(experiment_id)
-                    if current_exp and current_exp.status == "cancelled":
-                        logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
-                        await _mark_experiment_cancelled(experiment_id)
-                        await mark_done(experiment_id, status="cancelled")
-                        return
-            except Exception:  # noqa: BLE001
-                pass  # best-effort only — don't fail the run if check fails
-    else:
-        # Non-free models: keep the original strict-serial behavior (rate safety is
-        # handled by the task queue's eval_max_workers, not by in-run concurrency).
-        for row in rows:
-            res, is_rl, metric_scores, error_kind = await _process_row(row)
-            _merge(res, is_rl, metric_scores, error_kind)
-            processed += 1
-            if processed % _PROGRESS_EVERY == 0:
-                await _persist_progress(
-                    experiment_id,
-                    processed,
-                    len(rows),
-                    cells_done=cells_done,
-                    cells_error=cells_error,
-                    metrics_update=_progress_metrics(),
+    try:
+        if is_free:
+            # Free models measured RPM>=325 + high burst; run rows concurrently (bounded by
+            # free_model_concurrency) and merge results serially. No fixed per-row sleep.
+            # Applies to OpenRouter ":free" models and Qiniu free-tier models alike, since
+            # the provider layer throttles them via its own token bucket.
+            sem = asyncio.Semaphore(settings.free_model_concurrency)
+
+            async def _guarded(row):
+                async with sem:
+                    return await _process_row(row)
+
+            offset = 0
+            while True:
+                db_batch = await _load_dataset_rows(
+                    experiment.dataset_id, offset=offset, limit=_BATCH_SIZE
                 )
-            if rate_limited:
-                break
-            # Check for cancellation every row (cheap read-only DB query)
-            try:
-                async with AsyncSessionLocal() as check_session:
-                    check_repo = ExperimentRepository(check_session)
-                    current_exp = await check_repo.get(experiment_id)
-                    if current_exp and current_exp.status == "cancelled":
-                        logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
-                        await _mark_experiment_cancelled(experiment_id)
-                        await mark_done(experiment_id, status="cancelled")
+                if not db_batch:
+                    break
+                offset += len(db_batch)
+                for i in range(0, len(db_batch), settings.free_model_concurrency):
+                    batch = db_batch[i : i + settings.free_model_concurrency]
+                    outcomes = await asyncio.gather(*(_guarded(r) for r in batch))
+                    for res, is_rl, metric_scores, error_kind in outcomes:
+                        _merge(res, is_rl, metric_scores, error_kind)
+                    processed += len(batch)
+                    await _flush_if_due()
+                    # Report progress per batch (batch size == free_model_concurrency,
+                    # well under _PROGRESS_EVERY), so the UI bar advances without
+                    # waiting for a full _PROGRESS_EVERY worth of rows.
+                    await _persist_progress(
+                        experiment_id,
+                        processed,
+                        dataset_total,
+                        cells_done=cells_done,
+                        cells_error=cells_error,
+                        metrics_update=_progress_metrics(),
+                    )
+                    if rate_limited:
+                        break
+                    if is_cancelled(experiment_id):
+                        await _handle_cancelled(experiment_id)
                         return
-            except Exception:  # noqa: BLE001
-                pass
+                    if processed % _PROGRESS_EVERY == 0 and await _check_cancelled_db(
+                        experiment_id
+                    ):
+                        await _handle_cancelled(experiment_id)
+                        return
+                if rate_limited:
+                    break
+        else:
+            # Non-free models: keep the original strict-serial behavior (rate safety is
+            # handled by the task queue's eval_max_workers, not by in-run concurrency).
+            offset = 0
+            while True:
+                db_batch = await _load_dataset_rows(
+                    experiment.dataset_id, offset=offset, limit=_BATCH_SIZE
+                )
+                if not db_batch:
+                    break
+                offset += len(db_batch)
+                for row in db_batch:
+                    res, is_rl, metric_scores, error_kind = await _process_row(row)
+                    _merge(res, is_rl, metric_scores, error_kind)
+                    processed += 1
+                    await _flush_if_due()
+                    if processed % _PROGRESS_EVERY == 0:
+                        await _persist_progress(
+                            experiment_id,
+                            processed,
+                            dataset_total,
+                            cells_done=cells_done,
+                            cells_error=cells_error,
+                            metrics_update=_progress_metrics(),
+                        )
+                        if await _check_cancelled_db(experiment_id):
+                            await _handle_cancelled(experiment_id)
+                            return
+                    if rate_limited:
+                        break
+                    if is_cancelled(experiment_id):
+                        await _handle_cancelled(experiment_id)
+                        return
+                if rate_limited:
+                    break
+    except Exception as exc:
+        # A batch persist failure after provider calls started must be terminal
+        # (never retryable — ARQ would otherwise re-run and double-bill).
+        await _mark_failed(experiment_id, str(exc)[:500])
+        await mark_done(experiment_id, status="failed", error=str(exc)[:500])
+        return
 
-    n = len(result_objs)
+    n = processed
     accuracy = (total_score / scored) if scored else 0.0
     avg_latency = (total_latency / scored) if scored else 0.0
     runtime_s = (time.perf_counter() - started) if scored > 0 else 0
@@ -731,12 +846,14 @@ async def _run_experiment(experiment_id: str) -> None:
         "avg_latency_ms": round(avg_latency, 1),
         "avg_ms_per_row": round(avg_ms_per_row, 1),
         "rows_total": n,
-        "dataset_rows_total": len(rows),
+        "dataset_rows_total": dataset_total,
         "rows_scored": scored,
         "rows_failed": n - scored,
-        "rows_unprocessed": len(rows) - processed,
-        "coverage": round(scored / len(rows), 4) if rows else 0.0,
-        "failure_rate": round((provider_errors + metric_errors) / len(rows), 4) if rows else 0.0,
+        "rows_unprocessed": max(dataset_total - processed, 0),
+        "coverage": round(scored / dataset_total, 4) if dataset_total else 0.0,
+        "failure_rate": round((provider_errors + metric_errors) / dataset_total, 4)
+        if dataset_total
+        else 0.0,
         "provider_errors": provider_errors,
         "metric_errors": metric_errors,
         "prompt_version": prompt_version,
@@ -750,10 +867,14 @@ async def _run_experiment(experiment_id: str) -> None:
                 experiment_id, status=status, error=rate_limited_msg or None
             ):
                 logger.info("experiment %s lost persist race; discarding", experiment_id)
+                # Remove rows this run may have written incrementally; the
+                # experiment now belongs to a newer state (e.g. cancelled).
+                res_repo = ExperimentResultRepository(session)
+                await res_repo.delete_by_experiment(experiment_id)
+                await session.commit()
                 return
             res_repo = ExperimentResultRepository(session)
-            await res_repo.delete_by_experiment(experiment_id)
-            await res_repo.bulk_create(result_objs)
+            await res_repo.bulk_create(pending_results)
             exp = await exp_repo.get(experiment_id)
             await exp_repo.update(
                 exp,

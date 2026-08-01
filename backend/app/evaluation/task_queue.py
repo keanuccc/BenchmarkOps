@@ -32,6 +32,7 @@ from arq.jobs import Job
 from arq.utils import timestamp_ms
 
 from app.core.config import settings
+from app.evaluation.cancellation import request_cancel
 from app.evaluation.task_records import mark_done
 
 logger = logging.getLogger("benchmarkops.tasks")
@@ -123,10 +124,15 @@ class AsyncioTaskQueue(TaskQueue):
         ]
 
     def cancel_task(self, experiment_id: str) -> bool:
-        """Cancel a running task by experiment_id. Returns True if found and cancelled."""
+        """Request graceful cancellation of a tracked task.
+
+        The in-process runner checks the cancellation registry between rows, so
+        we never hard-cancel the future mid-provider-call (which could interrupt
+        a billable request). Returns True if the task was tracked and running.
+        """
         fut = self._futures.get(experiment_id)
         if fut and not fut.done():
-            fut.cancel()
+            request_cancel(experiment_id)
             return True
         return False
 

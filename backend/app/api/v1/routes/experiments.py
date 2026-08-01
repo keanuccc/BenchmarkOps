@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.core.exceptions import ConflictError
 from app.core.security import require_auth
+from app.evaluation.cancellation import request_cancel
 from app.evaluation.task_records import mark_done
 from app.evaluation.task_queue import task_queue
 from app.schemas.common import ListResponse
@@ -187,7 +188,8 @@ async def cancel_experiment(
         await repo.update(exp, {"status": "cancelled"})
         await session.commit()
     await mark_done(experiment_id, status="cancelled")
-    # Also signal the background task to cancel immediately
+    # Also signal the background task to stop at the next row boundary
+    request_cancel(experiment_id)
     task_queue.cancel_task(experiment_id)
     return await service.get(experiment_id)
 
