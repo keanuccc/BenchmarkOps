@@ -108,6 +108,7 @@ class BenchmarkService:
         *,
         project_id: str | None = None,
         type: str | None = None,
+        q: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> list[Benchmark]:
@@ -116,6 +117,7 @@ class BenchmarkService:
                 offset=offset,
                 limit=limit,
                 filters={"project_id": project_id, "type": type},
+                search=q,
             )
         )
 
@@ -124,9 +126,10 @@ class BenchmarkService:
         *,
         project_id: str | None = None,
         type: str | None = None,
+        q: str | None = None,
     ) -> int:
         return await self.repo.count(
-            filters={"project_id": project_id, "type": type}
+            filters={"project_id": project_id, "type": type}, search=q
         )
 
     async def update(self, benchmark_id: str, data: BenchmarkUpdate) -> Benchmark:

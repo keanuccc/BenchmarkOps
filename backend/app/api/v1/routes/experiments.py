@@ -44,14 +44,15 @@ async def create_experiment(
 async def list_experiments(
     project_id: str | None = None,
     status: str | None = None,
+    q: str | None = None,
     offset: int = 0,
     limit: int = 100,
     service: ExperimentService = Depends(get_experiment_service),
 ):
     items = await service.list(
-        project_id=project_id, status=status, offset=offset, limit=limit
+        project_id=project_id, status=status, q=q, offset=offset, limit=limit
     )
-    total = await service.count(project_id=project_id, status=status)
+    total = await service.count(project_id=project_id, status=status, q=q)
     return ListResponse[ExperimentRead](items=items, total=total)
 
 

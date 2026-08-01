@@ -54,13 +54,24 @@ class PromptService:
         return prompt
 
     async def list(
-        self, *, project_id: str | None = None, offset: int = 0, limit: int = 100
+        self,
+        *,
+        project_id: str | None = None,
+        q: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> Sequence[Prompt]:
         filters = {"project_id": project_id}
-        return await self.prompts.list(offset=offset, limit=limit, filters=filters)
+        return await self.prompts.list(
+            offset=offset, limit=limit, filters=filters, search=q
+        )
 
-    async def count(self, *, project_id: str | None = None) -> int:
-        return await self.prompts.count(filters={"project_id": project_id})
+    async def count(
+        self, *, project_id: str | None = None, q: str | None = None
+    ) -> int:
+        return await self.prompts.count(
+            filters={"project_id": project_id}, search=q
+        )
 
     async def update(self, prompt_id: str, data: PromptUpdate) -> Prompt:
         prompt = await self.get(prompt_id)

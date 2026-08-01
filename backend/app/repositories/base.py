@@ -33,6 +33,7 @@ class BaseRepository(Generic[ModelT]):
         limit: int = 100,
         filters: dict[str, Any] | None = None,
         order_by: Any | None = None,
+        search: str | None = None,
     ) -> Sequence[ModelT]:
         stmt = select(self.model)
         if filters:
@@ -42,17 +43,28 @@ class BaseRepository(Generic[ModelT]):
                 # on an empty id would silently return zero rows.
                 if value:
                     stmt = stmt.where(getattr(self.model, field) == value)
+        if search:
+            # Models used by list endpoints expose a ``name`` column; subclasses
+            # that don't (e.g. Report) implement their own search in the service.
+            stmt = stmt.where(self.model.name.ilike(f"%{search}%"))
         stmt = stmt.order_by(order_by if order_by is not None else self.model.created_at.desc())
         stmt = stmt.offset(offset).limit(limit)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def count(self, *, filters: dict[str, Any] | None = None) -> int:
+    async def count(
+        self,
+        *,
+        filters: dict[str, Any] | None = None,
+        search: str | None = None,
+    ) -> int:
         stmt = select(func.count()).select_from(self.model)
         if filters:
             for field, value in filters.items():
                 if value:
                     stmt = stmt.where(getattr(self.model, field) == value)
+        if search:
+            stmt = stmt.where(self.model.name.ilike(f"%{search}%"))
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 

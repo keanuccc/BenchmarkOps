@@ -122,6 +122,7 @@ class ExperimentService:
         *,
         project_id: str | None = None,
         status: str | None = None,
+        q: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> Sequence[Experiment]:
@@ -129,6 +130,7 @@ class ExperimentService:
             offset=offset,
             limit=limit,
             filters={"project_id": project_id, "status": status},
+            search=q,
         )
 
     async def count(
@@ -136,9 +138,10 @@ class ExperimentService:
         *,
         project_id: str | None = None,
         status: str | None = None,
+        q: str | None = None,
     ) -> int:
         return await self.experiments.count(
-            filters={"project_id": project_id, "status": status}
+            filters={"project_id": project_id, "status": status}, search=q
         )
 
     async def update(self, experiment_id: str, data: ExperimentUpdate) -> Experiment:

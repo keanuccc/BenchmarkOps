@@ -26,12 +26,13 @@ async def generate_report(
 @router.get("/", response_model=ListResponse[ReportRead])
 async def list_reports(
     project_id: str,
+    q: str | None = None,
     offset: int = 0,
     limit: int = 100,
     service: ReportService = Depends(get_report_service),
 ):
-    items = await service.list(project_id, offset=offset, limit=limit)
-    total = await service.count(project_id)
+    items = await service.list(project_id, q=q, offset=offset, limit=limit)
+    total = await service.count(project_id, q=q)
     return ListResponse[ReportRead](items=items, total=total)
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Sequence
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -113,14 +113,30 @@ class ReportService:
         return report
 
     async def list(
-        self, project_id: str, *, offset: int = 0, limit: int = 100
+        self,
+        project_id: str,
+        *,
+        q: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> Sequence[Report]:
-        return await self.reports.list(
-            offset=offset, limit=limit, filters={"project_id": project_id}
-        )
+        stmt = select(Report).where(Report.project_id == project_id)
+        if q:
+            stmt = stmt.where(Report.title.ilike(f"%{q}%"))
+        stmt = stmt.order_by(Report.created_at.desc()).offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
 
-    async def count(self, project_id: str) -> int:
-        return await self.reports.count(filters={"project_id": project_id})
+    async def count(self, project_id: str, *, q: str | None = None) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Report)
+            .where(Report.project_id == project_id)
+        )
+        if q:
+            stmt = stmt.where(Report.title.ilike(f"%{q}%"))
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def delete(self, report_id: str) -> None:
         report = await self.get(report_id)

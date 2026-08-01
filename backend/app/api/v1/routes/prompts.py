@@ -32,12 +32,13 @@ async def create_prompt(
 @router.get("/", response_model=ListResponse[PromptRead])
 async def list_prompts(
     project_id: str | None = Query(None),
+    q: str | None = Query(None),
     offset: int = Query(0),
     limit: int = Query(100),
     service: PromptService = Depends(get_prompt_service),
 ) -> ListResponse[PromptRead]:
-    items = await service.list(project_id=project_id, offset=offset, limit=limit)
-    total = await service.count(project_id=project_id)
+    items = await service.list(project_id=project_id, q=q, offset=offset, limit=limit)
+    total = await service.count(project_id=project_id, q=q)
     return ListResponse[PromptRead](items=items, total=total)
 
 

@@ -30,6 +30,7 @@ export default function DatasetsPage() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const PAGE_SIZE = 20;
 
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -49,6 +50,7 @@ export default function DatasetsPage() {
     try {
       const [ds, ps] = await Promise.all([
         listDatasets(undefined, {
+          q: search || undefined,
           offset: (page - 1) * PAGE_SIZE,
           limit: PAGE_SIZE,
         }),
@@ -66,7 +68,7 @@ export default function DatasetsPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, search]);
 
   function openUpload() {
     setFile(null);
@@ -115,16 +117,28 @@ export default function DatasetsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">数据集</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             各项目下上传的评测数据集。
           </p>
         </div>
-        <Button onClick={openUpload}>
-          <Upload size={15} /> 上传数据集
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={openUpload}>
+            <Upload size={15} /> 上传数据集
+          </Button>
+        </div>
       </header>
 
       {loading ? (

@@ -26,12 +26,15 @@ async def create_benchmark(
 async def list_benchmarks(
     project_id: str | None = Query(default=None),
     type: str | None = Query(default=None),
+    q: str | None = Query(default=None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     service: BenchmarkService = Depends(get_benchmark_service),
 ) -> ListResponse[BenchmarkRead]:
-    objs = await service.list(project_id=project_id, type=type, offset=offset, limit=limit)
-    total = await service.count(project_id=project_id, type=type)
+    objs = await service.list(
+        project_id=project_id, type=type, q=q, offset=offset, limit=limit
+    )
+    total = await service.count(project_id=project_id, type=type, q=q)
     return ListResponse[BenchmarkRead](
         items=[BenchmarkRead.model_validate(o) for o in objs],
         total=total,

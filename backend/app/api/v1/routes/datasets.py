@@ -94,12 +94,13 @@ async def upload_dataset(
 @router.get("/", response_model=ListResponse[DatasetRead])
 async def list_datasets(
     project_id: str | None = Query(None),
+    q: str | None = Query(None),
     offset: int = Query(0),
     limit: int = Query(100),
     service: DatasetService = Depends(get_dataset_service),
 ) -> ListResponse[DatasetRead]:
-    items = await service.list(project_id=project_id, offset=offset, limit=limit)
-    total = await service.count(project_id=project_id)
+    items = await service.list(project_id=project_id, q=q, offset=offset, limit=limit)
+    total = await service.count(project_id=project_id, q=q)
     return ListResponse[DatasetRead](items=items, total=total)
 
 

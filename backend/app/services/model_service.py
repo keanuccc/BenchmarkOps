@@ -111,6 +111,7 @@ class ModelService:
         *,
         provider: str | None = None,
         is_active: bool | None = None,
+        q: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> list[Model]:
@@ -119,6 +120,8 @@ class ModelService:
             stmt = stmt.where(Model.provider == provider)
         if is_active is not None:
             stmt = stmt.where(Model.is_active == is_active)
+        if q:
+            stmt = stmt.where(Model.name.ilike(f"%{q}%"))
         stmt = stmt.order_by(Model.created_at.desc())
         stmt = stmt.offset(offset).limit(limit)
         result = await self.session.execute(stmt)
@@ -129,7 +132,19 @@ class ModelService:
         *,
         provider: str | None = None,
         is_active: bool | None = None,
+        q: str | None = None,
     ) -> int:
+        if q:
+            from sqlalchemy import func
+
+            stmt = select(func.count()).select_from(Model)
+            if provider is not None:
+                stmt = stmt.where(Model.provider == provider)
+            if is_active is not None:
+                stmt = stmt.where(Model.is_active == is_active)
+            stmt = stmt.where(Model.name.ilike(f"%{q}%"))
+            result = await self.session.execute(stmt)
+            return int(result.scalar_one())
         return await self.repo.count(
             filters={"provider": provider, "is_active": is_active}
         )

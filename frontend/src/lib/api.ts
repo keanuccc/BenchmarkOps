@@ -247,12 +247,14 @@ export interface ModelInfo {
 export const listModels = (params?: {
   provider?: string;
   is_active?: boolean;
+  q?: string;
   offset?: number;
   limit?: number;
 }) => {
   const qs = new URLSearchParams();
   if (params?.provider) qs.set("provider", params.provider);
   if (params?.is_active !== undefined) qs.set("is_active", String(params.is_active));
+  if (params?.q) qs.set("q", params.q);
   if (params?.offset) qs.set("offset", String(params.offset));
   if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();
@@ -329,10 +331,11 @@ export interface DatasetValidationResult {
 }
 export const listDatasets = (
   projectId?: string,
-  params?: { offset?: number; limit?: number },
+  params?: { q?: string; offset?: number; limit?: number },
 ) => {
   const qs = new URLSearchParams();
   if (projectId) qs.set("project_id", projectId);
+  if (params?.q) qs.set("q", params.q);
   if (params?.offset) qs.set("offset", String(params.offset));
   if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();
@@ -362,10 +365,11 @@ export interface Prompt {
 }
 export const listPrompts = (
   projectId?: string,
-  params?: { offset?: number; limit?: number },
+  params?: { q?: string; offset?: number; limit?: number },
 ) => {
   const qs = new URLSearchParams();
   if (projectId) qs.set("project_id", projectId);
+  if (params?.q) qs.set("q", params.q);
   if (params?.offset) qs.set("offset", String(params.offset));
   if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();
@@ -393,10 +397,11 @@ export interface Benchmark {
 }
 export const listBenchmarks = (
   projectId?: string,
-  params?: { offset?: number; limit?: number },
+  params?: { q?: string; offset?: number; limit?: number },
 ) => {
   const qs = new URLSearchParams();
   if (projectId) qs.set("project_id", projectId);
+  if (params?.q) qs.set("q", params.q);
   if (params?.offset) qs.set("offset", String(params.offset));
   if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();
@@ -468,11 +473,12 @@ export interface ExperimentResult {
 }
 export const listExperiments = (
   projectId?: string,
-  params?: { status?: string; offset?: number; limit?: number },
+  params?: { status?: string; q?: string; offset?: number; limit?: number },
 ) => {
   const qs = new URLSearchParams();
   if (projectId) qs.set("project_id", projectId);
   if (params?.status) qs.set("status", params.status);
+  if (params?.q) qs.set("q", params.q);
   if (params?.offset) qs.set("offset", String(params.offset));
   if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();
@@ -563,10 +569,11 @@ export interface Report {
 }
 export const listReports = (
   projectId: string,
-  params?: { offset?: number; limit?: number },
+  params?: { q?: string; offset?: number; limit?: number },
 ) => {
   const qs = new URLSearchParams();
   qs.set("project_id", projectId);
+  if (params?.q) qs.set("q", params.q);
   if (params?.offset) qs.set("offset", String(params.offset));
   if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();

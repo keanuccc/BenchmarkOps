@@ -43,6 +43,7 @@ export default function ModelsPage() {
   const [deleting, setDeleting] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const PAGE_SIZE = 20;
   const [form, setForm] = useState({
     name: "",
@@ -58,6 +59,7 @@ export default function ModelsPage() {
     setLoading(true);
     try {
       const result = await listModels({
+        q: search || undefined,
         offset: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
       });
@@ -71,7 +73,7 @@ export default function ModelsPage() {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, search]);
 
   async function onSeed() {
     setSeeding(true);
@@ -267,14 +269,24 @@ export default function ModelsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">模型中心</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             LLM 统一注册表。定价为每 1K 令牌（USD）。
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
           <Button onClick={onSeed} disabled={seeding} variant="secondary">
             {seeding ? <Spinner size={14} /> : <Cpu size={15} />} 初始化模型
           </Button>

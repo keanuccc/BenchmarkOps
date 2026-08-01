@@ -37,14 +37,15 @@ async def list_presets(
 async def list_models(
     provider: str | None = None,
     is_active: bool | None = None,
+    q: str | None = None,
     offset: int = 0,
     limit: int = 100,
     service: ModelService = Depends(get_model_service),
 ) -> ListResponse[ModelRead]:
     items = await service.list(
-        provider=provider, is_active=is_active, offset=offset, limit=limit
+        provider=provider, is_active=is_active, q=q, offset=offset, limit=limit
     )
-    total = await service.count(provider=provider, is_active=is_active)
+    total = await service.count(provider=provider, is_active=is_active, q=q)
     return ListResponse[ModelRead](items=items, total=total)
 
 

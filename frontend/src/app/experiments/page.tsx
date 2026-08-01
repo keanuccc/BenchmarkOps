@@ -84,6 +84,7 @@ export default function ExperimentsPage() {
   const [templateExpId, setTemplateExpId] = useState("");
   const [runningTasks, setRunningTasks] = useState<RunningTaskInfo[]>([]);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const PAGE_SIZE = 20;
 
   // Form state
@@ -100,9 +101,10 @@ export default function ExperimentsPage() {
 
   // Main experiment + models fetch via React Query
   const { data: experimentsData = { items: [], total: 0 }, isLoading: loading } = useQuery({
-    queryKey: ["experiments", page],
+    queryKey: ["experiments", page, search],
     queryFn: () =>
       listExperiments(undefined, {
+        q: search || undefined,
         offset: (page - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
       }),
@@ -242,16 +244,28 @@ export default function ExperimentsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">实验</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             所有项目下的评测运行记录。
           </p>
         </div>
-        <Button onClick={openModal}>
-          <Plus size={14} /> 新建实验
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={openModal}>
+            <Plus size={14} /> 新建实验
+          </Button>
+        </div>
       </header>
 
       {/* Running experiments banner */}
