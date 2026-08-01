@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
+from app.core.exceptions import UnauthorizedError
 from app.repositories.experiment import ExperimentRepository
 
 logger = logging.getLogger(__name__)
@@ -19,8 +22,19 @@ ACTIVE_STATUSES = {"running", "pending", "queued"}
 
 
 @router.get("/{experiment_id}/stream")
-async def experiment_stream(experiment_id: str):
-    """SSE endpoint for real-time experiment progress updates."""
+async def experiment_stream(
+    experiment_id: str,
+    token: str | None = Query(None),
+):
+    """SSE endpoint for real-time experiment progress updates.
+
+    EventSource cannot set Authorization headers, so the frontend passes the
+    token as a query parameter; when auth is enabled it is validated here.
+    """
+    if settings.auth_enabled and (
+        token is None or not hmac.compare_digest(token, settings.api_token)
+    ):
+        raise UnauthorizedError("Missing or invalid API token")
     return StreamingResponse(
         _event_generator(experiment_id),
         media_type="text/event-stream",

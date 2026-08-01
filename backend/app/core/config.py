@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +57,9 @@ class Settings(BaseSettings):
     # Evaluation runner
     eval_max_workers: int = 4
     eval_request_timeout: int = 60
+    # Persist scored rows in batches of this size instead of buffering every
+    # row in memory until the run finishes.
+    eval_result_batch_size: int = 100
 
     # AI report generation: model id + optional provider for the LLM that writes
     # reports. Empty model id falls back to the report service default; empty
@@ -106,6 +110,13 @@ class Settings(BaseSettings):
     def auth_enabled(self) -> bool:
         """True when a global API token is set (auth enforced on write endpoints)."""
         return bool(self.api_token.strip())
+
+    @model_validator(mode="after")
+    def _production_requires_api_token(self) -> "Settings":
+        """A production deployment must never silently run without auth."""
+        if self.app_env.strip().lower() == "production" and not self.api_token.strip():
+            raise ValueError("API_TOKEN is required when app_env=production")
+        return self
 
 
 @lru_cache(maxsize=1)
