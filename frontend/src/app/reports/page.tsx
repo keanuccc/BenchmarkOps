@@ -21,6 +21,7 @@ import {
   SectionTitle,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { FileLineChart, Download, Plus } from "lucide-react";
 
 function fmt(d: string) {
@@ -30,6 +31,8 @@ function fmt(d: string) {
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -73,7 +76,9 @@ export default function ReportsPage() {
       if (ps.length === 0) {
         setReports([]);
       } else {
-        const lists = await Promise.all(ps.map((p) => listReports(p.id)));
+        const lists = await Promise.all(
+          ps.map((p) => listReports(p.id, { limit: 500 })),
+        );
         setReports(lists.map((l) => l.items).flat());
       }
     } finally {
@@ -114,6 +119,10 @@ export default function ReportsPage() {
   }
 
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
+  const visibleReports = reports.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
 
   if (loading) {
     return <EmptyState message="Loading…" icon={<Spinner size={20} />} />;
@@ -145,8 +154,9 @@ export default function ReportsPage() {
           icon={<FileLineChart size={28} />}
         />
       ) : (
+        <>
         <div className="grid gap-4 md:grid-cols-2">
-          {reports.map((r) => (
+          {visibleReports.map((r) => (
             <Card key={r.id} className="flex flex-col p-5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold">{r.title}</h3>
@@ -225,6 +235,13 @@ export default function ReportsPage() {
             </Card>
           ))}
         </div>
+        <PaginationBar
+          total={reports.length}
+          page={page}
+          pageSize={PAGE_SIZE}
+          onChange={setPage}
+        />
+        </>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title="生成报告">

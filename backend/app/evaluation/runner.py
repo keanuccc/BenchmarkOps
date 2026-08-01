@@ -102,6 +102,20 @@ def _first_value(d: dict | None) -> str:
     return "" if not result else result
 
 
+def _estimate_tokens(text: str) -> int:
+    """Rough token estimate used for context-window pre-checks.
+
+    CJK characters cost roughly one token each; other scripts average around
+    4 chars per token. This deliberately errs toward *over*-estimating so we
+    fail a row before the upstream rejects it with 400.
+    """
+    if not text:
+        return 0
+    cjk = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
+    other = len(text) - cjk
+    return cjk + max(0, (other + 3) // 4)
+
+
 def _extract_answer(
     text: str,
     *,
@@ -362,6 +376,7 @@ async def run_experiment(experiment_id: str) -> None:
             # else fall back to the configured default provider.
             model_provider = msnap.get("provider") or settings.default_provider
             model_is_free = bool(msnap.get("is_free", False))
+            context_length = msnap.get("context_length")
         else:
             model = await load_session.get(Model, experiment.model_id)
             if model is None:
@@ -369,6 +384,7 @@ async def run_experiment(experiment_id: str) -> None:
             model_ref = model.model_id
             pricing = model.pricing
             model_provider = model.provider or settings.default_provider
+            context_length = model.context_length
             # Model table has no is_free column; derive from the ":free" suffix
             # convention and, for Qiniu, the configured free-model set.
             model_is_free = (
@@ -423,6 +439,22 @@ async def run_experiment(experiment_id: str) -> None:
         callers merge the returned object into shared accumulators after gather so the
         concurrent phase never touches shared state across an await point."""
         rendered = _render_prompt(template, variables, row.input)
+        if context_length is not None:
+            estimated = _estimate_tokens(rendered) + int(max_tokens or 0)
+            if estimated > context_length:
+                res = ExperimentResult(
+                    experiment_id=experiment_id,
+                    row_idx=row.idx,
+                    input=row.input,
+                    expected=row.expected,
+                    output="",
+                    score=0.0,
+                    error=(
+                        f"context_overflow: estimated {estimated} tokens exceeds "
+                        f"model context_length {context_length}"
+                    ),
+                )
+                return res, False, {}, "provider"
         req = CompletionRequest(
             model_id=model_ref,
             messages=[ChatMessage(role="user", content=rendered)],

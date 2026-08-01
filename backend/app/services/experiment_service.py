@@ -83,6 +83,7 @@ class ExperimentService:
             "name": model.name,
             "pricing": model.pricing,
             "provider": model.provider,
+            "context_length": model.context_length,
             "is_free": model.model_id.endswith(":free")
             or (model.provider == "qiniu" and model.model_id in settings.qiniu_free_set),
         }
