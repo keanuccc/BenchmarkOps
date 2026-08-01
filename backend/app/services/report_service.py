@@ -32,6 +32,11 @@ from app.schemas.report import ReportGenerateRequest
 DEFAULT_REPORT_MODEL_ID = "openai/gpt-4o-mini"
 
 
+def resolve_report_model_id() -> str:
+    """Model id used for AI-generated reports (configurable via REPORT_MODEL_ID)."""
+    return settings.report_model_id or DEFAULT_REPORT_MODEL_ID
+
+
 class ReportService:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -64,8 +69,8 @@ class ReportService:
         generated_by = "template"
         try:
             if settings.provider_enabled:
-                provider = get_provider()
-                model_id = getattr(settings, "report_model_id", None) or DEFAULT_REPORT_MODEL_ID
+                provider = get_provider(settings.report_provider or None)
+                model_id = resolve_report_model_id()
                 content_markdown, sections = await ai_report(context, provider, model_id)
                 generated_by = active_provider_name()
             else:

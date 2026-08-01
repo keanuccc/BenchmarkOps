@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     eval_max_workers: int = 4
     eval_request_timeout: int = 60
 
+    # AI report generation: model id + optional provider for the LLM that writes
+    # reports. Empty model id falls back to the report service default; empty
+    # provider routes through the configured default gateway.
+    report_model_id: str = ""
+    report_provider: str = ""
+
     # Free-model throttle: cap in-flight rows per run. With Qiniu RPM=75, a concurrency
     # of 5 keeps batch fan-out moderate so the provider-layer token bucket can smooth
     # the send rate without tripping the upstream rate limiter.

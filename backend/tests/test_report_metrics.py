@@ -1,6 +1,17 @@
 from app.report.generator import template_report
 
 
+def test_report_model_id_resolution(monkeypatch) -> None:
+    """REPORT_MODEL_ID overrides the built-in default report model."""
+    from app.services import report_service as rs
+
+    monkeypatch.setattr(rs.settings, "report_model_id", "deepseek/deepseek-v4-flash")
+    assert rs.resolve_report_model_id() == "deepseek/deepseek-v4-flash"
+
+    monkeypatch.setattr(rs.settings, "report_model_id", "")
+    assert rs.resolve_report_model_id() == rs.DEFAULT_REPORT_MODEL_ID
+
+
 def test_report_uses_full_failure_count_not_sample_count() -> None:
     markdown, _ = template_report(
         {
