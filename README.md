@@ -23,9 +23,9 @@ Project → Dataset → Benchmark → Prompt → Model → Experiment → Run �
 | **数据集** | 上传 JSONL / JSON / CSV 评测样例，支持预览与校验 |
 | **基准（Benchmarks）** | 定义评测协议（qa / coding / agent / classification / generation），内置多种评分指标 |
 | **提示词库** | 可复用模板，单花括号变量占位符（`{question}`），版本化管理 |
-| **实验运行** | 绑定数据集 + 基准 + 提示词 + 模型，异步执行评测，实时进度轮询 |
+| **实验运行** | 绑定数据集 + 基准 + 提示词 + 模型，异步执行评测，实时进度轮询；创建时保存模型的 Provider 与免费模型状态快照 |
 | **对比分析** | 柱状图对比多个实验的准确率、延迟、花费、令牌数 |
-| **AI 报告** | 基于实验生成结构化 Markdown 报告，支持 AI 生成或确定性模板回退 |
+| **AI 报告** | 基于实验生成结构化 Markdown 报告，支持 AI 生成或确定性模板回退，并可导出 PDF |
 | **仪表盘** | 总览项目、实验状态、准确率趋势、模型排行榜 |
 | **行业雷达** | 汇总全部实验与模型的整体洞察：KPI、供应商准确率雷达图、状态环图 |
 
@@ -36,8 +36,8 @@ Project → Dataset → Benchmark → Prompt → Model → Experiment → Run �
 | **前端** | Next.js 14 (App Router) · React 18 · TypeScript · Tailwind CSS v4 · ECharts · lucide-react |
 | **后端** | FastAPI · SQLAlchemy 2.0 (async) · Pydantic v2 · uvicorn |
 | **数据库** | SQLite (aiosqlite, v1) → 可切换 PostgreSQL (postgresql+asyncpg) |
-| **Provider** | OpenRouter (默认) + Qiniu AI + Mock fallback |
-| **Runner** | 进程内 asyncio 任务队列，支持取消与崩溃恢复 |
+| **Provider** | Qiniu AI (默认) + OpenRouter + Mock fallback；实验快照固定实际 Provider 路由 |
+| **Runner** | 进程内 asyncio 任务队列，支持并发限制、取消与崩溃恢复 |
 
 **架构**：Clean Architecture，严格分层 `Router（薄层）→ Service（业务逻辑）→ Repository（数据访问）→ ORM`。Provider 注册表可插拔 — 新增 provider / 指标 / 模块只需新增文件，无需修改既有逻辑。
 
@@ -123,7 +123,7 @@ docker compose up --build
 | `OPENROUTER_API_KEY` | *(空)* | OpenRouter API 密钥。**留空自动走 Mock Provider**，所有功能可离线使用 |
 | `QINIU_API_KEY` | *(空)* | 七牛云 AI Token API 密钥 |
 | `BACKEND_CORS_ORIGINS` | `http://localhost:3000,...` | 允许的浏览器来源，换端口/域名时必须同步更新 |
-| `EVAL_MAX_WORKERS` | `4` | 评测并发 worker 数（预留，v1 为进程内线程队列） |
+| `EVAL_MAX_WORKERS` | `4` | 评测并发 worker 数（进程内 asyncio 任务队列） |
 | `MAX_UPLOAD_BYTES` | `52428800` (50 MB) | 数据集上传大小上限 |
 | `MAX_DATASET_ROWS` | `100000` | 数据集行数上限 |
 
@@ -157,7 +157,13 @@ frontend/
 cd backend
 uv run pytest              # 运行单元测试
 uv run pytest -m e2e       # 运行端到端测试（需网络）
+
+cd ../frontend
+npm run lint                # ESLint 检查
+npm run build               # Next.js 生产构建
 ```
+
+当前基线：后端 `233 passed, 11 deselected`；前端 TypeScript、lint 和生产构建均已通过。
 
 ## 📡 API 概览
 
@@ -173,7 +179,7 @@ uv run pytest -m e2e       # 运行端到端测试（需网络）
 | Prompts | `/prompts/*` | 写需 token |
 | Experiments | `/experiments/*` | 写需 token |
 | Analytics | `/analytics/*` | 否（读接口） |
-| Reports | `/reports/*` | 生成/删除需 token |
+| Reports | `/reports/*`、`/reports/{id}/export/pdf` | 生成/删除需 token |
 
 ## 🔒 注意事项 & 已知限制
 
@@ -187,7 +193,7 @@ uv run pytest -m e2e       # 运行端到端测试（需网络）
 
 ### 数据库
 
-- v1 默认使用 **SQLite**，仅支持**单进程写入**。多实例部署必须切换为 PostgreSQL：
+- v1 默认使用 **SQLite**，仅支持**单进程写入**。应用启动时会为每个数据库文件创建独立的原子 writer lock，异常退出留下的过期锁会自动恢复。多实例部署必须切换为 PostgreSQL：
   ```env
   DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/benchmarkops
   ```
@@ -226,7 +232,7 @@ uv run pytest -m e2e       # 运行端到端测试（需网络）
 ### 其他限制
 
 - **无多租户 / 无组织隔离**：所有项目共享同一数据库与同一 token 空间。
-- **报告导出**：仅支持 Markdown（`.md`）下载，暂无 PDF / HTML 格式。
+- **报告导出**：支持 Markdown（`.md`）和 PDF（`.pdf`）下载；PDF 依赖 `weasyprint`，若运行环境缺少其系统依赖则接口返回 501。
 - **鉴权**：当前为单 token 简化方案，非完整用户/租户系统。
 
 ## 🛣 路线图

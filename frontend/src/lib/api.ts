@@ -293,10 +293,25 @@ export interface DatasetRow {
   input: Record<string, unknown>;
   expected: Record<string, unknown> | null;
 }
+export interface DatasetPreviewRaw {
+  rows: Record<string, string>[];
+  total_rows: number;
+  columns: string[];
+  sample_count: number;
+}
+export interface DatasetValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
 export const listDatasets = (projectId: string) =>
   api.get<Dataset[]>(`/datasets/?project_id=${projectId}`);
 export const previewDataset = (id: string) =>
   api.get<DatasetRow[]>(`/datasets/${id}/preview`);
+export const getDatasetPreviewRaw = (id: string) =>
+  api.get<DatasetPreviewRaw>(`/datasets/${id}/preview/raw`);
+export const validateDatasetQuick = (id: string) =>
+  api.post<DatasetValidationResult>(`/datasets/${id}/validate/quick`);
 export const uploadDataset = (form: FormData) =>
   api.upload<Dataset>("/datasets/upload", form);
 export const deleteDataset = (id: string) => api.del<void>(`/datasets/${id}`);
@@ -361,7 +376,7 @@ export interface Experiment {
   model_id: string;
   params: Record<string, unknown>;
   status: string;
-  metrics: Record<string, number | string>;
+  metrics: ExperimentMetrics;
   total_cost: number;
   total_tokens: number;
   runtime_ms: number;
@@ -374,6 +389,20 @@ export interface Experiment {
   error: string | null;
   created_at: string;
   updated_at: string;
+}
+export interface ExperimentMetrics {
+  accuracy?: number;
+  coverage?: number;
+  failure_rate?: number;
+  rows_total?: number;
+  dataset_rows_total?: number;
+  rows_scored?: number;
+  rows_failed?: number;
+  rows_unprocessed?: number;
+  provider_errors?: number;
+  metric_errors?: number;
+  metrics_by_name?: Record<string, number>;
+  [key: string]: unknown;
 }
 export interface ExperimentResult {
   id: string;
@@ -436,6 +465,9 @@ export interface LeaderboardEntry {
   total_cost: number;
   total_tokens: number;
   rows_total: number;
+  dataset_rows_total?: number;
+  coverage?: number;
+  failure_rate?: number;
   status: string;
 }
 export interface ComparisonResponse {
@@ -446,6 +478,8 @@ export interface ComparisonResponse {
     avg_latency_ms: number[];
     total_cost: number[];
     total_tokens: number[];
+    coverage?: number[];
+    failure_rate?: number[];
   };
 }
 export const getLeaderboard = (projectId?: string) =>
@@ -513,6 +547,32 @@ export async function exportReport(id: string, title?: string): Promise<void> {
   a.click();
   a.remove();
   // Defer revocation so the browser has time to start the download.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Fetch a report as PDF and trigger a same-origin Blob download.
+ */
+export async function exportReportPdf(id: string, title?: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/reports/${id}/export/pdf`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new ApiRequestError(
+      res.status,
+      "pdf_export_error",
+      `PDF导出失败 (${res.status})`,
+    );
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const safe = (title?.trim() || id).replace(/[^A-Za-z0-9_.-]/g, "_");
+  a.download = `${safe}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 

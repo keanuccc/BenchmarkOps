@@ -119,3 +119,20 @@ async def test_dataset_contract_migration_creates_content_hash_index() -> None:
         assert "ix_datasets_content_hash" in index_names
     finally:
         await engine.dispose()
+
+
+async def test_dataset_snapshot_migration_adds_column_to_legacy_experiments() -> None:
+    engine = _make_engine()
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                sa.text(
+                    "CREATE TABLE experiments (id VARCHAR(36) PRIMARY KEY, name VARCHAR(200))"
+                )
+            )
+            await MIGRATIONS[14](conn)
+            columns = await conn.execute(sa.text("PRAGMA table_info(experiments)"))
+            names = {row[1] for row in columns.fetchall()}
+            assert "dataset_snapshot" in names
+    finally:
+        await engine.dispose()

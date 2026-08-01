@@ -33,6 +33,7 @@ class Experiment(Base, UUIDMixin, TimestampMixin):
     prompt_snapshot: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     benchmark_snapshot: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     model_snapshot: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    dataset_snapshot: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     # pending | running | completed | partial | failed

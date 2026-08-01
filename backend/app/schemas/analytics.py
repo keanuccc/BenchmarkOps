@@ -14,6 +14,9 @@ class LeaderboardEntry(BaseModel):
     total_cost: float
     total_tokens: int
     rows_total: int
+    dataset_rows_total: int
+    coverage: float
+    failure_rate: float
     status: str
 
 
@@ -37,6 +40,8 @@ class TrendPoint(BaseModel):
     accuracy: float
     total_cost: float
     experiment_name: str
+    coverage: float = 0.0
+    failure_rate: float = 0.0
 
 
 class ProjectAnalyticsSummary(BaseModel):
@@ -48,3 +53,5 @@ class ProjectAnalyticsSummary(BaseModel):
     total_tokens: int
     best_experiment_id: str | None
     best_accuracy: float
+    coverage: float
+    failure_rate: float

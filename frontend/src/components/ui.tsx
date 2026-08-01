@@ -1,12 +1,13 @@
+import { CheckCircle2, X } from "lucide-react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "danger" | "ghost";
 
 const STYLES: Record<Variant, string> = {
-  primary: "text-white hover:opacity-90",
-  secondary: "border hover:bg-[var(--ocd-surface-2)]",
-  danger: "border border-red-400/40 text-red-400 hover:bg-red-400/10",
-  ghost: "text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)]",
+  primary: "border border-[var(--ocd-accent)] bg-[var(--ocd-accent)] text-[var(--ocd-accent-fg)] shadow-[0_8px_18px_rgb(213_243_106/0.10)] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgb(213_243_106/0.18)]",
+  secondary: "border bg-[var(--ocd-surface-2)] text-[var(--ocd-text)] hover:border-[var(--ocd-accent)] hover:bg-[var(--ocd-surface-3)]",
+  danger: "border border-[color:rgb(255_143_143/0.35)] text-[var(--ocd-bad)] hover:bg-[color:rgb(255_143_143/0.10)]",
+  ghost: "text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)] hover:text-[var(--ocd-text)]",
 };
 
 export function Button({
@@ -14,14 +15,10 @@ export function Button({
   className = "",
   children,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-}) {
-  const accent = variant === "primary" ? "background: var(--ocd-accent);" : "";
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${STYLES[variant]} ${className}`}
-      style={{ borderColor: "var(--ocd-border)", ...(accent ? { background: "var(--ocd-accent)" } : {}) }}
+      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-45 ${STYLES[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -30,13 +27,13 @@ export function Button({
 }
 
 const STATUS: Record<string, { color: string; bg: string }> = {
-  active: { color: "var(--ocd-ok)", bg: "color-mix(in oklch, var(--ocd-ok) 16%, transparent)" },
+  active: { color: "var(--ocd-ok)", bg: "color-mix(in srgb, var(--ocd-ok) 14%, transparent)" },
   archived: { color: "var(--ocd-text-faint)", bg: "var(--ocd-surface-2)" },
-  pending: { color: "var(--ocd-warn)", bg: "color-mix(in oklch, var(--ocd-warn) 16%, transparent)" },
-  running: { color: "var(--ocd-info)", bg: "color-mix(in oklch, var(--ocd-info) 16%, transparent)" },
-  completed: { color: "var(--ocd-ok)", bg: "color-mix(in oklch, var(--ocd-ok) 16%, transparent)" },
-  failed: { color: "var(--ocd-bad)", bg: "color-mix(in oklch, var(--ocd-bad) 16%, transparent)" },
-  cancelled: { color: "var(--ocd-warn)", bg: "color-mix(in oklch, var(--ocd-warn) 16%, transparent)" },
+  pending: { color: "var(--ocd-warn)", bg: "color-mix(in srgb, var(--ocd-warn) 14%, transparent)" },
+  running: { color: "var(--ocd-info)", bg: "color-mix(in srgb, var(--ocd-info) 14%, transparent)" },
+  completed: { color: "var(--ocd-ok)", bg: "color-mix(in srgb, var(--ocd-ok) 14%, transparent)" },
+  failed: { color: "var(--ocd-bad)", bg: "color-mix(in srgb, var(--ocd-bad) 14%, transparent)" },
+  cancelled: { color: "var(--ocd-warn)", bg: "color-mix(in srgb, var(--ocd-warn) 14%, transparent)" },
 };
 
 export function Badge({
@@ -48,96 +45,53 @@ export function Badge({
   children: ReactNode;
   className?: string;
 }) {
-  const s = status ? STATUS[status] ?? STATUS.archived : undefined;
+  const colors = status ? STATUS[status] ?? STATUS.archived : undefined;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] ${className}`}
       style={{
-        color: s?.color ?? "var(--ocd-text-muted)",
-        background: s?.bg ?? "var(--ocd-surface-2)",
+        color: colors?.color ?? "var(--ocd-text-muted)",
+        background: colors?.bg ?? "var(--ocd-surface-2)",
         borderColor: "transparent",
       }}
     >
-      {s && (
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ background: s.color }}
-        />
-      )}
+      {colors && <span className="h-1.5 w-1.5 rounded-full" style={{ background: colors.color }} />}
       {children}
     </span>
   );
 }
 
-export function Card({
-  children,
-  className = "",
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
+export function Card({ children, className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={`rounded-[var(--ocd-radius)] border bg-[var(--ocd-surface)] shadow-[var(--ocd-shadow)] ${className}`}
-      style={{ borderColor: "var(--ocd-border)" }}
-      {...props}
-    >
+    <div className={`surface-panel ${className}`} {...props}>
       {children}
     </div>
   );
 }
 
-export function EmptyState({
-  message,
-  icon,
-}: {
-  message: string;
-  icon?: ReactNode;
-}) {
+export function EmptyState({ message, icon }: { message: string; icon?: ReactNode }) {
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-2 rounded-[var(--ocd-radius)] border border-dashed p-10 text-center"
-      style={{ borderColor: "var(--ocd-border-soft)", color: "var(--ocd-text-faint)" }}
-    >
-      {icon && <div className="opacity-60">{icon}</div>}
+    <div className="flex min-h-36 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--ocd-border)] bg-[var(--ocd-surface-2)]/35 p-8 text-center text-[var(--ocd-text-faint)]">
+      {icon && <div className="rounded-xl bg-[var(--ocd-surface-2)] p-3 text-[var(--ocd-accent)]">{icon}</div>}
       <p className="text-sm">{message}</p>
     </div>
   );
 }
 
-export function ErrorState({
-  message,
-  icon,
-}: {
-  message: string;
-  icon?: ReactNode;
-}) {
+export function ErrorState({ message, icon }: { message: string; icon?: ReactNode }) {
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-2 rounded-[var(--ocd-radius)] border p-10 text-center"
-      style={{ borderColor: "var(--ocd-bad)", color: "var(--ocd-bad)" }}
-    >
-      {icon && <div className="opacity-70">{icon}</div>}
-      <p className="text-sm font-medium">{message}</p>
+    <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border border-[color:rgb(255_143_143/0.35)] bg-[color:rgb(255_143_143/0.06)] p-8 text-center text-[var(--ocd-bad)]">
+      {icon}
+      <p className="max-w-xl text-sm font-medium">{message}</p>
     </div>
   );
 }
 
-export function ProgressBar({
-  value,
-  color = "var(--ocd-accent)",
-}: {
-  value: number;
-  color?: string;
-}) {
+export function ProgressBar({ value, color = "var(--ocd-accent)" }: { value: number; color?: string }) {
   const pct = Math.max(0, Math.min(100, value * 100));
   return (
-    <div
-      className="h-1.5 w-full overflow-hidden rounded-full"
-      style={{ background: "var(--ocd-surface-2)" }}
-    >
-      <div
-        className="h-full rounded-full transition-all"
-        style={{ width: `${pct}%`, background: color }}
-      />
+    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--ocd-surface-3)]">
+      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
 }
@@ -156,74 +110,45 @@ export function KpiCard({
   accent?: string;
 }) {
   return (
-    <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-[var(--ocd-text-muted)]">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold tracking-tight">{value}</p>
-          {delta && (
-            <p className="mt-1 text-xs text-[var(--ocd-text-faint)]">{delta}</p>
-          )}
-        </div>
+    <Card className="group p-5">
+      <div className="mb-5 flex items-center justify-between">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ocd-text-faint)]">{label}</p>
         {icon && (
-          <span
-            className="grid h-9 w-9 place-items-center rounded-lg"
-            style={{ background: `color-mix(in oklch, ${accent} 16%, transparent)`, color: accent }}
-          >
+          <span className="grid h-9 w-9 place-items-center rounded-xl border" style={{ borderColor: `color-mix(in srgb, ${accent} 28%, transparent)`, background: `color-mix(in srgb, ${accent} 12%, transparent)`, color: accent }}>
             {icon}
           </span>
         )}
       </div>
+      <p className="text-3xl font-semibold tracking-[-0.055em] text-[var(--ocd-text)]">{value}</p>
+      {delta && <p className="mt-2 text-xs text-[var(--ocd-text-muted)]">{delta}</p>}
+      <div className="mt-5 h-0.5 w-8 rounded-full transition-all group-hover:w-14" style={{ background: accent }} />
     </Card>
   );
 }
 
-export function SectionTitle({
-  children,
-  action,
-}: {
-  children: ReactNode;
-  action?: ReactNode;
-}) {
+export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-end justify-between">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ocd-text-muted)]">
-        {children}
-      </h2>
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--ocd-text-muted)]">{children}</h2>
       {action}
     </div>
   );
 }
 
-export function Tabs({
-  tabs,
-  active,
-  onChange,
-}: {
-  tabs: string[];
-  active: string;
-  onChange: (t: string) => void;
-}) {
+export function Tabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (tab: string) => void }) {
   return (
-    <div className="flex gap-1 border-b" style={{ borderColor: "var(--ocd-border)" }}>
-      {tabs.map((t) => {
-        const on = t === active;
+    <div className="flex flex-wrap gap-1 rounded-xl border border-[var(--ocd-border-soft)] bg-[var(--ocd-surface-2)]/55 p-1">
+      {tabs.map((tab) => {
+        const selected = tab === active;
         return (
           <button
-            key={t}
-            onClick={() => onChange(t)}
-            className="relative px-3.5 py-2.5 text-sm font-medium transition-colors"
-            style={{
-              color: on ? "var(--ocd-text)" : "var(--ocd-text-muted)",
-            }}
+            key={tab}
+            onClick={() => onChange(tab)}
+            className={`rounded-lg px-3.5 py-2 text-sm font-semibold ${selected ? "bg-[var(--ocd-surface)] text-[var(--ocd-text)] shadow-sm" : "text-[var(--ocd-text-muted)] hover:text-[var(--ocd-text)]"}`}
+            aria-selected={selected}
+            role="tab"
           >
-            {t}
-            {on && (
-              <span
-                className="absolute inset-x-3 -bottom-px h-0.5 rounded-full"
-                style={{ background: "var(--ocd-accent)" }}
-              />
-            )}
+            {tab}
           </button>
         );
       })}
@@ -231,39 +156,15 @@ export function Tabs({
   );
 }
 
-export function Modal({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children: ReactNode;
-}) {
+export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "oklch(0 0 0 / 0.55)" }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg rounded-[var(--ocd-radius)] border bg-[var(--ocd-surface)] shadow-2xl"
-        style={{ borderColor: "var(--ocd-border)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="flex items-center justify-between border-b px-5 py-4"
-          style={{ borderColor: "var(--ocd-border)" }}
-        >
-          <h3 className="text-base font-semibold">{title}</h3>
-          <button
-            onClick={onClose}
-            className="rounded-md px-2 py-1 text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)]"
-          >
-            ✕
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="surface-panel w-full max-w-lg" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-[var(--ocd-border-soft)] px-5 py-4">
+          <h3 id="modal-title" className="text-base font-semibold">{title}</h3>
+          <button onClick={onClose} className="rounded-lg p-2 text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)] hover:text-[var(--ocd-text)]" aria-label="关闭弹窗">
+            <X size={17} />
           </button>
         </div>
         <div className="p-5">{children}</div>
@@ -273,15 +174,13 @@ export function Modal({
 }
 
 export function Spinner({ size = 16 }: { size?: number }) {
-  return (
-    <span
-      className="inline-block animate-spin rounded-full border-2 border-current border-t-transparent"
-      style={{ width: size, height: size }}
-    />
-  );
+  return <span className="inline-block animate-spin rounded-full border-2 border-current border-t-transparent" style={{ width: size, height: size }} />;
 }
 
-/* Legacy alias used by existing experiment/project pages. */
 export function StatusBadge({ status }: { status: string }) {
   return <Badge status={status}>{status}</Badge>;
+}
+
+export function SuccessIcon() {
+  return <CheckCircle2 size={18} className="text-[var(--ocd-ok)]" />;
 }

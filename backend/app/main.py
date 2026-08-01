@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import acquire_writer_lock, init_db
 from app.core.exceptions import register_exception_handlers
 from app.middleware import get_metrics_summary, setup_structured_logging
 
@@ -21,7 +21,7 @@ logger = logging.getLogger("benchmarkops")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[override]
-    # v1: create tables on startup. Later: Alembic migrations.
+    acquire_writer_lock()  # Ensure only one backend process writes to SQLite
     await init_db()
     # Recover any experiments stuck in "running" or "queued" from a previous crash.
     await _recover_stale_experiments()

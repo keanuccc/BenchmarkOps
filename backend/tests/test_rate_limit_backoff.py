@@ -147,6 +147,13 @@ async def test_backoff_single_wait_capped_at_max(monkeypatch):
 async def test_success_resets_consecutive_429(monkeypatch):
     """A success resets _consecutive_429 to 0, so a later burst of 4 429s does
     NOT trip the breaker (breaker needs 5 *consecutive*)."""
+    real_sleep = asyncio.sleep
+
+    async def no_wait(_delay):
+        await real_sleep(0)
+
+    monkeypatch.setattr(asyncio, "sleep", no_wait)
+
     responses = (
         [_ok_resp()]  # success -> counter reset
         + [_resp(429) for _ in range(_RATE_LIMIT_BURST - 1)]  # only 4 consecutive

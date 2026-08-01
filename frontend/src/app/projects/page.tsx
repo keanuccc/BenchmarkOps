@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   listProjects,
@@ -11,28 +11,20 @@ import {
 } from "@/lib/api";
 import { Button, Card, Badge, EmptyState, Modal, SectionTitle } from "@/components/ui";
 import { Plus, Boxes, Archive, FolderOpen } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function refresh() {
-    setLoading(true);
-    try {
-      setProjects(await listProjects());
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    refresh();
-  }, []);
+  const { data: projects = [], isLoading: loading } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => listProjects(),
+  });
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -41,7 +33,7 @@ export default function ProjectsPage() {
     setName("");
     setDescription("");
     setCreating(false);
-    refresh();
+    void queryClient.invalidateQueries({ queryKey: ["projects"] });
   }
 
   return (
@@ -126,7 +118,7 @@ export default function ProjectsPage() {
                       setBusyId(p.id);
                       try {
                         await archiveProject(p.id);
-                        refresh();
+                        void queryClient.invalidateQueries({ queryKey: ["projects"] });
                       } catch (err) {
                         setError(err instanceof ApiRequestError ? err.message : "归档失败");
                       } finally {

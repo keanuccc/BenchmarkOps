@@ -25,6 +25,33 @@ from app.schemas.analytics import (
 )
 
 
+def _normalized_metrics(metrics: dict | None) -> dict[str, float | int]:
+    """Derive one consistent coverage/failure view for old and new runs."""
+    source = metrics or {}
+    rows_total = int(source.get("rows_total", 0) or 0)
+    dataset_rows_total = int(source.get("dataset_rows_total") or rows_total)
+    if "rows_scored" in source:
+        rows_scored = int(source.get("rows_scored") or 0)
+    elif "coverage" in source:
+        rows_scored = round(dataset_rows_total * float(source.get("coverage") or 0.0))
+    else:
+        rows_scored = rows_total
+    if "rows_failed" in source:
+        rows_failed = int(source.get("rows_failed") or 0)
+    elif "failure_rate" in source:
+        rows_failed = round(dataset_rows_total * float(source.get("failure_rate") or 0.0))
+    else:
+        rows_failed = max(rows_total - rows_scored, 0)
+    return {
+        "rows_total": rows_total,
+        "dataset_rows_total": dataset_rows_total,
+        "rows_scored": rows_scored,
+        "rows_failed": rows_failed,
+        "coverage": rows_scored / dataset_rows_total if dataset_rows_total else 0.0,
+        "failure_rate": rows_failed / dataset_rows_total if dataset_rows_total else 0.0,
+    }
+
+
 class AnalyticsService:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -43,7 +70,7 @@ class AnalyticsService:
         benchmark_id: str | None = None,
         limit: int = 50,
     ) -> list[LeaderboardEntry]:
-        stmt = select(Experiment).where(Experiment.status == "completed")
+        stmt = select(Experiment).where(Experiment.status.in_(("completed", "partial")))
         if project_id is not None:
             stmt = stmt.where(Experiment.project_id == project_id)
         if benchmark_id is not None:
@@ -54,6 +81,7 @@ class AnalyticsService:
         entries: list[LeaderboardEntry] = []
         for exp in experiments:
             metrics = exp.metrics or {}
+            normalized = _normalized_metrics(metrics)
             # Prefer the materialized accuracy column for consistency with the
             # ORDER BY below, but fall back to the metrics blob for parity.
             accuracy = exp.accuracy if exp.accuracy else metrics.get("accuracy", 0.0)
@@ -67,7 +95,10 @@ class AnalyticsService:
                     avg_latency_ms=metrics.get("avg_latency_ms", 0.0),
                     total_cost=float(exp.total_cost),
                     total_tokens=int(exp.total_tokens),
-                    rows_total=int(metrics.get("rows_total", 0)),
+                    rows_total=int(normalized["rows_total"]),
+                    dataset_rows_total=int(normalized["dataset_rows_total"]),
+                    coverage=float(normalized["coverage"]),
+                    failure_rate=float(normalized["failure_rate"]),
                     status=exp.status,
                 )
             )
@@ -98,10 +129,13 @@ class AnalyticsService:
             "avg_latency_ms": [],
             "total_cost": [],
             "total_tokens": [],
+            "coverage": [],
+            "failure_rate": [],
         }
 
         for exp in experiments:
             metrics = exp.metrics or {}
+            normalized = _normalized_metrics(metrics)
             exp_list.append(
                 {
                     "id": exp.id,
@@ -118,6 +152,8 @@ class AnalyticsService:
             dimensions["avg_latency_ms"].append(metrics.get("avg_latency_ms", 0.0))
             dimensions["total_cost"].append(float(exp.total_cost))
             dimensions["total_tokens"].append(int(exp.total_tokens))
+            dimensions["coverage"].append(float(normalized["coverage"]))
+            dimensions["failure_rate"].append(float(normalized["failure_rate"]))
 
         return ComparisonResponse(experiments=exp_list, dimensions=dimensions)
 
@@ -156,7 +192,7 @@ class AnalyticsService:
     ) -> list[TrendPoint]:
         stmt = (
             select(Experiment)
-            .where(Experiment.status == "completed")
+            .where(Experiment.status.in_(("completed", "partial")))
             .where(Experiment.project_id == project_id)
         )
         if benchmark_id is not None:
@@ -171,6 +207,8 @@ class AnalyticsService:
                 accuracy=(exp.metrics or {}).get("accuracy", 0.0),
                 total_cost=float(exp.total_cost),
                 experiment_name=exp.name,
+                coverage=float(_normalized_metrics(exp.metrics)["coverage"]),
+                failure_rate=float(_normalized_metrics(exp.metrics)["failure_rate"]),
             )
             for exp in experiments
         ]
@@ -183,13 +221,22 @@ class AnalyticsService:
         result = await self.session.execute(count_stmt)
         all_exp: Sequence[Experiment] = result.scalars().all()
 
-        completed = [e for e in all_exp if e.status == "completed"]
+        completed = [e for e in all_exp if e.status in ("completed", "partial")]
 
-        accuracies = [(e.metrics or {}).get("accuracy", 0.0) for e in completed]
-        avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else 0.0
+        accuracies = [(_normalized_metrics(e.metrics), (e.metrics or {}).get("accuracy", 0.0)) for e in completed]
+        avg_accuracy = sum(accuracy for _, accuracy in accuracies) / len(accuracies) if accuracies else 0.0
 
         total_cost = sum(float(e.total_cost) for e in all_exp)
         total_tokens = sum(int(e.total_tokens) for e in all_exp)
+
+        dataset_rows_total = 0
+        rows_scored = 0
+        rows_failed = 0
+        for experiment in completed:
+            normalized = _normalized_metrics(experiment.metrics)
+            dataset_rows_total += int(normalized["dataset_rows_total"])
+            rows_scored += int(normalized["rows_scored"])
+            rows_failed += int(normalized["rows_failed"])
 
         best_exp = None
         best_accuracy = 0.0
@@ -208,6 +255,8 @@ class AnalyticsService:
             total_tokens=total_tokens,
             best_experiment_id=best_exp.id if best_exp is not None else None,
             best_accuracy=best_accuracy,
+            coverage=rows_scored / dataset_rows_total if dataset_rows_total else 0.0,
+            failure_rate=rows_failed / dataset_rows_total if dataset_rows_total else 0.0,
         )
 
 

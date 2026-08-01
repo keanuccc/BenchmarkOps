@@ -31,6 +31,7 @@ import {
 } from "@/components/ui";
 import { Combobox } from "@/components/Combobox";
 import { Play, Plus, Activity } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // --- Combobox helper types ---------------------------------------------------
 type SelectItem = { id: string; label: string; subtitle?: string };
@@ -71,10 +72,7 @@ function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
 }
 
 export default function ExperimentsPage() {
-  const [items, setItems] = useState<Experiment[]>([]);
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -97,26 +95,19 @@ export default function ExperimentsPage() {
     max_tokens: "",
   });
 
-  async function refresh() {
-    setLoading(true);
-    try {
-      const [list, ms] = await Promise.all([
-        listExperiments(),
-        listModels(),
-      ]);
-      setItems(list);
-      setModels(ms);
-      setAllExperiments(list);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Main experiment + models fetch via React Query
+  const { data: experiments = [], isLoading: loading } = useQuery({
+    queryKey: ["experiments"],
+    queryFn: () => listExperiments(),
+  });
+
+  const { data: models = [] } = useQuery({
+    queryKey: ["models"],
+    queryFn: () => listModels(),
+  });
 
   // Poll running tasks every 5s
   useEffect(() => {
-    refresh();
     const t = setInterval(async () => {
       try {
         const tasks = await getRunningTasks();
@@ -127,6 +118,11 @@ export default function ExperimentsPage() {
     }, 5000);
     return () => clearInterval(t);
   }, []);
+
+  // Invalidate experiments after creating one
+  async function handleCreate(_e: React.FormEvent) {
+    void queryClient.invalidateQueries({ queryKey: ["experiments"] });
+  }
 
   function openModal() {
     setForm({
@@ -187,7 +183,6 @@ export default function ExperimentsPage() {
   useEffect(() => {
     if (modalOpen) {
       listProjects().then(setProjects).catch(() => setProjects([]));
-      listModels().then(setModels).catch(() => setModels([]));
     }
   }, [modalOpen]);
 
@@ -211,7 +206,7 @@ export default function ExperimentsPage() {
       };
       await createExperiment(body as Parameters<typeof createExperiment>[0]);
       setModalOpen(false);
-      await refresh();
+      void queryClient.invalidateQueries({ queryKey: ["experiments"] });
     } finally {
       setSubmitting(false);
     }
@@ -254,7 +249,7 @@ export default function ExperimentsPage() {
 
       {loading ? (
         <EmptyState message="Loading…" icon={<Spinner size={20} />} />
-      ) : items.length === 0 ? (
+      ) : experiments.length === 0 ? (
         <EmptyState message="暂无实验。创建一项以开始。" />
       ) : (
         <Card className="overflow-x-auto">
@@ -274,7 +269,7 @@ export default function ExperimentsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((e) => (
+              {experiments.map((e) => (
                 <tr
                   key={e.id}
                   className="border-b last:border-0"

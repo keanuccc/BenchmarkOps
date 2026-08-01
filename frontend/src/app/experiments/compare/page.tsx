@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
 import { BarChart } from "@/components/charts";
+import { useQuery } from "@tanstack/react-query";
 
 const SERIES_COLORS = [
   "var(--ocd-c1)",
@@ -25,23 +26,34 @@ function CompareInner() {
   const projectId = searchParams.get("project_id") ?? undefined;
   const initialIds = searchParams.get("ids")?.split(",").filter(Boolean) ?? null;
 
-  const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
+  // Fetch experiments and leaderboard via React Query
+  const { data: experiments = [] } = useQuery({
+    queryKey: ["experiments", projectId ? { projectId } : null],
+    queryFn: () => listExperiments(projectId),
+  });
+
+  const { data: leaderboard = [] } = useQuery({
+    queryKey: ["leaderboard", projectId ? { projectId } : null],
+    queryFn: () => getLeaderboard(projectId),
+  });
+
+  // Filter to completed experiments
+  const completed = experiments.filter((e) => e.status === "completed");
+
+  // Initialize selection on first load
   useEffect(() => {
-    listExperiments(projectId).then((list) => {
-      const completed = list.filter((e) => e.status === "completed");
-      setExperiments(completed);
+    if (completed.length > 0 && selected.size === 0) {
       const sel =
         initialIds && initialIds.every((id) => completed.some((e) => e.id === id))
           ? initialIds
           : completed.map((e) => e.id);
       setSelected(new Set(sel));
-    });
-    getLeaderboard(projectId).then(setLeaderboard).catch(() => setLeaderboard([]));
-  }, [projectId]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completed]);
 
   const runCompare = useCallback(async () => {
     if (selected.size < 2) {
@@ -96,6 +108,16 @@ function CompareInner() {
           data: d.total_tokens,
           fmt: (v) => v.toLocaleString(),
         },
+        {
+          title: "coverage (%)",
+          data: (d.coverage ?? d.accuracy.map(() => 0)).map((x) => +(x * 100).toFixed(2)),
+          fmt: (v) => `${v}%`,
+        },
+        {
+          title: "failure (%)",
+          data: (d.failure_rate ?? d.accuracy.map(() => 0)).map((x) => +(x * 100).toFixed(2)),
+          fmt: (v) => `${v}%`,
+        },
       ]
     : [];
 
@@ -108,12 +130,12 @@ function CompareInner() {
         </p>
       </header>
 
-      {experiments.length === 0 ? (
+      {completed.length === 0 ? (
         <EmptyState message="暂无可对比的已完成实验。" />
       ) : (
         <Card className="p-4">
           <div className="flex flex-wrap gap-3">
-            {experiments.map((e) => (
+            {completed.map((e) => (
               <label
                 key={e.id}
                 className="flex items-center gap-2 text-sm text-[var(--ocd-text)]"

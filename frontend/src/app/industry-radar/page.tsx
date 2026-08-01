@@ -190,6 +190,8 @@ export default function IndustryRadarPage() {
                 <tr>
                   <th className="px-3 py-2">模型</th>
                   <th className="px-3 py-2">准确率</th>
+                  <th className="px-3 py-2">coverage</th>
+                  <th className="px-3 py-2">failure</th>
                   <th className="px-3 py-2">平均延迟</th>
                   <th className="px-3 py-2">花费</th>
                   <th className="px-3 py-2">状态</th>
@@ -205,6 +207,12 @@ export default function IndustryRadarPage() {
                     <td className="px-3 py-2 font-medium">{l.model_name}</td>
                     <td className="px-3 py-2 text-[var(--ocd-text-muted)]">
                       {(l.accuracy * 100).toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2 text-[var(--ocd-text-muted)]">
+                      {((l.coverage ?? 0) * 100).toFixed(1)}%
+                    </td>
+                    <td className="px-3 py-2 text-[var(--ocd-text-muted)]">
+                      {((l.failure_rate ?? 0) * 100).toFixed(1)}%
                     </td>
                     <td className="px-3 py-2 text-[var(--ocd-text-muted)]">
                       {l.avg_latency_ms.toFixed(0)}ms

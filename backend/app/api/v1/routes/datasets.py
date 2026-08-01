@@ -108,6 +108,68 @@ async def get_dataset(
     return await service.get(dataset_id)
 
 
+@router.get("/{dataset_id}/preview/raw", response_model=dict)
+async def preview_dataset_raw(
+    dataset_id: str,
+    service: DatasetService = Depends(get_dataset_service),
+) -> dict:
+    """Return first 10 rows + metadata from an uploaded dataset."""
+    dataset = await service.get(dataset_id)
+    rows = await service.preview(dataset_id, offset=0, limit=10)
+    columns: list[str] = dataset.column_schema or []
+    return {
+        "rows": [
+            {k: str(v) for k, v in {**r.input, **(r.expected or {})}.items()}
+            for r in rows
+        ],
+        "total_rows": dataset.row_count,
+        "columns": columns,
+        "sample_count": len(rows),
+    }
+
+
+@router.post("/{dataset_id}/validate/quick", response_model=dict)
+async def validate_dataset_quick(
+    dataset_id: str,
+    service: DatasetService = Depends(get_dataset_service),
+    _: None = Depends(require_auth),
+) -> dict:
+    """Lightweight validation — parseability, required fields, empty rows."""
+    dataset = await service.get(dataset_id)
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # 1. File is parseable (already parsed at upload time; check import_errors)
+    if dataset.import_status != "ready":
+        errors.extend(dataset.import_errors or ["Dataset import failed"])
+
+    # 2. Required fields present (input-like + expected-like)
+    mapping = (dataset.contract or {}).get("field_mapping", dataset.field_mapping or {}) or {}
+    input_fields = mapping.get("input_fields") or []
+    expected_fields = mapping.get("expected_fields") or []
+    if not input_fields:
+        warnings.append("No input fields defined; all columns will be used as input")
+    if not expected_fields:
+        warnings.append("No expected fields defined; answers may not be scored correctly")
+
+    # 3. No empty required rows
+    rows = await service.preview(dataset_id, offset=0, limit=dataset.row_count)
+    contract = dataset.contract or {}
+    required_fields = contract.get("required_fields", []) or []
+    for row in rows:
+        all_vals = {**row.input}
+        if row.expected:
+            all_vals.update(row.expected)
+        for field in required_fields:
+            if field in all_vals and all_vals[field] in (None, "", {}):
+                errors.append(f"Row {row.idx}: required field '{field}' is empty")
+        if not any(v for v in all_vals.values() if v not in (None, "", {})):
+            errors.append(f"Row {row.idx}: all fields are empty")
+
+    valid = len(errors) == 0
+    return {"valid": valid, "errors": errors, "warnings": warnings}
+
+
 @router.get("/{dataset_id}/preview", response_model=list[DatasetRowRead])
 async def preview_dataset(
     dataset_id: str,

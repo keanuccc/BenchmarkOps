@@ -54,6 +54,10 @@ def test_normalize_whitespace():
     assert _extract_answer("答案：18 世纪") == "18世纪"
 
 
+def test_answer_prefix_allows_spaces_between_chinese_characters():
+    assert _extract_answer("答 案 ： 亚洲") == "亚洲"
+
+
 def test_empty_input():
     """Empty input should return empty string."""
     assert _extract_answer("") == ""
@@ -224,9 +228,8 @@ def test_nested_parentheses():
 
 
 def test_answer_with_space_inside():
-    """答 案 ： 亚洲 → 案：亚洲 (prefix '答' stripped, spaces normalized)"""
-    # The regex matches "答" as prefix (答[案题]?), strips it, then normalizes whitespace
-    assert _extract_answer("答 案 ： 亚洲") == "案：亚洲"
+    """答 案 ： 亚洲 → 亚洲"""
+    assert _extract_answer("答 案 ： 亚洲") == "亚洲"
 
 
 def test_quarter_unit():

@@ -36,6 +36,10 @@ def build_benchmark_spec(benchmark: Benchmark) -> dict:
     version = _benchmark_version(metric_config)
     spec["version"] = version
     spec["task_type"] = spec.get("task_type") or benchmark.type
+    spec["metric_suite_explicit"] = bool(
+        isinstance(metric_config.get("metric_suite"), list)
+        or isinstance(embedded.get("metric_suite"), list)
+    )
     spec["metric_suite"] = normalize_metric_suite(
         benchmark.metric,
         metric_config,

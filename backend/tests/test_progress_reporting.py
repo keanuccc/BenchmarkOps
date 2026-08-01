@@ -96,6 +96,9 @@ def test_runner_reports_cells_done_and_error(client, patched_partial):
     assert exp.rows_total == 3
     assert exp.cells_done == 1
     assert exp.cells_error == 2
+    assert exp.metrics["dataset_rows_total"] == 3
+    assert exp.metrics["coverage"] == pytest.approx(1 / 3, abs=1e-4)
+    assert exp.metrics["failure_rate"] == pytest.approx(2 / 3, abs=1e-4)
     assert len(results) == 3
     ok = [r for r in results if not r.error]
     bad = [r for r in results if r.error]

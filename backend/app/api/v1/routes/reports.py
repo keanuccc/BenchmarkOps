@@ -1,8 +1,10 @@
-"""AI Report API — generate, list, fetch, export, and delete reports."""
+"""AI Report API — generate, list, fetch, export (md/pdf), and delete reports."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
-from fastapi.responses import PlainTextResponse
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from app.core.security import require_auth
 from app.schemas.report import ReportGenerateRequest, ReportRead
@@ -43,17 +45,75 @@ async def export_report(
     report_id: str,
     service: ReportService = Depends(get_report_service),
 ):
-    import re
-
     report = await service.get(report_id)
-    # HTTP headers must be latin-1; use an ASCII-safe filename. The real
-    # (possibly non-ASCII) title is applied client-side via the <a download>
-    # attribute, so we only emit an ASCII `filename` here.
     raw = report.title or str(report.id)
     ascii_name = re.sub(r"[^A-Za-z0-9_.-]", "_", raw) + ".md"
     headers = {"Content-Disposition": f'attachment; filename="{ascii_name}"'}
     return PlainTextResponse(
         report.content_markdown or "", media_type="text/markdown", headers=headers
+    )
+
+
+@router.get("/{report_id}/export/pdf")
+async def export_report_pdf(
+    report_id: str,
+    service: ReportService = Depends(get_report_service),
+):
+    """Export report as PDF via weasyprint. Falls back to 501 if unavailable."""
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="PDF export requires weasyprint",
+        )
+
+    report = await service.get(report_id)
+    content = report.content_markdown or ""
+    title = report.title or str(report.id)
+    pdf_filename = title.replace(" ", "_") + ".pdf"
+
+    # Markdown → HTML using Python markdown library
+    try:
+        import markdown
+        html_body = markdown.markdown(
+            content,
+            extensions=["tables", "fenced_code", "codehilite", "toc"],
+        )
+    except ImportError:
+        # Fallback: basic HTML wrapping
+        html_body = "<p>" + content.replace("\n\n", "</p><p>").replace("\n", "<br/>") + "</p>"
+
+    full_html = f"""
+    <html>
+    <head>
+        <meta charset="utf-8"/>
+        <style>
+            body {{ font-family: sans-serif; padding: 2em; line-height: 1.6; }}
+            table {{ border-collapse: collapse; width: 100%; margin: 1em 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            th {{ background-color: #f5f5f5; }}
+            pre {{ background: #f5f5f5; padding: 1em; overflow-x: auto; }}
+            code {{ background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }}
+        </style>
+    </head>
+    <body>{html_body}</body>
+    </html>
+    """
+
+    try:
+        pdf_bytes = HTML(string=full_html).write_pdf()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="PDF export requires weasyprint",
+        )
+
+    headers = {"Content-Disposition": f'attachment; filename="{pdf_filename}"'}
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers=headers,
     )
 
 

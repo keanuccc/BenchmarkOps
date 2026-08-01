@@ -122,6 +122,12 @@ class ExperimentRecomputeDifference(BaseModel):
 class ExperimentRecomputeReport(BaseModel):
     metric: str
     rows_total: int
+    dataset_rows_total: int
+    rows_scored: int
+    rows_failed: int
+    rows_unprocessed: int
+    coverage: float
+    failure_rate: float
     stored_accuracy: float
     recomputed_accuracy: float
     changed_rows: int

@@ -1,0 +1,500 @@
+{"prompt": "用 Python 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。", "answer": "def fibonacci"}
+{"prompt": "用 Python 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求原地（in-place）完成。", "answer": "def fibonacci"}
+{"prompt": "用 Python 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求处理边界情况（空输入）。", "answer": "def fibonacci"}
+{"prompt": "用 Python 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求注释说明思路。", "answer": "def fibonacci"}
+{"prompt": "用 JavaScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求时间复杂度 O(n)。", "answer": "def fibonacci"}
+{"prompt": "用 JavaScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求添加输入校验。", "answer": "def fibonacci"}
+{"prompt": "用 JavaScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求返回类型注解。", "answer": "def fibonacci"}
+{"prompt": "用 Go 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求使用递归。", "answer": "def fibonacci"}
+{"prompt": "用 Go 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求写出单元测试。", "answer": "def fibonacci"}
+{"prompt": "用 Go 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求尽量简洁。", "answer": "def fibonacci"}
+{"prompt": "用 Java 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。", "answer": "def fibonacci"}
+{"prompt": "用 Java 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求原地（in-place）完成。", "answer": "def fibonacci"}
+{"prompt": "用 Java 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求处理边界情况（空输入）。", "answer": "def fibonacci"}
+{"prompt": "用 Java 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求注释说明思路。", "answer": "def fibonacci"}
+{"prompt": "用 Rust 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求时间复杂度 O(n)。", "answer": "def fibonacci"}
+{"prompt": "用 Rust 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求添加输入校验。", "answer": "def fibonacci"}
+{"prompt": "用 Rust 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求返回类型注解。", "answer": "def fibonacci"}
+{"prompt": "用 C++ 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求使用递归。", "answer": "def fibonacci"}
+{"prompt": "用 C++ 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求写出单元测试。", "answer": "def fibonacci"}
+{"prompt": "用 C++ 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求尽量简洁。", "answer": "def fibonacci"}
+{"prompt": "用 TypeScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。", "answer": "def fibonacci"}
+{"prompt": "用 TypeScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求原地（in-place）完成。", "answer": "def fibonacci"}
+{"prompt": "用 TypeScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求处理边界情况（空输入）。", "answer": "def fibonacci"}
+{"prompt": "用 TypeScript 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求注释说明思路。", "answer": "def fibonacci"}
+{"prompt": "用 SQL 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求时间复杂度 O(n)。", "answer": "def fibonacci"}
+{"prompt": "用 SQL 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求添加输入校验。", "answer": "def fibonacci"}
+{"prompt": "用 SQL 实现以下任务：写一个 Python 函数，计算斐波那契数列的第 n 项（递归或迭代均可）。 要求返回类型注解。", "answer": "def fibonacci"}
+{"prompt": "用 Python 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求使用递归。", "answer": "def is_palindrome"}
+{"prompt": "用 Python 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求写出单元测试。", "answer": "def is_palindrome"}
+{"prompt": "用 Python 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求尽量简洁。", "answer": "def is_palindrome"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。", "answer": "def is_palindrome"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求原地（in-place）完成。", "answer": "def is_palindrome"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求处理边界情况（空输入）。", "answer": "def is_palindrome"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求注释说明思路。", "answer": "def is_palindrome"}
+{"prompt": "用 Go 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求时间复杂度 O(n)。", "answer": "def is_palindrome"}
+{"prompt": "用 Go 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求添加输入校验。", "answer": "def is_palindrome"}
+{"prompt": "用 Go 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求返回类型注解。", "answer": "def is_palindrome"}
+{"prompt": "用 Java 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求使用递归。", "answer": "def is_palindrome"}
+{"prompt": "用 Java 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求写出单元测试。", "answer": "def is_palindrome"}
+{"prompt": "用 Java 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求尽量简洁。", "answer": "def is_palindrome"}
+{"prompt": "用 Rust 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。", "answer": "def is_palindrome"}
+{"prompt": "用 Rust 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求原地（in-place）完成。", "answer": "def is_palindrome"}
+{"prompt": "用 Rust 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求处理边界情况（空输入）。", "answer": "def is_palindrome"}
+{"prompt": "用 Rust 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求注释说明思路。", "answer": "def is_palindrome"}
+{"prompt": "用 C++ 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求时间复杂度 O(n)。", "answer": "def is_palindrome"}
+{"prompt": "用 C++ 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求添加输入校验。", "answer": "def is_palindrome"}
+{"prompt": "用 C++ 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求返回类型注解。", "answer": "def is_palindrome"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求使用递归。", "answer": "def is_palindrome"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求写出单元测试。", "answer": "def is_palindrome"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求尽量简洁。", "answer": "def is_palindrome"}
+{"prompt": "用 SQL 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。", "answer": "def is_palindrome"}
+{"prompt": "用 SQL 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求原地（in-place）完成。", "answer": "def is_palindrome"}
+{"prompt": "用 SQL 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求处理边界情况（空输入）。", "answer": "def is_palindrome"}
+{"prompt": "用 SQL 实现以下任务：实现一个函数，判断字符串是否为回文（正读反读相同）。 要求注释说明思路。", "answer": "def is_palindrome"}
+{"prompt": "用 Python 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求时间复杂度 O(n)。", "answer": "def most_frequent"}
+{"prompt": "用 Python 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求添加输入校验。", "answer": "def most_frequent"}
+{"prompt": "用 Python 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求返回类型注解。", "answer": "def most_frequent"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求使用递归。", "answer": "def most_frequent"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求写出单元测试。", "answer": "def most_frequent"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求尽量简洁。", "answer": "def most_frequent"}
+{"prompt": "用 Go 实现以下任务：写一个函数，返回列表中出现次数最多的元素。", "answer": "def most_frequent"}
+{"prompt": "用 Go 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求原地（in-place）完成。", "answer": "def most_frequent"}
+{"prompt": "用 Go 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求处理边界情况（空输入）。", "answer": "def most_frequent"}
+{"prompt": "用 Go 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求注释说明思路。", "answer": "def most_frequent"}
+{"prompt": "用 Java 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求时间复杂度 O(n)。", "answer": "def most_frequent"}
+{"prompt": "用 Java 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求添加输入校验。", "answer": "def most_frequent"}
+{"prompt": "用 Java 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求返回类型注解。", "answer": "def most_frequent"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求使用递归。", "answer": "def most_frequent"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求写出单元测试。", "answer": "def most_frequent"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求尽量简洁。", "answer": "def most_frequent"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，返回列表中出现次数最多的元素。", "answer": "def most_frequent"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求原地（in-place）完成。", "answer": "def most_frequent"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求处理边界情况（空输入）。", "answer": "def most_frequent"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求注释说明思路。", "answer": "def most_frequent"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求时间复杂度 O(n)。", "answer": "def most_frequent"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求添加输入校验。", "answer": "def most_frequent"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求返回类型注解。", "answer": "def most_frequent"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求使用递归。", "answer": "def most_frequent"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求写出单元测试。", "answer": "def most_frequent"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，返回列表中出现次数最多的元素。 要求尽量简洁。", "answer": "def most_frequent"}
+{"prompt": "用 Python 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。", "answer": "def binary_search"}
+{"prompt": "用 Python 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求原地（in-place）完成。", "answer": "def binary_search"}
+{"prompt": "用 Python 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求处理边界情况（空输入）。", "answer": "def binary_search"}
+{"prompt": "用 Python 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求注释说明思路。", "answer": "def binary_search"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求时间复杂度 O(n)。", "answer": "def binary_search"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求添加输入校验。", "answer": "def binary_search"}
+{"prompt": "用 JavaScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求返回类型注解。", "answer": "def binary_search"}
+{"prompt": "用 Go 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求使用递归。", "answer": "def binary_search"}
+{"prompt": "用 Go 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求写出单元测试。", "answer": "def binary_search"}
+{"prompt": "用 Go 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求尽量简洁。", "answer": "def binary_search"}
+{"prompt": "用 Java 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。", "answer": "def binary_search"}
+{"prompt": "用 Java 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求原地（in-place）完成。", "answer": "def binary_search"}
+{"prompt": "用 Java 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求处理边界情况（空输入）。", "answer": "def binary_search"}
+{"prompt": "用 Java 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求注释说明思路。", "answer": "def binary_search"}
+{"prompt": "用 Rust 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求时间复杂度 O(n)。", "answer": "def binary_search"}
+{"prompt": "用 Rust 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求添加输入校验。", "answer": "def binary_search"}
+{"prompt": "用 Rust 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求返回类型注解。", "answer": "def binary_search"}
+{"prompt": "用 C++ 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求使用递归。", "answer": "def binary_search"}
+{"prompt": "用 C++ 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求写出单元测试。", "answer": "def binary_search"}
+{"prompt": "用 C++ 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求尽量简洁。", "answer": "def binary_search"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。", "answer": "def binary_search"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求原地（in-place）完成。", "answer": "def binary_search"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求处理边界情况（空输入）。", "answer": "def binary_search"}
+{"prompt": "用 TypeScript 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求注释说明思路。", "answer": "def binary_search"}
+{"prompt": "用 SQL 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求时间复杂度 O(n)。", "answer": "def binary_search"}
+{"prompt": "用 SQL 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求添加输入校验。", "answer": "def binary_search"}
+{"prompt": "用 SQL 实现以下任务：实现一个二分查找函数，在升序数组中定位目标值。 要求返回类型注解。", "answer": "def binary_search"}
+{"prompt": "用 Python 实现以下任务：写一个函数，将给定的字符串反转。 要求使用递归。", "answer": "def reverse_string"}
+{"prompt": "用 Python 实现以下任务：写一个函数，将给定的字符串反转。 要求写出单元测试。", "answer": "def reverse_string"}
+{"prompt": "用 Python 实现以下任务：写一个函数，将给定的字符串反转。 要求尽量简洁。", "answer": "def reverse_string"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，将给定的字符串反转。", "answer": "def reverse_string"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，将给定的字符串反转。 要求原地（in-place）完成。", "answer": "def reverse_string"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，将给定的字符串反转。 要求处理边界情况（空输入）。", "answer": "def reverse_string"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，将给定的字符串反转。 要求注释说明思路。", "answer": "def reverse_string"}
+{"prompt": "用 Go 实现以下任务：写一个函数，将给定的字符串反转。 要求时间复杂度 O(n)。", "answer": "def reverse_string"}
+{"prompt": "用 Go 实现以下任务：写一个函数，将给定的字符串反转。 要求添加输入校验。", "answer": "def reverse_string"}
+{"prompt": "用 Go 实现以下任务：写一个函数，将给定的字符串反转。 要求返回类型注解。", "answer": "def reverse_string"}
+{"prompt": "用 Java 实现以下任务：写一个函数，将给定的字符串反转。 要求使用递归。", "answer": "def reverse_string"}
+{"prompt": "用 Java 实现以下任务：写一个函数，将给定的字符串反转。 要求写出单元测试。", "answer": "def reverse_string"}
+{"prompt": "用 Java 实现以下任务：写一个函数，将给定的字符串反转。 要求尽量简洁。", "answer": "def reverse_string"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，将给定的字符串反转。", "answer": "def reverse_string"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，将给定的字符串反转。 要求原地（in-place）完成。", "answer": "def reverse_string"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，将给定的字符串反转。 要求处理边界情况（空输入）。", "answer": "def reverse_string"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，将给定的字符串反转。 要求注释说明思路。", "answer": "def reverse_string"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，将给定的字符串反转。 要求时间复杂度 O(n)。", "answer": "def reverse_string"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，将给定的字符串反转。 要求添加输入校验。", "answer": "def reverse_string"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，将给定的字符串反转。 要求返回类型注解。", "answer": "def reverse_string"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，将给定的字符串反转。 要求使用递归。", "answer": "def reverse_string"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，将给定的字符串反转。 要求写出单元测试。", "answer": "def reverse_string"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，将给定的字符串反转。 要求尽量简洁。", "answer": "def reverse_string"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，将给定的字符串反转。", "answer": "def reverse_string"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，将给定的字符串反转。 要求原地（in-place）完成。", "answer": "def reverse_string"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，将给定的字符串反转。 要求处理边界情况（空输入）。", "answer": "def reverse_string"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，将给定的字符串反转。 要求注释说明思路。", "answer": "def reverse_string"}
+{"prompt": "用 Python 实现以下任务：实现快速排序的分区函数（partition）。 要求时间复杂度 O(n)。", "answer": "def partition"}
+{"prompt": "用 Python 实现以下任务：实现快速排序的分区函数（partition）。 要求添加输入校验。", "answer": "def partition"}
+{"prompt": "用 Python 实现以下任务：实现快速排序的分区函数（partition）。 要求返回类型注解。", "answer": "def partition"}
+{"prompt": "用 JavaScript 实现以下任务：实现快速排序的分区函数（partition）。 要求使用递归。", "answer": "def partition"}
+{"prompt": "用 JavaScript 实现以下任务：实现快速排序的分区函数（partition）。 要求写出单元测试。", "answer": "def partition"}
+{"prompt": "用 JavaScript 实现以下任务：实现快速排序的分区函数（partition）。 要求尽量简洁。", "answer": "def partition"}
+{"prompt": "用 Go 实现以下任务：实现快速排序的分区函数（partition）。", "answer": "def partition"}
+{"prompt": "用 Go 实现以下任务：实现快速排序的分区函数（partition）。 要求原地（in-place）完成。", "answer": "def partition"}
+{"prompt": "用 Go 实现以下任务：实现快速排序的分区函数（partition）。 要求处理边界情况（空输入）。", "answer": "def partition"}
+{"prompt": "用 Go 实现以下任务：实现快速排序的分区函数（partition）。 要求注释说明思路。", "answer": "def partition"}
+{"prompt": "用 Java 实现以下任务：实现快速排序的分区函数（partition）。 要求时间复杂度 O(n)。", "answer": "def partition"}
+{"prompt": "用 Java 实现以下任务：实现快速排序的分区函数（partition）。 要求添加输入校验。", "answer": "def partition"}
+{"prompt": "用 Java 实现以下任务：实现快速排序的分区函数（partition）。 要求返回类型注解。", "answer": "def partition"}
+{"prompt": "用 Rust 实现以下任务：实现快速排序的分区函数（partition）。 要求使用递归。", "answer": "def partition"}
+{"prompt": "用 Rust 实现以下任务：实现快速排序的分区函数（partition）。 要求写出单元测试。", "answer": "def partition"}
+{"prompt": "用 Rust 实现以下任务：实现快速排序的分区函数（partition）。 要求尽量简洁。", "answer": "def partition"}
+{"prompt": "用 C++ 实现以下任务：实现快速排序的分区函数（partition）。", "answer": "def partition"}
+{"prompt": "用 C++ 实现以下任务：实现快速排序的分区函数（partition）。 要求原地（in-place）完成。", "answer": "def partition"}
+{"prompt": "用 C++ 实现以下任务：实现快速排序的分区函数（partition）。 要求处理边界情况（空输入）。", "answer": "def partition"}
+{"prompt": "用 C++ 实现以下任务：实现快速排序的分区函数（partition）。 要求注释说明思路。", "answer": "def partition"}
+{"prompt": "用 TypeScript 实现以下任务：实现快速排序的分区函数（partition）。 要求时间复杂度 O(n)。", "answer": "def partition"}
+{"prompt": "用 TypeScript 实现以下任务：实现快速排序的分区函数（partition）。 要求添加输入校验。", "answer": "def partition"}
+{"prompt": "用 TypeScript 实现以下任务：实现快速排序的分区函数（partition）。 要求返回类型注解。", "answer": "def partition"}
+{"prompt": "用 SQL 实现以下任务：实现快速排序的分区函数（partition）。 要求使用递归。", "answer": "def partition"}
+{"prompt": "用 SQL 实现以下任务：实现快速排序的分区函数（partition）。 要求写出单元测试。", "answer": "def partition"}
+{"prompt": "用 SQL 实现以下任务：实现快速排序的分区函数（partition）。 要求尽量简洁。", "answer": "def partition"}
+{"prompt": "用 Python 实现以下任务：写函数把罗马数字转换为整数。", "answer": "def roman_to_int"}
+{"prompt": "用 Python 实现以下任务：写函数把罗马数字转换为整数。 要求原地（in-place）完成。", "answer": "def roman_to_int"}
+{"prompt": "用 Python 实现以下任务：写函数把罗马数字转换为整数。 要求处理边界情况（空输入）。", "answer": "def roman_to_int"}
+{"prompt": "用 Python 实现以下任务：写函数把罗马数字转换为整数。 要求注释说明思路。", "answer": "def roman_to_int"}
+{"prompt": "用 JavaScript 实现以下任务：写函数把罗马数字转换为整数。 要求时间复杂度 O(n)。", "answer": "def roman_to_int"}
+{"prompt": "用 JavaScript 实现以下任务：写函数把罗马数字转换为整数。 要求添加输入校验。", "answer": "def roman_to_int"}
+{"prompt": "用 JavaScript 实现以下任务：写函数把罗马数字转换为整数。 要求返回类型注解。", "answer": "def roman_to_int"}
+{"prompt": "用 Go 实现以下任务：写函数把罗马数字转换为整数。 要求使用递归。", "answer": "def roman_to_int"}
+{"prompt": "用 Go 实现以下任务：写函数把罗马数字转换为整数。 要求写出单元测试。", "answer": "def roman_to_int"}
+{"prompt": "用 Go 实现以下任务：写函数把罗马数字转换为整数。 要求尽量简洁。", "answer": "def roman_to_int"}
+{"prompt": "用 Java 实现以下任务：写函数把罗马数字转换为整数。", "answer": "def roman_to_int"}
+{"prompt": "用 Java 实现以下任务：写函数把罗马数字转换为整数。 要求原地（in-place）完成。", "answer": "def roman_to_int"}
+{"prompt": "用 Java 实现以下任务：写函数把罗马数字转换为整数。 要求处理边界情况（空输入）。", "answer": "def roman_to_int"}
+{"prompt": "用 Java 实现以下任务：写函数把罗马数字转换为整数。 要求注释说明思路。", "answer": "def roman_to_int"}
+{"prompt": "用 Rust 实现以下任务：写函数把罗马数字转换为整数。 要求时间复杂度 O(n)。", "answer": "def roman_to_int"}
+{"prompt": "用 Rust 实现以下任务：写函数把罗马数字转换为整数。 要求添加输入校验。", "answer": "def roman_to_int"}
+{"prompt": "用 Rust 实现以下任务：写函数把罗马数字转换为整数。 要求返回类型注解。", "answer": "def roman_to_int"}
+{"prompt": "用 C++ 实现以下任务：写函数把罗马数字转换为整数。 要求使用递归。", "answer": "def roman_to_int"}
+{"prompt": "用 C++ 实现以下任务：写函数把罗马数字转换为整数。 要求写出单元测试。", "answer": "def roman_to_int"}
+{"prompt": "用 C++ 实现以下任务：写函数把罗马数字转换为整数。 要求尽量简洁。", "answer": "def roman_to_int"}
+{"prompt": "用 TypeScript 实现以下任务：写函数把罗马数字转换为整数。", "answer": "def roman_to_int"}
+{"prompt": "用 TypeScript 实现以下任务：写函数把罗马数字转换为整数。 要求原地（in-place）完成。", "answer": "def roman_to_int"}
+{"prompt": "用 TypeScript 实现以下任务：写函数把罗马数字转换为整数。 要求处理边界情况（空输入）。", "answer": "def roman_to_int"}
+{"prompt": "用 TypeScript 实现以下任务：写函数把罗马数字转换为整数。 要求注释说明思路。", "answer": "def roman_to_int"}
+{"prompt": "用 SQL 实现以下任务：写函数把罗马数字转换为整数。 要求时间复杂度 O(n)。", "answer": "def roman_to_int"}
+{"prompt": "用 SQL 实现以下任务：写函数把罗马数字转换为整数。 要求添加输入校验。", "answer": "def roman_to_int"}
+{"prompt": "用 SQL 实现以下任务：写函数把罗马数字转换为整数。 要求返回类型注解。", "answer": "def roman_to_int"}
+{"prompt": "用 Python 实现以下任务：实现冒泡排序算法。 要求使用递归。", "answer": "def bubble_sort"}
+{"prompt": "用 Python 实现以下任务：实现冒泡排序算法。 要求写出单元测试。", "answer": "def bubble_sort"}
+{"prompt": "用 Python 实现以下任务：实现冒泡排序算法。 要求尽量简洁。", "answer": "def bubble_sort"}
+{"prompt": "用 JavaScript 实现以下任务：实现冒泡排序算法。", "answer": "def bubble_sort"}
+{"prompt": "用 JavaScript 实现以下任务：实现冒泡排序算法。 要求原地（in-place）完成。", "answer": "def bubble_sort"}
+{"prompt": "用 JavaScript 实现以下任务：实现冒泡排序算法。 要求处理边界情况（空输入）。", "answer": "def bubble_sort"}
+{"prompt": "用 JavaScript 实现以下任务：实现冒泡排序算法。 要求注释说明思路。", "answer": "def bubble_sort"}
+{"prompt": "用 Go 实现以下任务：实现冒泡排序算法。 要求时间复杂度 O(n)。", "answer": "def bubble_sort"}
+{"prompt": "用 Go 实现以下任务：实现冒泡排序算法。 要求添加输入校验。", "answer": "def bubble_sort"}
+{"prompt": "用 Go 实现以下任务：实现冒泡排序算法。 要求返回类型注解。", "answer": "def bubble_sort"}
+{"prompt": "用 Java 实现以下任务：实现冒泡排序算法。 要求使用递归。", "answer": "def bubble_sort"}
+{"prompt": "用 Java 实现以下任务：实现冒泡排序算法。 要求写出单元测试。", "answer": "def bubble_sort"}
+{"prompt": "用 Java 实现以下任务：实现冒泡排序算法。 要求尽量简洁。", "answer": "def bubble_sort"}
+{"prompt": "用 Rust 实现以下任务：实现冒泡排序算法。", "answer": "def bubble_sort"}
+{"prompt": "用 Rust 实现以下任务：实现冒泡排序算法。 要求原地（in-place）完成。", "answer": "def bubble_sort"}
+{"prompt": "用 Rust 实现以下任务：实现冒泡排序算法。 要求处理边界情况（空输入）。", "answer": "def bubble_sort"}
+{"prompt": "用 Rust 实现以下任务：实现冒泡排序算法。 要求注释说明思路。", "answer": "def bubble_sort"}
+{"prompt": "用 C++ 实现以下任务：实现冒泡排序算法。 要求时间复杂度 O(n)。", "answer": "def bubble_sort"}
+{"prompt": "用 C++ 实现以下任务：实现冒泡排序算法。 要求添加输入校验。", "answer": "def bubble_sort"}
+{"prompt": "用 C++ 实现以下任务：实现冒泡排序算法。 要求返回类型注解。", "answer": "def bubble_sort"}
+{"prompt": "用 TypeScript 实现以下任务：实现冒泡排序算法。 要求使用递归。", "answer": "def bubble_sort"}
+{"prompt": "用 TypeScript 实现以下任务：实现冒泡排序算法。 要求写出单元测试。", "answer": "def bubble_sort"}
+{"prompt": "用 TypeScript 实现以下任务：实现冒泡排序算法。 要求尽量简洁。", "answer": "def bubble_sort"}
+{"prompt": "用 SQL 实现以下任务：实现冒泡排序算法。", "answer": "def bubble_sort"}
+{"prompt": "用 SQL 实现以下任务：实现冒泡排序算法。 要求原地（in-place）完成。", "answer": "def bubble_sort"}
+{"prompt": "用 SQL 实现以下任务：实现冒泡排序算法。 要求处理边界情况（空输入）。", "answer": "def bubble_sort"}
+{"prompt": "用 SQL 实现以下任务：实现冒泡排序算法。 要求注释说明思路。", "answer": "def bubble_sort"}
+{"prompt": "用 Python 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求时间复杂度 O(n)。", "answer": "def word_count"}
+{"prompt": "用 Python 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求添加输入校验。", "answer": "def word_count"}
+{"prompt": "用 Python 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求返回类型注解。", "answer": "def word_count"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求使用递归。", "answer": "def word_count"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求写出单元测试。", "answer": "def word_count"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求尽量简洁。", "answer": "def word_count"}
+{"prompt": "用 Go 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。", "answer": "def word_count"}
+{"prompt": "用 Go 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求原地（in-place）完成。", "answer": "def word_count"}
+{"prompt": "用 Go 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求处理边界情况（空输入）。", "answer": "def word_count"}
+{"prompt": "用 Go 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求注释说明思路。", "answer": "def word_count"}
+{"prompt": "用 Java 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求时间复杂度 O(n)。", "answer": "def word_count"}
+{"prompt": "用 Java 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求添加输入校验。", "answer": "def word_count"}
+{"prompt": "用 Java 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求返回类型注解。", "answer": "def word_count"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求使用递归。", "answer": "def word_count"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求写出单元测试。", "answer": "def word_count"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求尽量简洁。", "answer": "def word_count"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。", "answer": "def word_count"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求原地（in-place）完成。", "answer": "def word_count"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求处理边界情况（空输入）。", "answer": "def word_count"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求注释说明思路。", "answer": "def word_count"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求时间复杂度 O(n)。", "answer": "def word_count"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求添加输入校验。", "answer": "def word_count"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求返回类型注解。", "answer": "def word_count"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求使用递归。", "answer": "def word_count"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求写出单元测试。", "answer": "def word_count"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，统计一段文本中每个单词出现的频率。 要求尽量简洁。", "answer": "def word_count"}
+{"prompt": "用 Python 实现以下任务：实现函数，判断一个整数是否为素数。", "answer": "def is_prime"}
+{"prompt": "用 Python 实现以下任务：实现函数，判断一个整数是否为素数。 要求原地（in-place）完成。", "answer": "def is_prime"}
+{"prompt": "用 Python 实现以下任务：实现函数，判断一个整数是否为素数。 要求处理边界情况（空输入）。", "answer": "def is_prime"}
+{"prompt": "用 Python 实现以下任务：实现函数，判断一个整数是否为素数。 要求注释说明思路。", "answer": "def is_prime"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，判断一个整数是否为素数。 要求时间复杂度 O(n)。", "answer": "def is_prime"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，判断一个整数是否为素数。 要求添加输入校验。", "answer": "def is_prime"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，判断一个整数是否为素数。 要求返回类型注解。", "answer": "def is_prime"}
+{"prompt": "用 Go 实现以下任务：实现函数，判断一个整数是否为素数。 要求使用递归。", "answer": "def is_prime"}
+{"prompt": "用 Go 实现以下任务：实现函数，判断一个整数是否为素数。 要求写出单元测试。", "answer": "def is_prime"}
+{"prompt": "用 Go 实现以下任务：实现函数，判断一个整数是否为素数。 要求尽量简洁。", "answer": "def is_prime"}
+{"prompt": "用 Java 实现以下任务：实现函数，判断一个整数是否为素数。", "answer": "def is_prime"}
+{"prompt": "用 Java 实现以下任务：实现函数，判断一个整数是否为素数。 要求原地（in-place）完成。", "answer": "def is_prime"}
+{"prompt": "用 Java 实现以下任务：实现函数，判断一个整数是否为素数。 要求处理边界情况（空输入）。", "answer": "def is_prime"}
+{"prompt": "用 Java 实现以下任务：实现函数，判断一个整数是否为素数。 要求注释说明思路。", "answer": "def is_prime"}
+{"prompt": "用 Rust 实现以下任务：实现函数，判断一个整数是否为素数。 要求时间复杂度 O(n)。", "answer": "def is_prime"}
+{"prompt": "用 Rust 实现以下任务：实现函数，判断一个整数是否为素数。 要求添加输入校验。", "answer": "def is_prime"}
+{"prompt": "用 Rust 实现以下任务：实现函数，判断一个整数是否为素数。 要求返回类型注解。", "answer": "def is_prime"}
+{"prompt": "用 C++ 实现以下任务：实现函数，判断一个整数是否为素数。 要求使用递归。", "answer": "def is_prime"}
+{"prompt": "用 C++ 实现以下任务：实现函数，判断一个整数是否为素数。 要求写出单元测试。", "answer": "def is_prime"}
+{"prompt": "用 C++ 实现以下任务：实现函数，判断一个整数是否为素数。 要求尽量简洁。", "answer": "def is_prime"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，判断一个整数是否为素数。", "answer": "def is_prime"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，判断一个整数是否为素数。 要求原地（in-place）完成。", "answer": "def is_prime"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，判断一个整数是否为素数。 要求处理边界情况（空输入）。", "answer": "def is_prime"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，判断一个整数是否为素数。 要求注释说明思路。", "answer": "def is_prime"}
+{"prompt": "用 SQL 实现以下任务：实现函数，判断一个整数是否为素数。 要求时间复杂度 O(n)。", "answer": "def is_prime"}
+{"prompt": "用 SQL 实现以下任务：实现函数，判断一个整数是否为素数。 要求添加输入校验。", "answer": "def is_prime"}
+{"prompt": "用 SQL 实现以下任务：实现函数，判断一个整数是否为素数。 要求返回类型注解。", "answer": "def is_prime"}
+{"prompt": "用 Python 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求使用递归。", "answer": "def sieve"}
+{"prompt": "用 Python 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求写出单元测试。", "answer": "def sieve"}
+{"prompt": "用 Python 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求尽量简洁。", "answer": "def sieve"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。", "answer": "def sieve"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求原地（in-place）完成。", "answer": "def sieve"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求处理边界情况（空输入）。", "answer": "def sieve"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求注释说明思路。", "answer": "def sieve"}
+{"prompt": "用 Go 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求时间复杂度 O(n)。", "answer": "def sieve"}
+{"prompt": "用 Go 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求添加输入校验。", "answer": "def sieve"}
+{"prompt": "用 Go 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求返回类型注解。", "answer": "def sieve"}
+{"prompt": "用 Java 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求使用递归。", "answer": "def sieve"}
+{"prompt": "用 Java 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求写出单元测试。", "answer": "def sieve"}
+{"prompt": "用 Java 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求尽量简洁。", "answer": "def sieve"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。", "answer": "def sieve"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求原地（in-place）完成。", "answer": "def sieve"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求处理边界情况（空输入）。", "answer": "def sieve"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求注释说明思路。", "answer": "def sieve"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求时间复杂度 O(n)。", "answer": "def sieve"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求添加输入校验。", "answer": "def sieve"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求返回类型注解。", "answer": "def sieve"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求使用递归。", "answer": "def sieve"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求写出单元测试。", "answer": "def sieve"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求尽量简洁。", "answer": "def sieve"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。", "answer": "def sieve"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求原地（in-place）完成。", "answer": "def sieve"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求处理边界情况（空输入）。", "answer": "def sieve"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，生成指定范围内的所有素数（埃氏筛）。 要求注释说明思路。", "answer": "def sieve"}
+{"prompt": "用 Python 实现以下任务：实现单链表节点插入函数。 要求时间复杂度 O(n)。", "answer": "def insert"}
+{"prompt": "用 Python 实现以下任务：实现单链表节点插入函数。 要求添加输入校验。", "answer": "def insert"}
+{"prompt": "用 Python 实现以下任务：实现单链表节点插入函数。 要求返回类型注解。", "answer": "def insert"}
+{"prompt": "用 JavaScript 实现以下任务：实现单链表节点插入函数。 要求使用递归。", "answer": "def insert"}
+{"prompt": "用 JavaScript 实现以下任务：实现单链表节点插入函数。 要求写出单元测试。", "answer": "def insert"}
+{"prompt": "用 JavaScript 实现以下任务：实现单链表节点插入函数。 要求尽量简洁。", "answer": "def insert"}
+{"prompt": "用 Go 实现以下任务：实现单链表节点插入函数。", "answer": "def insert"}
+{"prompt": "用 Go 实现以下任务：实现单链表节点插入函数。 要求原地（in-place）完成。", "answer": "def insert"}
+{"prompt": "用 Go 实现以下任务：实现单链表节点插入函数。 要求处理边界情况（空输入）。", "answer": "def insert"}
+{"prompt": "用 Go 实现以下任务：实现单链表节点插入函数。 要求注释说明思路。", "answer": "def insert"}
+{"prompt": "用 Java 实现以下任务：实现单链表节点插入函数。 要求时间复杂度 O(n)。", "answer": "def insert"}
+{"prompt": "用 Java 实现以下任务：实现单链表节点插入函数。 要求添加输入校验。", "answer": "def insert"}
+{"prompt": "用 Java 实现以下任务：实现单链表节点插入函数。 要求返回类型注解。", "answer": "def insert"}
+{"prompt": "用 Rust 实现以下任务：实现单链表节点插入函数。 要求使用递归。", "answer": "def insert"}
+{"prompt": "用 Rust 实现以下任务：实现单链表节点插入函数。 要求写出单元测试。", "answer": "def insert"}
+{"prompt": "用 Rust 实现以下任务：实现单链表节点插入函数。 要求尽量简洁。", "answer": "def insert"}
+{"prompt": "用 C++ 实现以下任务：实现单链表节点插入函数。", "answer": "def insert"}
+{"prompt": "用 C++ 实现以下任务：实现单链表节点插入函数。 要求原地（in-place）完成。", "answer": "def insert"}
+{"prompt": "用 C++ 实现以下任务：实现单链表节点插入函数。 要求处理边界情况（空输入）。", "answer": "def insert"}
+{"prompt": "用 C++ 实现以下任务：实现单链表节点插入函数。 要求注释说明思路。", "answer": "def insert"}
+{"prompt": "用 TypeScript 实现以下任务：实现单链表节点插入函数。 要求时间复杂度 O(n)。", "answer": "def insert"}
+{"prompt": "用 TypeScript 实现以下任务：实现单链表节点插入函数。 要求添加输入校验。", "answer": "def insert"}
+{"prompt": "用 TypeScript 实现以下任务：实现单链表节点插入函数。 要求返回类型注解。", "answer": "def insert"}
+{"prompt": "用 SQL 实现以下任务：实现单链表节点插入函数。 要求使用递归。", "answer": "def insert"}
+{"prompt": "用 SQL 实现以下任务：实现单链表节点插入函数。 要求写出单元测试。", "answer": "def insert"}
+{"prompt": "用 SQL 实现以下任务：实现单链表节点插入函数。 要求尽量简洁。", "answer": "def insert"}
+{"prompt": "用 Python 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。", "answer": "def lcs"}
+{"prompt": "用 Python 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求原地（in-place）完成。", "answer": "def lcs"}
+{"prompt": "用 Python 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求处理边界情况（空输入）。", "answer": "def lcs"}
+{"prompt": "用 Python 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求注释说明思路。", "answer": "def lcs"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求时间复杂度 O(n)。", "answer": "def lcs"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求添加输入校验。", "answer": "def lcs"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求返回类型注解。", "answer": "def lcs"}
+{"prompt": "用 Go 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求使用递归。", "answer": "def lcs"}
+{"prompt": "用 Go 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求写出单元测试。", "answer": "def lcs"}
+{"prompt": "用 Go 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求尽量简洁。", "answer": "def lcs"}
+{"prompt": "用 Java 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。", "answer": "def lcs"}
+{"prompt": "用 Java 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求原地（in-place）完成。", "answer": "def lcs"}
+{"prompt": "用 Java 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求处理边界情况（空输入）。", "answer": "def lcs"}
+{"prompt": "用 Java 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求注释说明思路。", "answer": "def lcs"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求时间复杂度 O(n)。", "answer": "def lcs"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求添加输入校验。", "answer": "def lcs"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求返回类型注解。", "answer": "def lcs"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求使用递归。", "answer": "def lcs"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求写出单元测试。", "answer": "def lcs"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求尽量简洁。", "answer": "def lcs"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。", "answer": "def lcs"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求原地（in-place）完成。", "answer": "def lcs"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求处理边界情况（空输入）。", "answer": "def lcs"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求注释说明思路。", "answer": "def lcs"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求时间复杂度 O(n)。", "answer": "def lcs"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求添加输入校验。", "answer": "def lcs"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，计算两个字符串的最长公共子序列长度。 要求返回类型注解。", "answer": "def lcs"}
+{"prompt": "用 Python 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求使用递归。", "answer": "def two_sum"}
+{"prompt": "用 Python 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求写出单元测试。", "answer": "def two_sum"}
+{"prompt": "用 Python 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求尽量简洁。", "answer": "def two_sum"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。", "answer": "def two_sum"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求原地（in-place）完成。", "answer": "def two_sum"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求处理边界情况（空输入）。", "answer": "def two_sum"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求注释说明思路。", "answer": "def two_sum"}
+{"prompt": "用 Go 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求时间复杂度 O(n)。", "answer": "def two_sum"}
+{"prompt": "用 Go 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求添加输入校验。", "answer": "def two_sum"}
+{"prompt": "用 Go 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求返回类型注解。", "answer": "def two_sum"}
+{"prompt": "用 Java 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求使用递归。", "answer": "def two_sum"}
+{"prompt": "用 Java 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求写出单元测试。", "answer": "def two_sum"}
+{"prompt": "用 Java 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求尽量简洁。", "answer": "def two_sum"}
+{"prompt": "用 Rust 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。", "answer": "def two_sum"}
+{"prompt": "用 Rust 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求原地（in-place）完成。", "answer": "def two_sum"}
+{"prompt": "用 Rust 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求处理边界情况（空输入）。", "answer": "def two_sum"}
+{"prompt": "用 Rust 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求注释说明思路。", "answer": "def two_sum"}
+{"prompt": "用 C++ 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求时间复杂度 O(n)。", "answer": "def two_sum"}
+{"prompt": "用 C++ 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求添加输入校验。", "answer": "def two_sum"}
+{"prompt": "用 C++ 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求返回类型注解。", "answer": "def two_sum"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求使用递归。", "answer": "def two_sum"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求写出单元测试。", "answer": "def two_sum"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求尽量简洁。", "answer": "def two_sum"}
+{"prompt": "用 SQL 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。", "answer": "def two_sum"}
+{"prompt": "用 SQL 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求原地（in-place）完成。", "answer": "def two_sum"}
+{"prompt": "用 SQL 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求处理边界情况（空输入）。", "answer": "def two_sum"}
+{"prompt": "用 SQL 实现以下任务：实现函数，找到数组中和为 target 的两个数的下标。 要求注释说明思路。", "answer": "def two_sum"}
+{"prompt": "用 Python 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求时间复杂度 O(n)。", "answer": "def to_binary"}
+{"prompt": "用 Python 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求添加输入校验。", "answer": "def to_binary"}
+{"prompt": "用 Python 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求返回类型注解。", "answer": "def to_binary"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求使用递归。", "answer": "def to_binary"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求写出单元测试。", "answer": "def to_binary"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求尽量简洁。", "answer": "def to_binary"}
+{"prompt": "用 Go 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。", "answer": "def to_binary"}
+{"prompt": "用 Go 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求原地（in-place）完成。", "answer": "def to_binary"}
+{"prompt": "用 Go 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求处理边界情况（空输入）。", "answer": "def to_binary"}
+{"prompt": "用 Go 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求注释说明思路。", "answer": "def to_binary"}
+{"prompt": "用 Java 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求时间复杂度 O(n)。", "answer": "def to_binary"}
+{"prompt": "用 Java 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求添加输入校验。", "answer": "def to_binary"}
+{"prompt": "用 Java 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求返回类型注解。", "answer": "def to_binary"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求使用递归。", "answer": "def to_binary"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求写出单元测试。", "answer": "def to_binary"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求尽量简洁。", "answer": "def to_binary"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。", "answer": "def to_binary"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求原地（in-place）完成。", "answer": "def to_binary"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求处理边界情况（空输入）。", "answer": "def to_binary"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求注释说明思路。", "answer": "def to_binary"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求时间复杂度 O(n)。", "answer": "def to_binary"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求添加输入校验。", "answer": "def to_binary"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求返回类型注解。", "answer": "def to_binary"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求使用递归。", "answer": "def to_binary"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求写出单元测试。", "answer": "def to_binary"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，把十进制整数转换为二进制字符串。 要求尽量简洁。", "answer": "def to_binary"}
+{"prompt": "用 Python 实现以下任务：实现函数，深度优先遍历（DFS）一个图。", "answer": "def dfs"}
+{"prompt": "用 Python 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求原地（in-place）完成。", "answer": "def dfs"}
+{"prompt": "用 Python 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求处理边界情况（空输入）。", "answer": "def dfs"}
+{"prompt": "用 Python 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求注释说明思路。", "answer": "def dfs"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求时间复杂度 O(n)。", "answer": "def dfs"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求添加输入校验。", "answer": "def dfs"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求返回类型注解。", "answer": "def dfs"}
+{"prompt": "用 Go 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求使用递归。", "answer": "def dfs"}
+{"prompt": "用 Go 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求写出单元测试。", "answer": "def dfs"}
+{"prompt": "用 Go 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求尽量简洁。", "answer": "def dfs"}
+{"prompt": "用 Java 实现以下任务：实现函数，深度优先遍历（DFS）一个图。", "answer": "def dfs"}
+{"prompt": "用 Java 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求原地（in-place）完成。", "answer": "def dfs"}
+{"prompt": "用 Java 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求处理边界情况（空输入）。", "answer": "def dfs"}
+{"prompt": "用 Java 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求注释说明思路。", "answer": "def dfs"}
+{"prompt": "用 Rust 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求时间复杂度 O(n)。", "answer": "def dfs"}
+{"prompt": "用 Rust 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求添加输入校验。", "answer": "def dfs"}
+{"prompt": "用 Rust 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求返回类型注解。", "answer": "def dfs"}
+{"prompt": "用 C++ 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求使用递归。", "answer": "def dfs"}
+{"prompt": "用 C++ 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求写出单元测试。", "answer": "def dfs"}
+{"prompt": "用 C++ 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求尽量简洁。", "answer": "def dfs"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。", "answer": "def dfs"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求原地（in-place）完成。", "answer": "def dfs"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求处理边界情况（空输入）。", "answer": "def dfs"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求注释说明思路。", "answer": "def dfs"}
+{"prompt": "用 SQL 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求时间复杂度 O(n)。", "answer": "def dfs"}
+{"prompt": "用 SQL 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求添加输入校验。", "answer": "def dfs"}
+{"prompt": "用 SQL 实现以下任务：实现函数，深度优先遍历（DFS）一个图。 要求返回类型注解。", "answer": "def dfs"}
+{"prompt": "用 Python 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求使用递归。", "answer": "def gcd"}
+{"prompt": "用 Python 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求写出单元测试。", "answer": "def gcd"}
+{"prompt": "用 Python 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求尽量简洁。", "answer": "def gcd"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。", "answer": "def gcd"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求原地（in-place）完成。", "answer": "def gcd"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求处理边界情况（空输入）。", "answer": "def gcd"}
+{"prompt": "用 JavaScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求注释说明思路。", "answer": "def gcd"}
+{"prompt": "用 Go 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求时间复杂度 O(n)。", "answer": "def gcd"}
+{"prompt": "用 Go 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求添加输入校验。", "answer": "def gcd"}
+{"prompt": "用 Go 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求返回类型注解。", "answer": "def gcd"}
+{"prompt": "用 Java 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求使用递归。", "answer": "def gcd"}
+{"prompt": "用 Java 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求写出单元测试。", "answer": "def gcd"}
+{"prompt": "用 Java 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求尽量简洁。", "answer": "def gcd"}
+{"prompt": "用 Rust 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。", "answer": "def gcd"}
+{"prompt": "用 Rust 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求原地（in-place）完成。", "answer": "def gcd"}
+{"prompt": "用 Rust 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求处理边界情况（空输入）。", "answer": "def gcd"}
+{"prompt": "用 Rust 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求注释说明思路。", "answer": "def gcd"}
+{"prompt": "用 C++ 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求时间复杂度 O(n)。", "answer": "def gcd"}
+{"prompt": "用 C++ 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求添加输入校验。", "answer": "def gcd"}
+{"prompt": "用 C++ 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求返回类型注解。", "answer": "def gcd"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求使用递归。", "answer": "def gcd"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求写出单元测试。", "answer": "def gcd"}
+{"prompt": "用 TypeScript 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求尽量简洁。", "answer": "def gcd"}
+{"prompt": "用 SQL 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。", "answer": "def gcd"}
+{"prompt": "用 SQL 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求原地（in-place）完成。", "answer": "def gcd"}
+{"prompt": "用 SQL 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求处理边界情况（空输入）。", "answer": "def gcd"}
+{"prompt": "用 SQL 实现以下任务：实现函数，计算两个整数的最大公约数（GCD）。 要求注释说明思路。", "answer": "def gcd"}
+{"prompt": "用 Python 实现以下任务：写一个函数，对列表进行归并排序。 要求时间复杂度 O(n)。", "answer": "def merge_sort"}
+{"prompt": "用 Python 实现以下任务：写一个函数，对列表进行归并排序。 要求添加输入校验。", "answer": "def merge_sort"}
+{"prompt": "用 Python 实现以下任务：写一个函数，对列表进行归并排序。 要求返回类型注解。", "answer": "def merge_sort"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，对列表进行归并排序。 要求使用递归。", "answer": "def merge_sort"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，对列表进行归并排序。 要求写出单元测试。", "answer": "def merge_sort"}
+{"prompt": "用 JavaScript 实现以下任务：写一个函数，对列表进行归并排序。 要求尽量简洁。", "answer": "def merge_sort"}
+{"prompt": "用 Go 实现以下任务：写一个函数，对列表进行归并排序。", "answer": "def merge_sort"}
+{"prompt": "用 Go 实现以下任务：写一个函数，对列表进行归并排序。 要求原地（in-place）完成。", "answer": "def merge_sort"}
+{"prompt": "用 Go 实现以下任务：写一个函数，对列表进行归并排序。 要求处理边界情况（空输入）。", "answer": "def merge_sort"}
+{"prompt": "用 Go 实现以下任务：写一个函数，对列表进行归并排序。 要求注释说明思路。", "answer": "def merge_sort"}
+{"prompt": "用 Java 实现以下任务：写一个函数，对列表进行归并排序。 要求时间复杂度 O(n)。", "answer": "def merge_sort"}
+{"prompt": "用 Java 实现以下任务：写一个函数，对列表进行归并排序。 要求添加输入校验。", "answer": "def merge_sort"}
+{"prompt": "用 Java 实现以下任务：写一个函数，对列表进行归并排序。 要求返回类型注解。", "answer": "def merge_sort"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，对列表进行归并排序。 要求使用递归。", "answer": "def merge_sort"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，对列表进行归并排序。 要求写出单元测试。", "answer": "def merge_sort"}
+{"prompt": "用 Rust 实现以下任务：写一个函数，对列表进行归并排序。 要求尽量简洁。", "answer": "def merge_sort"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，对列表进行归并排序。", "answer": "def merge_sort"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，对列表进行归并排序。 要求原地（in-place）完成。", "answer": "def merge_sort"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，对列表进行归并排序。 要求处理边界情况（空输入）。", "answer": "def merge_sort"}
+{"prompt": "用 C++ 实现以下任务：写一个函数，对列表进行归并排序。 要求注释说明思路。", "answer": "def merge_sort"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，对列表进行归并排序。 要求时间复杂度 O(n)。", "answer": "def merge_sort"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，对列表进行归并排序。 要求添加输入校验。", "answer": "def merge_sort"}
+{"prompt": "用 TypeScript 实现以下任务：写一个函数，对列表进行归并排序。 要求返回类型注解。", "answer": "def merge_sort"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，对列表进行归并排序。 要求使用递归。", "answer": "def merge_sort"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，对列表进行归并排序。 要求写出单元测试。", "answer": "def merge_sort"}
+{"prompt": "用 SQL 实现以下任务：写一个函数，对列表进行归并排序。 要求尽量简洁。", "answer": "def merge_sort"}
+{"prompt": "用 Python 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。", "answer": "def to_postfix"}
+{"prompt": "用 Python 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求原地（in-place）完成。", "answer": "def to_postfix"}
+{"prompt": "用 Python 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求处理边界情况（空输入）。", "answer": "def to_postfix"}
+{"prompt": "用 Python 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求注释说明思路。", "answer": "def to_postfix"}
+{"prompt": "用 JavaScript 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求时间复杂度 O(n)。", "answer": "def to_postfix"}
+{"prompt": "用 JavaScript 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求添加输入校验。", "answer": "def to_postfix"}
+{"prompt": "用 JavaScript 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求返回类型注解。", "answer": "def to_postfix"}
+{"prompt": "用 Go 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求使用递归。", "answer": "def to_postfix"}
+{"prompt": "用 Go 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求写出单元测试。", "answer": "def to_postfix"}
+{"prompt": "用 Go 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求尽量简洁。", "answer": "def to_postfix"}
+{"prompt": "用 Java 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。", "answer": "def to_postfix"}
+{"prompt": "用 Java 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求原地（in-place）完成。", "answer": "def to_postfix"}
+{"prompt": "用 Java 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求处理边界情况（空输入）。", "answer": "def to_postfix"}
+{"prompt": "用 Java 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求注释说明思路。", "answer": "def to_postfix"}
+{"prompt": "用 Rust 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求时间复杂度 O(n)。", "answer": "def to_postfix"}
+{"prompt": "用 Rust 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求添加输入校验。", "answer": "def to_postfix"}
+{"prompt": "用 Rust 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求返回类型注解。", "answer": "def to_postfix"}
+{"prompt": "用 C++ 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求使用递归。", "answer": "def to_postfix"}
+{"prompt": "用 C++ 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求写出单元测试。", "answer": "def to_postfix"}
+{"prompt": "用 C++ 实现以下任务：实现中缀表达式转后缀（逆波兰）表达式。 要求尽量简洁。", "answer": "def to_postfix"}

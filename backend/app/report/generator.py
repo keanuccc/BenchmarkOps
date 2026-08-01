@@ -43,13 +43,22 @@ def build_context(
                         "error": _sanitize_error(r.error),
                     }
                 )
+        metrics = exp.metrics or {}
+        failure_count = int(metrics.get("rows_failed", 0) or 0)
+        if "rows_failed" not in metrics:
+            failure_count = sum(
+                1
+                for result in results
+                if result.error or (result.score is not None and result.score < 1)
+            )
         exp_summaries.append(
             {
                 "id": exp.id,
                 "name": exp.name,
                 "model_id": exp.model_id,
                 "model_name": model_names.get(exp.model_id, exp.model_id),
-                "metrics": exp.metrics or {},
+                "metrics": metrics,
+                "failure_count": failure_count,
                 "total_cost": exp.total_cost,
                 "total_tokens": exp.total_tokens,
                 "runtime_ms": exp.runtime_ms,
@@ -85,7 +94,13 @@ def template_report(context: dict) -> tuple[str, dict]:
     )
     total_cost = sum(e.get("total_cost") or 0 for e in exps)
     total_tokens = sum(e.get("total_tokens") or 0 for e in exps)
-    total_fail = sum(len(e.get("failures") or []) for e in exps)
+    total_fail = sum(
+        int(
+            e.get("failure_count", e.get("metrics", {}).get("rows_failed", len(e.get("failures") or [])))
+            or 0
+        )
+        for e in exps
+    )
     high_fail = (
         max(exps, key=lambda e: len(e.get("failures") or []))
         if exps
@@ -112,13 +127,16 @@ def template_report(context: dict) -> tuple[str, dict]:
     executive_summary = "\n\n".join(exec_lines)
 
     # --- 性能分析 ---
-    perf_lines = ["| 实验 | 模型 | 准确率 | 平均延迟(毫秒) | 已评分行数 | 失败行数 |",
-                  "|---|---|---|---|---|---|"]
+    perf_lines = [
+        "| 实验 | 模型 | 准确率 | 覆盖率 | 失败率 | 平均延迟(毫秒) | 已评分行数 | 失败行数 |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
     for e in exps:
         m = e.get("metrics", {})
         perf_lines.append(
             f"| {e['name']} | {e['model_name']} | "
-            f"{_fmt(_pct(m.get('accuracy')))} | {_fmt(m.get('avg_latency_ms'))} | "
+            f"{_fmt(_pct(m.get('accuracy')))} | {_fmt(_pct(m.get('coverage')))} | "
+            f"{_fmt(_pct(m.get('failure_rate')))} | {_fmt(m.get('avg_latency_ms'))} | "
             f"{_fmt(m.get('rows_scored'))} | {_fmt(m.get('rows_failed'))} |"
         )
     performance_analysis = "\n".join(perf_lines)

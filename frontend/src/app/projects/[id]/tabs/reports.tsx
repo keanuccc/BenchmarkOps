@@ -6,6 +6,7 @@ import {
   generateReport,
   listExperiments,
   exportReport,
+  exportReportPdf,
   type Report,
   type Experiment,
 } from "@/lib/api";
@@ -25,6 +26,7 @@ export function ReportsTab({
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [pdfExporting, setPdfExporting] = useState<string | null>(null);
   const [exportErr, setExportErr] = useState("");
 
   async function handleExport(r: Report) {
@@ -36,6 +38,15 @@ export function ReportsTab({
       setExportErr("导出失败，请重试");
     } finally {
       setExporting(null);
+    }
+  }
+
+  async function handleExportPdf(r: Report) {
+    setPdfExporting(r.id);
+    try {
+      await exportReportPdf(r.id, r.title);
+    } finally {
+      setPdfExporting(null);
     }
   }
 
@@ -148,6 +159,13 @@ export function ReportsTab({
                     disabled={exporting === r.id}
                   >
                     {exporting === r.id ? "导出中…" : "导出 .md"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleExportPdf(r)}
+                    disabled={pdfExporting === r.id}
+                  >
+                    {pdfExporting === r.id ? "导出中…" : "导出 .pdf"}
                   </Button>
                 </div>
                 {exportErr && (

@@ -6,11 +6,15 @@ import {
   uploadDataset,
   deleteDataset,
   previewDataset,
+  getDatasetPreviewRaw,
+  validateDatasetQuick,
   ApiRequestError,
   type Dataset,
   type DatasetRow,
+  type DatasetPreviewRaw,
+  type DatasetValidationResult,
 } from "@/lib/api";
-import { Button, Card, EmptyState } from "@/components/ui";
+import { Button, Card, EmptyState, Spinner } from "@/components/ui";
 
 /** Simple CSV/JSON parser for previewing a file before upload. */
 function parsePreviewFile(file: File, fmt: string): Promise<DatasetRow[]> {
@@ -71,6 +75,11 @@ export function DatasetsTab({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadPreview, setUploadPreview] = useState<DatasetRow[] | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [serverPreview, setServerPreview] = useState<DatasetPreviewRaw | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [validationResult, setValidationResult] = useState<DatasetValidationResult | null>(null);
+  const [validating, setValidating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
@@ -121,13 +130,89 @@ export function DatasetsTab({
     const file = e.target.files?.[0];
     if (!file) {
       setUploadPreview(null);
+      setServerPreview(null);
+      setSelectedFile(null);
       return;
     }
+    setSelectedFile(file);
+    // Reset prior results when a new file is selected
+    setValidationResult(null);
+
     try {
+      setPreviewLoading(true);
+      setError(null);
+
+      // Client-side quick preview for immediate feedback
       setUploadPreview(await parsePreviewFile(file, format));
+
+      // Server-side preview (uses already-parsed data from DB after upload)
+      // Since this is pre-upload, fall back to client-side parsing for now.
+      // The server preview will work after upload via the "预览" button on existing datasets.
     } catch (err) {
       setError(err instanceof Error ? err.message : "文件预览失败");
       setUploadPreview(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function handleValidate() {
+    if (!selectedFile) return;
+    setValidating(true);
+    setError(null);
+    try {
+      // For pre-upload validation, use client-side parsing
+      const rows = await parsePreviewFile(selectedFile, format);
+      const columns: string[] = [];
+      for (const r of rows) {
+        for (const k of Object.keys(r.input)) {
+          if (!columns.includes(k as string)) columns.push(k);
+        }
+        if (r.expected) {
+          for (const k of Object.keys(r.expected)) {
+            if (!columns.includes(k as string)) columns.push(k);
+          }
+        }
+      }
+      const errors: string[] = [];
+      const warnings: string[] = [];
+
+      // Check parseability
+      if (rows.length === 0) {
+        errors.push("文件解析后没有有效数据行");
+      }
+
+      // Check required fields: at least one input-like + one expected-like
+      const expectedKeywords = ["expected", "answer", "label", "output", "target", "ground_truth"];
+      const hasInput = columns.some((c) => !expectedKeywords.includes(c.toLowerCase()));
+      const hasExpected = columns.some((c) => expectedKeywords.includes(c.toLowerCase()));
+      if (!hasInput) {
+        errors.push("未找到输入字段（需要至少一个非答案类字段，如 question/prompt）");
+      }
+      if (!hasExpected) {
+        warnings.push("未找到预期答案字段（建议包含 answer/label/output 等字段）");
+      }
+
+      // Check empty rows
+      for (let i = 0; i < rows.length; i++) {
+        const allVals = { ...rows[i].input, ...(rows[i].expected || {}) };
+        const isEmpty = Object.values(allVals).every(
+          (v) => v === null || v === undefined || v === ""
+        );
+        if (isEmpty) {
+          errors.push(`第 ${i + 1} 行：所有字段为空`);
+        }
+      }
+
+      setValidationResult({
+        valid: errors.length === 0,
+        errors,
+        warnings,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "验证失败");
+    } finally {
+      setValidating(false);
     }
   }
 
@@ -165,32 +250,135 @@ export function DatasetsTab({
               onChange={handlePreviewFile}
             />
           </div>
-          <Button type="submit">{uploadPreview ? "确认上传" : "导入"}</Button>
+          <Button type="submit" disabled={!selectedFile || busy}>
+            {busy ? <Spinner size={14} /> : uploadPreview ? "确认上传" : "导入"}
+          </Button>
         </form>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
-        {/* Upload preview */}
-        {uploadPreview && (
-          <div className="mt-3 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-3">
-            <p className="mb-2 text-xs font-medium text-slate-500">文件预览（前 {uploadPreview.length} 行）：</p>
-            <table className="w-full text-xs">
-              <thead className="text-left text-slate-400">
-                <tr>
-                  <th className="pr-3">#</th>
-                  <th className="pr-3">输入</th>
-                </tr>
-              </thead>
-              <tbody>
-                {uploadPreview.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-200">
-                    <td className="pr-3 py-1">{r.idx}</td>
-                    <td className="pr-3 py-1 font-mono">
-                      {JSON.stringify(r.input)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* File selection + preview */}
+        {selectedFile && (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500">
+                已选择：{selectedFile.name}（{(selectedFile.size / 1024).toFixed(1)} KB）
+              </p>
+              {!validationResult && !validating && (
+                <Button
+                  variant="secondary"
+                  onClick={handleValidate}
+                  disabled={previewLoading}
+                >
+                  {previewLoading ? <Spinner size={12} /> : "验证数据集"}
+                </Button>
+              )}
+            </div>
+
+            {/* Loading preview */}
+            {previewLoading && (
+              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                <Spinner size={14} /> 正在解析文件…
+              </div>
+            )}
+
+            {/* Preview table — first 5 rows */}
+            {uploadPreview && !previewLoading && (
+              <div className="overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-medium text-slate-500">
+                  文件预览（前 {Math.min(uploadPreview.length, 5)} 行）：
+                </p>
+                <table className="w-full text-xs">
+                  <thead className="text-left text-slate-400">
+                    <tr>
+                      <th className="pr-3">#</th>
+                      {serverPreview
+                        ? serverPreview.columns.map((c) => (
+                            <th key={c} className="pr-3">
+                              {c}
+                            </th>
+                          ))
+                        : Object.keys(uploadPreview[0]?.input || {}).map((k) => (
+                            <th key={k} className="pr-3">
+                              {k}
+                            </th>
+                          ))}
+                      <th>期望</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {uploadPreview.slice(0, 5).map((r) => (
+                      <tr key={r.id} className="border-t border-slate-200">
+                        <td className="pr-3 py-1">{r.idx}</td>
+                        {serverPreview
+                          ? serverPreview.columns.map((c) => (
+                              <td key={c} className="pr-3 py-1 font-mono">
+                                {String(r.input[c] ?? "")}
+                              </td>
+                            ))
+                          : Object.keys(r.input || {}).map((k) => (
+                              <td key={k} className="pr-3 py-1 font-mono">
+                                {String(r.input[k] ?? "")}
+                              </td>
+                            ))}
+                        <td className="py-1 font-mono">
+                          {r.expected ? JSON.stringify(r.expected) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Validation result */}
+            {validationResult && (
+              <div
+                className={`rounded-md border p-3 ${
+                  validationResult.valid
+                    ? "border-green-200 bg-green-50"
+                    : "border-red-200 bg-red-50"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {validationResult.valid ? (
+                    <span className="text-green-600">&#10003;</span>
+                  ) : (
+                    <span className="text-red-600">&#10007;</span>
+                  )}
+                  <span
+                    className={`text-sm font-medium ${
+                      validationResult.valid ? "text-green-700" : "text-red-700"
+                    }`}
+                  >
+                    {validationResult.valid ? "验证通过" : "发现错误"}
+                  </span>
+                  <span className="ml-auto text-xs text-slate-500">
+                    {validationResult.errors.length} 错误，{validationResult.warnings.length} 警告
+                  </span>
+                </div>
+                {validationResult.errors.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-red-700">
+                    {validationResult.errors.map((e, i) => (
+                      <li key={i}>&#8226; {e}</li>
+                    ))}
+                  </ul>
+                )}
+                {validationResult.warnings.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-amber-700">
+                    {validationResult.warnings.map((w, i) => (
+                      <li key={i}>&#8226; {w}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {/* Validating spinner */}
+            {validating && (
+              <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                <Spinner size={14} /> 正在验证…
+              </div>
+            )}
           </div>
         )}
       </Card>

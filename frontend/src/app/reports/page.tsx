@@ -7,6 +7,7 @@ import {
   listExperiments,
   generateReport,
   exportReport,
+  exportReportPdf,
   type Report,
   type Project,
   type Experiment,
@@ -35,6 +36,7 @@ export default function ReportsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [pdfExporting, setPdfExporting] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
   async function handleExport(r: Report) {
@@ -46,6 +48,15 @@ export default function ReportsPage() {
       setExportError(e instanceof Error ? e.message : "报告导出失败。");
     } finally {
       setExporting(null);
+    }
+  }
+
+  async function handleExportPdf(r: Report) {
+    setPdfExporting(r.id);
+    try {
+      await exportReportPdf(r.id, r.title);
+    } finally {
+      setPdfExporting(null);
     }
   }
 
@@ -161,7 +172,19 @@ export default function ReportsPage() {
                       ) : (
                         <Download size={14} />
                       )}
-                      导出
+                      导出 .md
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleExportPdf(r)}
+                      disabled={pdfExporting === r.id}
+                    >
+                      {pdfExporting === r.id ? (
+                        <Spinner size={14} />
+                      ) : (
+                        <Download size={14} />
+                      )}
+                      导出 .pdf
                     </Button>
                     <Button variant="ghost" onClick={() => setExpanded(null)}>
                       收起
@@ -183,7 +206,19 @@ export default function ReportsPage() {
                     ) : (
                       <Download size={14} />
                     )}
-                    导出
+                    导出 .md
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleExportPdf(r)}
+                    disabled={pdfExporting === r.id}
+                  >
+                    {pdfExporting === r.id ? (
+                      <Spinner size={14} />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                    导出 .pdf
                   </Button>
                 </div>
               )}

@@ -12,6 +12,11 @@ Production notes:
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import logging
+import os
+import pathlib
+import tempfile
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import TypeVar
 
@@ -25,12 +30,108 @@ from sqlalchemy.ext.asyncio import (
 
 from app.core.config import settings
 
+logger = logging.getLogger("benchmarkops")
+
+_WRITER_LOCK_FILE = pathlib.Path("/tmp/benchmarkops_writer.lock")
+
+
+def _process_is_alive(pid: int) -> bool:
+    """Check whether *pid* refers to a running process (cross-platform).
+
+    On Unix we use ``os.kill(pid, 0)``.  On Windows we open the process with
+    ``PROCESS_QUERY_INFORMATION`` and call ``GetExitCodeProcess`` — a handle
+    can stay valid for a short window after termination, but ``GetExitCodeProcess``
+    returns ``STILL_ACTIVE`` only while the process is actually running.
+    """
+    import sys
+
+    if sys.platform == "win32":
+        import ctypes
+
+        # PROCESS_QUERY_INFORMATION (0x0400) is required for GetExitCodeProcess.
+        # PROCESS_QUERY_LIMITED_INFORMATION (0x0800) is NOT sufficient.
+        PROCESS_QUERY_INFORMATION = 0x0400
+        STILL_ACTIVE = 259
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(
+            PROCESS_QUERY_INFORMATION, False, pid
+        )
+        if handle == 0:
+            return False
+        try:
+            exit_code = ctypes.c_ulong()
+            success = kernel32.GetExitCodeProcess(
+                handle, ctypes.byref(exit_code)
+            )
+            if not success:
+                return False
+            return exit_code.value == STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    else:
+        # Unix
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            return False
+        return True
+
+
+def acquire_writer_lock() -> None:
+    """Ensure only one backend process writes to the SQLite database.
+
+    Raises RuntimeError if another BenchmarkOps instance is already running
+    and holding the lock. Removes stale locks from dead processes.
+    """
+    if not _is_sqlite:
+        return
+
+    _WRITER_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    pid_bytes = str(os.getpid()).encode("ascii")
+    while True:
+        try:
+            fd = os.open(_WRITER_LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(fd, pid_bytes)
+            finally:
+                os.close(fd)
+            logger.info("acquired SQLite writer lock (PID %d)", os.getpid())
+            return
+        except FileExistsError:
+            try:
+                old_pid = int(_WRITER_LOCK_FILE.read_text().strip())
+            except (ValueError, OSError):
+                _WRITER_LOCK_FILE.unlink(missing_ok=True)
+                continue
+
+            if old_pid == os.getpid():
+                return
+            if _process_is_alive(old_pid):
+                raise RuntimeError(
+                    f"Another BenchmarkOps instance is already writing to the database (PID {old_pid}). "
+                    "SQLite supports only one writer. Stop the other instance or switch to PostgreSQL."
+                )
+            _WRITER_LOCK_FILE.unlink(missing_ok=True)
+
+
 # --- Connection pool configuration -------------------------------------------
 # SQLite: use NullPool (no pooling — each request opens/closes a connection).
 # This avoids "database is locked" from stale pooled connections that were
 # created by a different process/thread.
 # Postgres: use QueuePool with sensible defaults.
 _is_sqlite = settings.database_url.startswith("sqlite")
+
+
+def _lock_path_for_database(database_url: str) -> pathlib.Path:
+    """Return a stable per-database lock path outside the project directory."""
+    database_path = database_url.split("///", 1)[-1]
+    resolved = pathlib.Path(database_path).expanduser().resolve()
+    digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:16]
+    return pathlib.Path(tempfile.gettempdir()) / f"benchmarkops_writer_{digest}.lock"
+
+
+if _is_sqlite:
+    _WRITER_LOCK_FILE = _lock_path_for_database(settings.database_url)
 
 _connect_args = (
     {"check_same_thread": False, "timeout": 30}
