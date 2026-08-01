@@ -263,7 +263,13 @@ async def _mark_failed(experiment_id: str, error: str) -> None:
 
 
 async def _persist_progress(
-    experiment_id: str, processed: int, rows_total: int, *, cells_done: int = 0, cells_error: int = 0
+    experiment_id: str,
+    processed: int,
+    rows_total: int,
+    *,
+    cells_done: int = 0,
+    cells_error: int = 0,
+    metrics_update: dict | None = None,
 ) -> None:
     """Best-effort progress update on an isolated short session.
 
@@ -277,14 +283,19 @@ async def _persist_progress(
             repo = ExperimentRepository(session)
             exp = await repo.get(experiment_id)
             if exp is not None and exp.status == "running":
+                update = {
+                    "progress": processed,
+                    "rows_total": rows_total,
+                    "cells_done": cells_done,
+                    "cells_error": cells_error,
+                }
+                if metrics_update:
+                    current_metrics = dict(exp.metrics or {})
+                    current_metrics.update(metrics_update)
+                    update["metrics"] = current_metrics
                 await repo.update(
                     exp,
-                    {
-                        "progress": processed,
-                        "rows_total": rows_total,
-                        "cells_done": cells_done,
-                        "cells_error": cells_error,
-                    },
+                    update,
                 )
                 await session.commit()
 
@@ -553,6 +564,14 @@ async def run_experiment(experiment_id: str) -> None:
                 scored += 1
                 cells_done += 1
 
+    def _progress_metrics() -> dict:
+        """Live metrics for the running experiment (drives the UI's ETA)."""
+        runtime_now = time.perf_counter() - started
+        avg_ms = (runtime_now * 1000 / scored) if scored else None
+        if avg_ms is None:
+            return {}
+        return {"avg_ms_per_row": round(avg_ms, 1)}
+
     is_free = model_is_free
     if is_free:
         # Free models measured RPM>=325 + high burst; run rows concurrently (bounded by
@@ -575,7 +594,12 @@ async def run_experiment(experiment_id: str) -> None:
             # under _PROGRESS_EVERY), so the UI bar advances without waiting
             # for a full _PROGRESS_EVERY worth of rows under concurrency.
             await _persist_progress(
-                experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
+                experiment_id,
+                processed,
+                len(rows),
+                cells_done=cells_done,
+                cells_error=cells_error,
+                metrics_update=_progress_metrics(),
             )
             if rate_limited:
                 break
@@ -599,7 +623,12 @@ async def run_experiment(experiment_id: str) -> None:
             processed += 1
             if processed % _PROGRESS_EVERY == 0:
                 await _persist_progress(
-                    experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
+                    experiment_id,
+                    processed,
+                    len(rows),
+                    cells_done=cells_done,
+                    cells_error=cells_error,
+                    metrics_update=_progress_metrics(),
                 )
             if rate_limited:
                 break
