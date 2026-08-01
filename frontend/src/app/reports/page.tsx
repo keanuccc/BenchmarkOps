@@ -33,6 +33,7 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
+  const [search, setSearch] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -77,7 +78,9 @@ export default function ReportsPage() {
         setReports([]);
       } else {
         const lists = await Promise.all(
-          ps.map((p) => listReports(p.id, { limit: 500 })),
+          ps.map((p) =>
+            listReports(p.id, { q: search || undefined, limit: 500 }),
+          ),
         );
         setReports(lists.map((l) => l.items).flat());
       }
@@ -88,7 +91,8 @@ export default function ReportsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   async function onProjectChange(pid: string) {
     setFormProject(pid);
@@ -130,16 +134,28 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">AI 报告</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             生成并查看 AI 生成的评测报告。
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={15} /> 生成报告
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索标题…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={15} /> 生成报告
+          </Button>
+        </div>
       </header>
 
       {exportError && (

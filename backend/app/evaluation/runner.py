@@ -308,6 +308,10 @@ async def _persist_progress(
                     current_metrics = dict(exp.metrics or {})
                     current_metrics.update(metrics_update)
                     update["metrics"] = current_metrics
+                    # Keep the materialized accuracy column in sync so the
+                    # dashboard / SSE show live accuracy during the run.
+                    if "accuracy" in metrics_update:
+                        update["accuracy"] = metrics_update["accuracy"]
                 await repo.update(
                     exp,
                     update,
@@ -602,9 +606,12 @@ async def run_experiment(experiment_id: str) -> None:
         """Live metrics for the running experiment (drives the UI's ETA)."""
         runtime_now = time.perf_counter() - started
         avg_ms = (runtime_now * 1000 / scored) if scored else None
-        if avg_ms is None:
-            return {}
-        return {"avg_ms_per_row": round(avg_ms, 1)}
+        metrics: dict = {}
+        if avg_ms is not None:
+            metrics["avg_ms_per_row"] = round(avg_ms, 1)
+        if scored:
+            metrics["accuracy"] = round(total_score / scored, 4)
+        return metrics
 
     is_free = model_is_free
     if is_free:

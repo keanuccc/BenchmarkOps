@@ -134,7 +134,8 @@ def test_runner_all_success_counts_only_cells_done(client, patched_partial, monk
 
 def test_persist_progress_merges_live_metrics(client, patched_partial):
     """Mid-run progress writes must merge live metrics (avg_ms_per_row) into the
-    metrics blob so the UI's ETA is populated before the run finishes."""
+    metrics blob and keep the materialized accuracy column in sync so the UI's
+    ETA / live accuracy are populated before the run finishes."""
     eid = _build_experiment(client)
 
     async def _mark_running():
@@ -153,7 +154,7 @@ def test_persist_progress_merges_live_metrics(client, patched_partial):
             rows_total=3,
             cells_done=1,
             cells_error=0,
-            metrics_update={"avg_ms_per_row": 12.5},
+            metrics_update={"avg_ms_per_row": 12.5, "accuracy": 0.5},
         )
     )
 
@@ -165,3 +166,5 @@ def test_persist_progress_merges_live_metrics(client, patched_partial):
     assert exp.progress == 1
     assert exp.cells_done == 1
     assert exp.metrics.get("avg_ms_per_row") == 12.5
+    assert exp.metrics.get("accuracy") == 0.5
+    assert exp.accuracy == 0.5
