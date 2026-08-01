@@ -1,7 +1,9 @@
 """Database management endpoints — health, info, backup."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +17,9 @@ from app.services.db_service import (
 )
 
 router = APIRouter(prefix="/db", tags=["database"])
+
+# Filenames produced by backup_database(): benchmarkops_<YYYYmmdd>_<HHMMSS>.db
+_BACKUP_FILENAME_RE = re.compile(r"^benchmarkops_\d{8}_\d{6}\.db$")
 
 
 @router.get("/info")
@@ -47,18 +52,25 @@ async def download_backup(
     filename: str,
     _: None = Depends(require_auth),
 ) -> FileResponse:
-    """Download a previously created backup file."""
+    """Download a previously created backup file.
+
+    The filename must match the pattern produced by ``backup_database`` and
+    resolve inside the backups directory. This blocks path traversal (e.g.
+    ``..%2F..%2F.env``) that would otherwise let any caller read arbitrary
+    files on the server.
+    """
     from pathlib import Path
 
-    backup_dir = Path("./backups")
-    backup_path = backup_dir / filename
+    if not _BACKUP_FILENAME_RE.fullmatch(filename):
+        raise HTTPException(status_code=400, detail="Invalid backup filename")
 
-    if not backup_path.exists():
-        return FileResponse(
-            status_code=404,
-            content="Backup file not found",
-            media_type="text/plain",
-        )
+    backup_dir = Path("./backups").resolve()
+    backup_path = (backup_dir / filename).resolve()
+    if not backup_path.is_relative_to(backup_dir):
+        raise HTTPException(status_code=400, detail="Invalid backup filename")
+
+    if not backup_path.is_file():
+        raise HTTPException(status_code=404, detail="Backup file not found")
 
     return FileResponse(
         path=str(backup_path),

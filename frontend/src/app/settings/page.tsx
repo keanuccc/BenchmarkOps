@@ -176,43 +176,51 @@ export default function SettingsPage() {
               } />
             </dl>
 
-            {/* Token form — only visible when auth is disabled or token exists */}
-            <div className="rounded-lg p-4" style={{ background: "var(--ocd-surface-2)" }}>
-              <p className="mb-3 text-sm font-medium">
-                {tokenStatus.enabled ? "修改 API Token" : "配置 API Token 以启用认证"}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input
-                  type={showToken ? "text" : "password"}
-                  placeholder="输入新的 API Token"
-                  className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-                  style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
-                  value={tokenForm.token}
-                  onChange={(e) => setTokenForm((f) => ({ ...f, token: e.target.value }))}
-                />
-                <input
-                  type={showToken ? "text" : "password"}
-                  placeholder="确认新 Token"
-                  className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
-                  style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
-                  value={tokenForm.confirmPassword}
-                  onChange={(e) => setTokenForm((f) => ({ ...f, confirmPassword: e.target.value }))}
-                />
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <Button
-                  onClick={handleSaveToken}
-                  disabled={tokenLoading || !tokenForm.token}
-                >
-                  {tokenLoading ? <Spinner size={14} /> : "保存 Token"}
-                </Button>
-                {tokenStatus.enabled && (
+            {/* Token form — only editable once auth is enabled; otherwise the
+                backend refuses bootstrap changes over HTTP (see settings.py). */}
+            {tokenStatus.enabled ? (
+              <div className="rounded-lg p-4" style={{ background: "var(--ocd-surface-2)" }}>
+                <p className="mb-3 text-sm font-medium">修改 API Token</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    type={showToken ? "text" : "password"}
+                    placeholder="输入新的 API Token"
+                    className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                    style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                    value={tokenForm.token}
+                    onChange={(e) => setTokenForm((f) => ({ ...f, token: e.target.value }))}
+                  />
+                  <input
+                    type={showToken ? "text" : "password"}
+                    placeholder="确认新 Token"
+                    className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                    style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                    value={tokenForm.confirmPassword}
+                    onChange={(e) => setTokenForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                  />
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <Button
+                    onClick={handleSaveToken}
+                    disabled={tokenLoading || !tokenForm.token}
+                  >
+                    {tokenLoading ? <Spinner size={14} /> : "保存 Token"}
+                  </Button>
                   <Button variant="danger" onClick={handleRemoveToken} disabled={tokenLoading}>
                     移除 Token
                   </Button>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-lg p-4" style={{ background: "var(--ocd-surface-2)" }}>
+                <p className="mb-3 text-sm font-medium">配置 API Token 以启用认证</p>
+                <p className="text-xs text-[var(--ocd-text-faint)]">
+                  出于安全考虑，平台不允许在认证未启用时通过网页设置 Token。
+                  请由管理员在服务器 backend/.env 中配置 API_TOKEN 并重启后端；
+                  启用后即可在此页面修改或移除 Token。
+                </p>
+              </div>
+            )}
 
             {tokenFeedback && (
               <div

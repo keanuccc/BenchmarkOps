@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.core.database import engine
+from app.core.exceptions import UnauthorizedError
 from app.core.security import require_auth
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -105,7 +106,18 @@ async def update_api_token(
     - Empty token: disables auth (same as demo mode)
 
     Requires auth if auth is currently enabled.
+
+    Security: when auth is NOT yet enabled, changing the token over HTTP is
+    refused outright. Allowing an unauthenticated caller to install or remove
+    the platform credential would let anyone claim the platform (bootstrap
+    lockout). First-time enablement is an operator action: set ``API_TOKEN`` in
+    ``backend/.env`` and restart.
     """
+    if not settings.api_token:
+        raise UnauthorizedError(
+            "Auth is disabled; set API_TOKEN in backend/.env to enable it"
+        )
+
     env_path = _get_env_path()
     lines = _read_env_lines(env_path)
 
@@ -131,8 +143,10 @@ async def update_api_token(
 
     _write_env_lines(env_path, new_lines)
 
-    # Reload settings to pick up the change
-    settings.__dict__  # noqa: B018 — access to trigger property re-evaluation
+    # Apply the new token to the running process immediately. The .env write
+    # alone only takes effect after a restart, which would lock the admin out
+    # of the very page they just used.
+    settings.api_token = payload.token
 
     masked = _mask_token(payload.token) if payload.token else ""
     return ApiTokenResponse(
