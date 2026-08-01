@@ -44,11 +44,11 @@ export default function ProjectDetailPage() {
       listReports(projectId),
     ]);
     setCounts({
-      数据集: d.length,
-      基准: b.length,
-      提示词: p.length,
-      实验: e.length,
-      报告: r.length,
+      数据集: d.items.length,
+      基准: b.items.length,
+      提示词: p.items.length,
+      实验: e.items.length,
+      报告: r.items.length,
     });
   }, [projectId]);
 

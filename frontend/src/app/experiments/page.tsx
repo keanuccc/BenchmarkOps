@@ -30,6 +30,7 @@ import {
   ProgressBar,
 } from "@/components/ui";
 import { Combobox } from "@/components/Combobox";
+import { PaginationBar } from "@/components/pagination";
 import { Play, Plus, Activity } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -82,6 +83,8 @@ export default function ExperimentsPage() {
   const [allExperiments, setAllExperiments] = useState<Experiment[]>([]);
   const [templateExpId, setTemplateExpId] = useState("");
   const [runningTasks, setRunningTasks] = useState<RunningTaskInfo[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   // Form state
   const [form, setForm] = useState({
@@ -96,14 +99,21 @@ export default function ExperimentsPage() {
   });
 
   // Main experiment + models fetch via React Query
-  const { data: experiments = [], isLoading: loading } = useQuery({
-    queryKey: ["experiments"],
-    queryFn: () => listExperiments(),
+  const { data: experimentsData = { items: [], total: 0 }, isLoading: loading } = useQuery({
+    queryKey: ["experiments", page],
+    queryFn: () =>
+      listExperiments(undefined, {
+        offset: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+      }),
   });
+  const experiments = experimentsData.items;
+  const totalExperiments = experimentsData.total;
 
   const { data: models = [] } = useQuery({
     queryKey: ["models"],
     queryFn: () => listModels(),
+    select: (d) => d.items,
   });
 
   // Poll running tasks every 5s
@@ -144,9 +154,9 @@ export default function ExperimentsPage() {
     if (projectId) {
       try {
         const [ds, bms, prs] = await Promise.all([
-          listDatasets(projectId),
-          listBenchmarks(projectId),
-          listPrompts(projectId),
+          listDatasets(projectId).then((r) => r.items),
+          listBenchmarks(projectId).then((r) => r.items),
+          listPrompts(projectId).then((r) => r.items),
         ]);
         setDatasets(ds);
         setBenchmarks(bms);
@@ -182,7 +192,7 @@ export default function ExperimentsPage() {
 
   useEffect(() => {
     if (modalOpen) {
-      listProjects().then(setProjects).catch(() => setProjects([]));
+      listProjects().then((r) => setProjects(r.items)).catch(() => setProjects([]));
     }
   }, [modalOpen]);
 
@@ -307,6 +317,12 @@ export default function ExperimentsPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={totalExperiments}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

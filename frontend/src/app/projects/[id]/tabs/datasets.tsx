@@ -83,7 +83,7 @@ export function DatasetsTab({
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
-    setDatasets(await listDatasets(projectId));
+    setDatasets((await listDatasets(projectId)).items);
   }
   useEffect(() => {
     refresh();

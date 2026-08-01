@@ -63,16 +63,16 @@ export function ExperimentsTab({
   }
 
   const refresh = useCallback(async () => {
-    setItems(await listExperiments(projectId));
+    setItems((await listExperiments(projectId)).items);
   }, [projectId]);
 
   useEffect(() => {
     refresh();
     Promise.all([
-      listDatasets(projectId),
-      listBenchmarks(projectId),
-      listPrompts(projectId),
-      listModels(),
+      listDatasets(projectId).then((r) => r.items),
+      listBenchmarks(projectId).then((r) => r.items),
+      listPrompts(projectId).then((r) => r.items),
+      listModels().then((r) => r.items),
     ]).then(([d, b, p, m]) => {
       setDatasets(d);
       setBenchmarks(b);

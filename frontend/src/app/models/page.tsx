@@ -15,6 +15,7 @@ import {
   type QiniuModel,
 } from "@/lib/api";
 import { Button, Card, Badge, EmptyState, Spinner, Modal } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Cpu, Plus, Trash2 } from "lucide-react";
 
 type ConfirmState = {
@@ -40,6 +41,9 @@ export default function ModelsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [deleting, setDeleting] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [form, setForm] = useState({
     name: "",
     provider: "",
@@ -53,7 +57,12 @@ export default function ModelsPage() {
   async function refresh() {
     setLoading(true);
     try {
-      setModels(await listModels());
+      const result = await listModels({
+        offset: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+      });
+      setModels(result.items);
+      setTotal(result.total);
     } finally {
       setLoading(false);
     }
@@ -61,7 +70,8 @@ export default function ModelsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   async function onSeed() {
     setSeeding(true);
@@ -357,77 +367,85 @@ export default function ModelsPage() {
           icon={<Cpu size={28} />}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {models.map((m) => (
-            <Card key={m.id} className="space-y-3 p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex min-w-0 items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(m.id)}
-                    onChange={() => toggleSelect(m.id)}
-                    aria-label={`选择 ${m.name}`}
-                    className="mt-1"
-                  />
-                  <div className="min-w-0">
-                    <p className="font-semibold">{m.name}</p>
-                    <Badge>{m.provider}</Badge>
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {models.map((m) => (
+              <Card key={m.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(m.id)}
+                      onChange={() => toggleSelect(m.id)}
+                      aria-label={`选择 ${m.name}`}
+                      className="mt-1"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-semibold">{m.name}</p>
+                      <Badge>{m.provider}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {m.is_active ? (
+                      <Badge status="active">启用中</Badge>
+                    ) : (
+                      <Badge status="archived">已停用</Badge>
+                    )}
+                    <button
+                      onClick={() => askDelete(m)}
+                      aria-label={`删除 ${m.name}`}
+                      className="rounded-md p-1.5 text-red-400 transition-colors hover:bg-red-400/10"
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {m.is_active ? (
-                    <Badge status="active">启用中</Badge>
-                  ) : (
-                    <Badge status="archived">已停用</Badge>
-                  )}
-                  <button
-                    onClick={() => askDelete(m)}
-                    aria-label={`删除 ${m.name}`}
-                    className="rounded-md p-1.5 text-red-400 transition-colors hover:bg-red-400/10"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
 
-              <p className="font-mono text-xs text-[var(--ocd-text-muted)]">{m.model_id}</p>
+                <p className="font-mono text-xs text-[var(--ocd-text-muted)]">{m.model_id}</p>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-faint)]">
-                    上下文
-                  </p>
-                  <p className="text-[var(--ocd-text-muted)]">
-                    {m.context_length?.toLocaleString() ?? "—"}
-                  </p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-faint)]">
+                      上下文
+                    </p>
+                    <p className="text-[var(--ocd-text-muted)]">
+                      {m.context_length?.toLocaleString() ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-faint)]">
+                      输入 / 输出
+                    </p>
+                    <p className="text-[var(--ocd-text-muted)]">
+                      ${m.pricing?.input_per_1k ?? "?"} / ${m.pricing?.output_per_1k ?? "?"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-faint)]">
-                    输入 / 输出
-                  </p>
-                  <p className="text-[var(--ocd-text-muted)]">
-                    ${m.pricing?.input_per_1k ?? "?"} / ${m.pricing?.output_per_1k ?? "?"}
-                  </p>
-                </div>
-              </div>
 
-              <div className="flex flex-wrap gap-1">
-                {(m.capabilities ?? []).map((c) => (
-                  <span
-                    key={c}
-                    className="rounded px-1.5 py-0.5 text-xs"
-                    style={{
-                      background: "var(--ocd-surface-2)",
-                      color: "var(--ocd-text-muted)",
-                    }}
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
+                <div className="flex flex-wrap gap-1">
+                  {(m.capabilities ?? []).map((c) => (
+                    <span
+                      key={c}
+                      className="rounded px-1.5 py-0.5 text-xs"
+                      style={{
+                        background: "var(--ocd-surface-2)",
+                        color: "var(--ocd-text-muted)",
+                      }}
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
+        </>
       )}
 
       <Modal open={creating} onClose={() => setCreating(false)} title="新建模型">

@@ -30,7 +30,7 @@ export function BenchmarksTab({
   const [busy, setBusy] = useState(false);
 
   async function refresh() {
-    setItems(await listBenchmarks(projectId));
+    setItems((await listBenchmarks(projectId)).items);
   }
   useEffect(() => {
     refresh();

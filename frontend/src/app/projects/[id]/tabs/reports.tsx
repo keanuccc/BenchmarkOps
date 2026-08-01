@@ -55,8 +55,8 @@ export function ReportsTab({
       listReports(projectId),
       listExperiments(projectId),
     ]);
-    setReports(r);
-    setExperiments(e.filter((x) => x.status === "completed"));
+    setReports(r.items);
+    setExperiments(e.items.filter((x) => x.status === "completed"));
   }
   useEffect(() => {
     refresh();

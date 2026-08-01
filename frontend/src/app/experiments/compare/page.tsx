@@ -33,6 +33,7 @@ function CompareInner() {
   const { data: experiments = [] } = useQuery({
     queryKey: ["experiments", projectId ? { projectId } : null],
     queryFn: () => listExperiments(projectId),
+    select: (d) => d.items,
   });
 
   const { data: leaderboard = [] } = useQuery({

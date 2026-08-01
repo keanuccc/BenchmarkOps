@@ -20,6 +20,7 @@ import {
   listExperiments,
   listModels,
   listProjects,
+  type PageResult,
   type Experiment,
   type LeaderboardEntry,
   type ModelInfo,
@@ -31,10 +32,10 @@ import { Badge, Button, Card, EmptyState, ErrorState, KpiCard, ProgressBar, Sect
 export default function DashboardPage() {
   const queries = useQueries({
     queries: [
-      { queryKey: ["projects"], queryFn: () => listProjects() },
-      { queryKey: ["experiments"], queryFn: () => listExperiments() },
+      { queryKey: ["projects"], queryFn: () => listProjects(), select: (d: PageResult<Project>) => d.items },
+      { queryKey: ["experiments"], queryFn: () => listExperiments(), select: (d: PageResult<Experiment>) => d.items },
       { queryKey: ["leaderboard"], queryFn: () => getLeaderboard() },
-      { queryKey: ["models"], queryFn: () => listModels() },
+      { queryKey: ["models"], queryFn: () => listModels(), select: (d: PageResult<ModelInfo>) => d.items },
     ],
   });
 

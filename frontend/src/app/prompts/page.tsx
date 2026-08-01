@@ -17,6 +17,7 @@ import {
   Modal,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Library, Plus, Trash2 } from "lucide-react";
 
 export default function PromptsPage() {
@@ -24,6 +25,9 @@ export default function PromptsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -35,10 +39,17 @@ export default function PromptsPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const [prs, ps] = await Promise.all([listPrompts(""), listProjects()]);
-      setItems(prs);
-      setProjects(ps);
-      setProjectMap(Object.fromEntries(ps.map((p) => [p.id, p.name])));
+      const [prs, ps] = await Promise.all([
+        listPrompts(undefined, {
+          offset: (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
+        listProjects(),
+      ]);
+      setItems(prs.items);
+      setTotal(prs.total);
+      setProjects(ps.items);
+      setProjectMap(Object.fromEntries(ps.items.map((p) => [p.id, p.name])));
     } finally {
       setLoading(false);
     }
@@ -46,7 +57,8 @@ export default function PromptsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   function openModal() {
     setName("");
@@ -143,6 +155,12 @@ export default function PromptsPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

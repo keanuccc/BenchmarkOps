@@ -206,12 +206,25 @@ export interface Project {
   updated_at: string;
 }
 
-export const listProjects = (params?: { status?: string; q?: string }) => {
+/** Paginated list payload returned by every list endpoint (items + total). */
+export interface PageResult<T> {
+  items: T[];
+  total: number;
+}
+
+export const listProjects = (params?: {
+  status?: string;
+  q?: string;
+  offset?: number;
+  limit?: number;
+}) => {
   const qs = new URLSearchParams();
   if (params?.status) qs.set("status", params.status);
   if (params?.q) qs.set("q", params.q);
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
   const s = qs.toString();
-  return api.get<Project[]>(`/projects/${s ? `?${s}` : ""}`);
+  return api.get<PageResult<Project>>(`/projects/${s ? `?${s}` : ""}`);
 };
 export const getProject = (id: string) => api.get<Project>(`/projects/${id}`);
 export const createProject = (body: { name: string; description?: string }) =>
@@ -231,9 +244,19 @@ export interface ModelInfo {
   capabilities: string[];
   is_active: boolean;
 }
-export const listModels = (params?: { provider?: string }) => {
-  const qs = params?.provider ? `?provider=${params.provider}` : "";
-  return api.get<ModelInfo[]>(`/models/${qs}`);
+export const listModels = (params?: {
+  provider?: string;
+  is_active?: boolean;
+  offset?: number;
+  limit?: number;
+}) => {
+  const qs = new URLSearchParams();
+  if (params?.provider) qs.set("provider", params.provider);
+  if (params?.is_active !== undefined) qs.set("is_active", String(params.is_active));
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const s = qs.toString();
+  return api.get<PageResult<ModelInfo>>(`/models/${s ? `?${s}` : ""}`);
 };
 export const seedModels = () => api.post<{ seeded: number }>("/models/seed");
 
@@ -304,8 +327,17 @@ export interface DatasetValidationResult {
   errors: string[];
   warnings: string[];
 }
-export const listDatasets = (projectId: string) =>
-  api.get<Dataset[]>(`/datasets/?project_id=${projectId}`);
+export const listDatasets = (
+  projectId?: string,
+  params?: { offset?: number; limit?: number },
+) => {
+  const qs = new URLSearchParams();
+  if (projectId) qs.set("project_id", projectId);
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const s = qs.toString();
+  return api.get<PageResult<Dataset>>(`/datasets/${s ? `?${s}` : ""}`);
+};
 export const previewDataset = (id: string) =>
   api.get<DatasetRow[]>(`/datasets/${id}/preview`);
 export const getDatasetPreviewRaw = (id: string) =>
@@ -328,8 +360,17 @@ export interface Prompt {
   created_at: string;
   updated_at: string;
 }
-export const listPrompts = (projectId: string) =>
-  api.get<Prompt[]>(`/prompts/?project_id=${projectId}`);
+export const listPrompts = (
+  projectId?: string,
+  params?: { offset?: number; limit?: number },
+) => {
+  const qs = new URLSearchParams();
+  if (projectId) qs.set("project_id", projectId);
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const s = qs.toString();
+  return api.get<PageResult<Prompt>>(`/prompts/${s ? `?${s}` : ""}`);
+};
 export const createPrompt = (body: {
   project_id: string;
   name: string;
@@ -350,8 +391,17 @@ export interface Benchmark {
   created_at: string;
   updated_at: string;
 }
-export const listBenchmarks = (projectId: string) =>
-  api.get<Benchmark[]>(`/benchmarks/?project_id=${projectId}`);
+export const listBenchmarks = (
+  projectId?: string,
+  params?: { offset?: number; limit?: number },
+) => {
+  const qs = new URLSearchParams();
+  if (projectId) qs.set("project_id", projectId);
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const s = qs.toString();
+  return api.get<PageResult<Benchmark>>(`/benchmarks/${s ? `?${s}` : ""}`);
+};
 export const createBenchmark = (body: {
   project_id: string;
   name: string;
@@ -416,10 +466,18 @@ export interface ExperimentResult {
   cost: number;
   error: string | null;
 }
-export const listExperiments = (projectId?: string) =>
-  api.get<Experiment[]>(
-    `/experiments/${projectId ? `?project_id=${projectId}` : ""}`,
-  );
+export const listExperiments = (
+  projectId?: string,
+  params?: { status?: string; offset?: number; limit?: number },
+) => {
+  const qs = new URLSearchParams();
+  if (projectId) qs.set("project_id", projectId);
+  if (params?.status) qs.set("status", params.status);
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const s = qs.toString();
+  return api.get<PageResult<Experiment>>(`/experiments/${s ? `?${s}` : ""}`);
+};
 export const getExperiment = (id: string) =>
   api.get<Experiment>(`/experiments/${id}`);
 export const createExperiment = (body: {
@@ -503,8 +561,17 @@ export interface Report {
   created_at: string;
   updated_at: string;
 }
-export const listReports = (projectId: string) =>
-  api.get<Report[]>(`/reports/?project_id=${projectId}`);
+export const listReports = (
+  projectId: string,
+  params?: { offset?: number; limit?: number },
+) => {
+  const qs = new URLSearchParams();
+  qs.set("project_id", projectId);
+  if (params?.offset) qs.set("offset", String(params.offset));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const s = qs.toString();
+  return api.get<PageResult<Report>>(`/reports/?${s}`);
+};
 
 // --- Running tasks ---
 export interface RunningTaskInfo {

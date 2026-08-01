@@ -42,8 +42,8 @@ export default function IndustryRadarPage() {
       setLoadError(null);
       try {
         const [exs, ms, lb] = await Promise.all([
-          listExperiments(),
-          listModels(),
+          listExperiments().then((r) => r.items),
+          listModels().then((r) => r.items),
           getLeaderboard(),
         ]);
         setExperiments(exs);

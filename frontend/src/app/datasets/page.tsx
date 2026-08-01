@@ -20,6 +20,7 @@ import {
   SectionTitle,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Database, Upload, Trash2, ArrowLeft, Eye } from "lucide-react";
 
 export default function DatasetsPage() {
@@ -27,6 +28,9 @@ export default function DatasetsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -44,12 +48,16 @@ export default function DatasetsPage() {
     setLoading(true);
     try {
       const [ds, ps] = await Promise.all([
-        listDatasets(""),
+        listDatasets(undefined, {
+          offset: (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
         listProjects(),
       ]);
-      setItems(ds);
-      setProjects(ps);
-      setProjectMap(Object.fromEntries(ps.map((p) => [p.id, p.name])));
+      setItems(ds.items);
+      setTotal(ds.total);
+      setProjects(ps.items);
+      setProjectMap(Object.fromEntries(ps.items.map((p) => [p.id, p.name])));
     } finally {
       setLoading(false);
     }
@@ -57,7 +65,8 @@ export default function DatasetsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   function openUpload() {
     setFile(null);
@@ -97,7 +106,11 @@ export default function DatasetsPage() {
 
   async function remove(id: string) {
     await deleteDataset(id);
-    await refresh();
+    if (items.length === 1 && page > 1) {
+      setPage((p) => p - 1);
+    } else {
+      await refresh();
+    }
   }
 
   return (
@@ -181,6 +194,12 @@ export default function DatasetsPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

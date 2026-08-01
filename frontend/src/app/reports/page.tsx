@@ -68,13 +68,13 @@ export default function ReportsPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const ps = await listProjects();
+      const ps = (await listProjects()).items;
       setProjects(ps);
       if (ps.length === 0) {
         setReports([]);
       } else {
         const lists = await Promise.all(ps.map((p) => listReports(p.id)));
-        setReports(lists.flat());
+        setReports(lists.map((l) => l.items).flat());
       }
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export default function ReportsPage() {
     setChecked([]);
     setTitle("");
     if (pid) {
-      const exs = await listExperiments(pid);
+      const exs = (await listExperiments(pid)).items;
       setExperiments(exs);
     } else {
       setExperiments([]);

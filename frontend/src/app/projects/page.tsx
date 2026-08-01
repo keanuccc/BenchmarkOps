@@ -24,6 +24,7 @@ export default function ProjectsPage() {
   const { data: projects = [], isLoading: loading } = useQuery({
     queryKey: ["projects"],
     queryFn: () => listProjects(),
+    select: (d) => d.items,
   });
 
   async function handleCreate(e: React.FormEvent) {

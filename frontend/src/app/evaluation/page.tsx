@@ -73,7 +73,10 @@ export default function EvaluationPage() {
   async function loadInitial() {
     setLoading(true);
     try {
-      const [ps, ms] = await Promise.all([listProjects(), listModels()]);
+      const [ps, ms] = await Promise.all([
+        listProjects().then((r) => r.items),
+        listModels().then((r) => r.items),
+      ]);
       setProjects(ps);
       setModels(ms);
     } finally {
@@ -95,9 +98,9 @@ export default function EvaluationPage() {
     });
     if (projectId) {
       const [ds, bms, prs] = await Promise.all([
-        listDatasets(projectId),
-        listBenchmarks(projectId),
-        listPrompts(projectId),
+        listDatasets(projectId).then((r) => r.items),
+        listBenchmarks(projectId).then((r) => r.items),
+        listPrompts(projectId).then((r) => r.items),
       ]);
       setDatasets(ds);
       setBenchmarks(bms);

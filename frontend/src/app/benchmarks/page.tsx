@@ -19,6 +19,7 @@ import {
   SectionTitle,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Target, Plus, Trash2 } from "lucide-react";
 
 const TYPES = ["qa", "coding", "agent", "classification", "generation"];
@@ -29,6 +30,9 @@ export default function BenchmarksPage() {
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const [metrics, setMetrics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -41,10 +45,17 @@ export default function BenchmarksPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const [bms, ps] = await Promise.all([listBenchmarks(""), listProjects()]);
-      setItems(bms);
-      setProjects(ps);
-      setProjectMap(Object.fromEntries(ps.map((p) => [p.id, p.name])));
+      const [bms, ps] = await Promise.all([
+        listBenchmarks(undefined, {
+          offset: (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
+        listProjects(),
+      ]);
+      setItems(bms.items);
+      setTotal(bms.total);
+      setProjects(ps.items);
+      setProjectMap(Object.fromEntries(ps.items.map((p) => [p.id, p.name])));
     } finally {
       setLoading(false);
     }
@@ -52,7 +63,8 @@ export default function BenchmarksPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   function openModal() {
     setName("");
@@ -156,6 +168,12 @@ export default function BenchmarksPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 
