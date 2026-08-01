@@ -219,13 +219,14 @@ export default function DatasetsPage() {
             />
           </Field>
 
-          <Field label="名称 (可选)">
+          <Field label="名称">
             <input
               className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
               style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="根据文件名自动生成"
+              placeholder="请输入名称"
+              required
             />
           </Field>
 

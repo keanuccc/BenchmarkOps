@@ -37,7 +37,10 @@ class BaseRepository(Generic[ModelT]):
         stmt = select(self.model)
         if filters:
             for field, value in filters.items():
-                if value is not None:
+                # Treat an empty string like None: callers that send
+                # ``?project_id=`` (or similar) mean "no filter", and filtering
+                # on an empty id would silently return zero rows.
+                if value:
                     stmt = stmt.where(getattr(self.model, field) == value)
         stmt = stmt.order_by(order_by if order_by is not None else self.model.created_at.desc())
         stmt = stmt.offset(offset).limit(limit)

@@ -90,6 +90,41 @@ def test_backup_download_serves_valid_backup(client, monkeypatch, tmp_path):
     assert r.content == b"snapshot-data"
 
 
+def test_backup_delete_removes_file_and_sidecars(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "api_token", "")
+    monkeypatch.chdir(tmp_path)
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+    name = "benchmarkops_20260801_000000.db"
+    (backup_dir / name).write_text("snapshot-data", encoding="utf-8")
+    (backup_dir / f"{name}-wal").write_text("wal", encoding="utf-8")
+
+    r = client.delete(f"/api/v1/db/backup/{name}")
+    assert r.status_code == 204
+    assert not (backup_dir / name).exists()
+    assert not (backup_dir / f"{name}-wal").exists()
+
+
+def test_backup_delete_rejects_invalid_filename(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "api_token", "")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "backups").mkdir()
+    (tmp_path / "backups" / "other.db").write_text("x", encoding="utf-8")
+
+    r = client.delete("/api/v1/db/backup/other.db")
+    assert r.status_code == 400
+    assert (tmp_path / "backups" / "other.db").exists()
+
+
+def test_backup_delete_missing_file_returns_404(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "api_token", "")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "backups").mkdir()
+
+    r = client.delete("/api/v1/db/backup/benchmarkops_20260801_000000.db")
+    assert r.status_code == 404
+
+
 # --- API-token bootstrap guard ----------------------------------------------
 
 

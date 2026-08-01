@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getHealth, getApiTokenStatus, updateApiToken, getDbConfig, getMigrationStatus, createBackup, listBackups, type HealthResponse, type ApiTokenStatus, type DbConfigInfo, type MigrationStatusData, type DbBackupEntry } from "@/lib/api";
+import { API_BASE_URL, getHealth, getApiTokenStatus, updateApiToken, getDbConfig, getMigrationStatus, createBackup, listBackups, type HealthResponse, type ApiTokenStatus, type DbConfigInfo, type MigrationStatusData, type DbBackupEntry } from "@/lib/api";
 import { setApiToken as setLocalToken } from "@/lib/api";
 import { Card, Badge, EmptyState, Spinner, SectionTitle, Button } from "@/components/ui";
 import { useToast } from "@/components/notifications";
 import { Settings, Server, KeyRound, Shield, Eye, EyeOff, CheckCircle, XCircle, Database, HardDrive, GitBranch, Download, Trash2 } from "lucide-react";
+
+// Backup endpoints live under /db (outside the /api/v1 prefix). Derive the
+// backend base from the same API_BASE_URL used by the typed client.
+const BACKUP_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/, "");
 
 export default function SettingsPage() {
   const { addToast } = useToast();
@@ -105,7 +109,7 @@ export default function SettingsPage() {
   async function handleDeleteBackup(filename: string) {
     if (!confirm(`确定删除备份 ${filename}？`)) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/db/backup/${filename}`, {
+      const res = await fetch(`${BACKUP_BASE_URL}/db/backup/${filename}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("删除失败");
@@ -388,7 +392,7 @@ export default function SettingsPage() {
                             <td className="py-2 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <a
-                                  href={`${process.env.NEXT_PUBLIC_API_BASE_URL?.replace("/api/v1", "")}/db/backup/${b.filename}`}
+                                  href={`${BACKUP_BASE_URL}/db/backup/${b.filename}`}
                                   download={b.filename}
                                   className="inline-flex items-center gap-1 text-[var(--ocd-accent)] hover:underline"
                                   title="下载备份"
