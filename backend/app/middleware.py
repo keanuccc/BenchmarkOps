@@ -1,110 +1,78 @@
 """Request ID middleware + structured logging for observability.
 
-Adds a unique request_id to every HTTP request, propagates it through logs,
-and exposes basic metrics via /metrics endpoint.
+Adds a unique request_id to every HTTP request (X-Request-ID header + log
+records) and exposes basic metrics via /metrics endpoint.
 """
 from __future__ import annotations
 
-import asyncio
+import contextvars
 import logging
 import time
 import uuid
 from typing import Any
 
-from fastapi import Request, Response
+_request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "request_id", default="-"
+)
+
+
+class RequestIDFilter(logging.Filter):
+    """Attach the current request_id (from context) to every log record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.request_id = _request_id_var.get()  # type: ignore[attr-defined]
+        return True
 
 
 class RequestIDMiddleware:
-    """Middleware that assigns a unique request_id to each request.
+    """ASGI middleware that assigns a unique request_id to each HTTP request."""
 
-    - Adds X-Request-ID header to responses
-    - Injects request_id into log records via contextvars
-    - Logs method, path, status, duration on every request
-    """
-
-    def __init__(self) -> None:
-        self._logger = logging.getLogger("benchmarkops.middleware")
+    def __init__(self, app):
+        self.app = app
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] != "http":
-            await send  # type: ignore[misc]
+            await self.app(scope, receive, send)
             return
 
-        request_id = str(uuid.uuid4())[:12]
+        request_id = uuid.uuid4().hex[:12]
         start_time = time.perf_counter()
-
-        # Use a custom log record factory to inject request_id
-        original_factory = logging.getLogRecordFactory()
-
-        def factory(*args: Any, **kwargs: Any) -> logging.LogRecord:
-            record = original_factory(*args, **kwargs)
-            record.request_id = request_id  # type: ignore[attr-defined]
-            return record
-
-        logging.setLogRecordFactory(factory)
+        token = _request_id_var.set(request_id)
 
         async def _send(message: dict) -> None:
             if message.get("type") == "http.response.start":
-                headers = {k: v for k, v in message.get("headers", [])}
-                headers.append((b"x-request-id", request_id.encode()))
+                headers = list(message.get("headers", []))
+                headers.append((b"x-request-id", request_id.encode("ascii")))
                 message["headers"] = headers
             await send(message)
 
         try:
-            await send  # type: ignore[misc]
-        except Exception:
-            pass
+            await self.app(scope, receive, _send)
+        finally:
+            _request_id_var.reset(token)
 
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 1)
-        self._logger.info(
+        logging.getLogger("benchmarkops.middleware").info(
             "%s %s completed in %.1fms",
             scope.get("method", "?"),
             scope.get("path", "?"),
             elapsed_ms,
-            extra={"request_id": request_id},
         )
-
-        # Restore original factory
-        logging.setLogRecordFactory(original_factory)
 
 
 def setup_structured_logging() -> None:
-    """Configure structured JSON logging when python-json-logger is available."""
-    try:
-        from python_json_logger import formatters
-
-        class RequestIDFormatter(formatters.StructuredFormatter):
-            def __init__(self):
-                super().__init__(
-                    fmt="%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s",
-                )
-
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s",
-        )
-    except ImportError:
-        # python-json-logger not installed — use default format with request_id fallback
-        # We keep the request_id placeholder in the format string; if a LogRecord doesn't
-        # have it (e.g. non-request logs), it falls back to "-" via our custom formatter.
-        _original_factory = logging.getLogRecordFactory()
-
-        def _factory(*args, **kwargs):
-            record = _original_factory(*args, **kwargs)
-            # Ensure request_id attribute exists so %(request_id)s never raises
-            record.request_id = getattr(record, "request_id", "-")  # type: ignore[attr-defined]
-            return record
-
-        logging.setLogRecordFactory(_factory)
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s",
-        )
+    """Configure structured logging with request_id in every record."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s",
+    )
+    root = logging.getLogger()
+    if not any(isinstance(f, RequestIDFilter) for f in root.filters):
+        root.addFilter(RequestIDFilter())
 
 
 def get_metrics_summary() -> dict[str, Any]:
     """Return basic application metrics (no Prometheus client required)."""
-    import os
     import platform
     from pathlib import Path
 

@@ -11,7 +11,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import acquire_writer_lock, init_db
 from app.core.exceptions import register_exception_handlers
-from app.middleware import get_metrics_summary, setup_structured_logging
+from app.middleware import RequestIDMiddleware, get_metrics_summary, setup_structured_logging
 
 # Configure structured logging
 setup_structured_logging()
@@ -116,6 +116,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestIDMiddleware)
 
     @app.get("/metrics")
     async def metrics() -> dict:
