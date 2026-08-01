@@ -10,9 +10,10 @@
 >   （ARQ WorkerSettings + `run_experiment_task`）、配置开关
 >   `TASK_QUEUE_BACKEND=asyncio|arq`、计费安全的重试策略（仅 `RetryableTaskError`
 >   重试）、worker 崩溃接管（stale running → queued 重置）、取消语义（非阻塞
->   abort 标记 + DB 状态为准）、ARQ 模式下启动恢复跳过。
-> - 测试：`tests/test_distributed_queue.py` 14 个用例（Redis 不可用时自动跳过）；
->   全量回归 `307 passed`（原基线 293 + 新增 14），默认 asyncio 后端不受影响。
+>   abort 标记 + DB 状态为准）、重试/取消后残留 ARQ 状态清理（同实验 ID 可重新
+>   入队）、ARQ 模式下启动恢复跳过。
+> - 测试：`tests/test_distributed_queue.py` 15 个用例（Redis 不可用时自动跳过）；
+>   全量回归 `308 passed`（原基线 293 + 新增 15），默认 asyncio 后端不受影响。
 > - 部署：docker-compose 新增 `redis`（AOF）与 `worker` 服务；`README.md`、
 >   `docs/docker-deployment.md`、`backend/.env.example` 已同步。
 
