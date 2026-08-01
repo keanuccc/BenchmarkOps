@@ -1,0 +1,95 @@
+# Production-oriented Compose: PostgreSQL + Redis/ARQ + worker + frontend.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build -d
+#
+# Requirements:
+#   - Set API_TOKEN in backend/.env (the app refuses to start with
+#     APP_ENV=production and an empty token).
+#   - Override POSTGRES_PASSWORD via environment or .env; keep it URL-safe
+#     (no special characters such as : / @ #).
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-benchmarkops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-benchmarkops}
+      POSTGRES_DB: ${POSTGRES_DB:-benchmarkops}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-benchmarkops} -d ${POSTGRES_DB:-benchmarkops}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-benchmarkops}:${POSTGRES_PASSWORD:-benchmarkops}@postgres:5432/${POSTGRES_DB:-benchmarkops}
+      - TASK_QUEUE_BACKEND=arq
+      - REDIS_DSN=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["uv", "run", "arq", "app.worker.WorkerSettings"]
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-benchmarkops}:${POSTGRES_PASSWORD:-benchmarkops}@postgres:5432/${POSTGRES_DB:-benchmarkops}
+      - TASK_QUEUE_BACKEND=arq
+      - REDIS_DSN=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: ../Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  redis_data:

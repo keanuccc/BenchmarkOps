@@ -167,7 +167,7 @@ npm run lint                # ESLint 检查
 npm run build               # Next.js 生产构建
 ```
 
-当前基线：后端 `233 passed, 11 deselected`；前端 TypeScript、lint 和生产构建均已通过。
+当前基线：后端 pytest 全量通过（`334 passed, 7 skipped`，由 GitHub Actions 自动执行）；前端 TypeScript、lint 和生产构建均已通过。
 
 ## 📡 API 概览
 
@@ -194,6 +194,8 @@ npm run build               # Next.js 生产构建
 - **`.env` 文件已被 `.gitignore` 排除**，请勿将包含 API Key 的 `.env` 提交到仓库。
 - **七牛云 API Key 已泄露**（参见历史 commit）：如曾在此仓库提交过 `.env`，请**立即在七牛云控制台吊销并重发 API Key**。
 - `API_TOKEN` 是**全局共享密钥**，非用户/租户系统。生产环境务必设置。
+- **生产环境强制鉴权**：`APP_ENV=production` 且未设置 `API_TOKEN` 时，应用拒绝启动。
+- **SSE 进度流鉴权**：启用 `API_TOKEN` 后，`/experiments/{id}/stream` 也会校验 `?token=` 参数（EventSource 无法设置请求头）。
 
 ### 数据库
 

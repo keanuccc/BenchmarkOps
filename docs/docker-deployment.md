@@ -64,7 +64,13 @@ cp backend/.env.example backend/.env
 
 ### 生产环境
 
-将 `APP_ENV=production` 写入 `.env`，并设置 `API_TOKEN` 启用认证。
+推荐直接使用仓库自带的 `docker-compose.prod.yml`（PostgreSQL + Redis/ARQ + worker + 前端），只需在 `backend/.env` 中设置 `API_TOKEN`，并按需覆盖 `POSTGRES_PASSWORD`：
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+`APP_ENV=production` 时未设置 `API_TOKEN` 应用会拒绝启动；SSE 进度流也会强制校验 token。
 
 ### 任务队列（Redis + ARQ）
 
@@ -90,6 +96,8 @@ docker run --rm -v benchmarkv1_db_data:/data -v /tmp:/backup alpine tar xzf /bac
 ```
 
 ## 切换到 PostgreSQL
+
+> 仓库已提供生产版 `docker-compose.prod.yml`（PostgreSQL + Redis/ARQ），生产环境建议直接使用；以下步骤适用于手动改造默认 `docker-compose.yml` 的场景。
 
 1. 在 `docker-compose.yml` 中添加 PostgreSQL 服务：
 
