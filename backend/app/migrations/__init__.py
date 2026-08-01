@@ -156,6 +156,43 @@ async def _upgrade_experiment_dataset_snapshot(conn) -> None:  # type: ignore[no
 MIGRATIONS[14] = _upgrade_experiment_dataset_snapshot
 
 
+async def _upgrade_create_evaluation_tasks(conn) -> None:  # type: ignore[no-untyped-def]
+    """Create the evaluation_tasks table (task audit + startup recovery)."""
+    await conn.execute(
+        sa.text(
+            """
+            CREATE TABLE IF NOT EXISTS evaluation_tasks (
+                id VARCHAR(36) PRIMARY KEY,
+                experiment_id VARCHAR(36) NOT NULL,
+                action VARCHAR(20) NOT NULL DEFAULT 'run',
+                status VARCHAR(20) NOT NULL DEFAULT 'queued',
+                attempts INTEGER NOT NULL DEFAULT 1,
+                error TEXT,
+                started_at DATETIME,
+                finished_at DATETIME,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )
+            """
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_evaluation_tasks_experiment_id "
+            "ON evaluation_tasks (experiment_id)"
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_evaluation_tasks_status "
+            "ON evaluation_tasks (status)"
+        )
+    )
+
+
+MIGRATIONS[15] = _upgrade_create_evaluation_tasks
+
+
 async def _ensure_version_table(conn: sa.ext.asyncio.AsyncConnection) -> None:
     """Create the framework `schema_version` table if it does not exist."""
     await conn.execute(

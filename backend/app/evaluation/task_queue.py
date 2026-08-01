@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 
 from app.core.config import settings
+from app.evaluation.task_records import mark_done
 
 logger = logging.getLogger("benchmarkops.tasks")
 
@@ -93,10 +94,12 @@ class AsyncioTaskQueue(TaskQueue):
             logger.info("Background evaluation task cancelled%s", f" ({experiment_id})" if experiment_id else "")
             if experiment_id:
                 await _mark_experiment_cancelled(experiment_id)
+                await mark_done(experiment_id, status="cancelled")
         except Exception:  # noqa: BLE001
             logger.exception("Background evaluation task failed")
             if experiment_id:
                 await _mark_experiment_failed(experiment_id)
+                await mark_done(experiment_id, status="failed")
         finally:
             self._sem.release()
 

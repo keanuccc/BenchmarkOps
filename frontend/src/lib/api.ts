@@ -585,6 +585,7 @@ export interface RunningTaskInfo {
   experiment_id: string;
   name: string | null;
   project_id: string | null;
+  status: string;
 }
 export const getRunningTasks = () =>
   api.get<RunningTaskInfo[]>("/experiments/running");

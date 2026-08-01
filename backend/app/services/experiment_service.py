@@ -19,6 +19,7 @@ from app.evaluation.metrics import (
 )
 from app.evaluation.runner import _extract_answer, _first_value, _score_reason
 from app.evaluation.runner import run_experiment
+from app.evaluation.task_records import create_task
 from app.evaluation.task_queue import task_queue
 from app.models.benchmark import Benchmark
 from app.models.dataset import Dataset
@@ -309,6 +310,9 @@ class ExperimentService:
         # Mark queued immediately so the UI reflects receipt before work begins.
         await self.experiments.update(exp, {"status": "queued", "error": None})
         await self.session.commit()
+        # Persist an audit record before the in-process queue picks the task up,
+        # so a restart can mark both the experiment and its task as failed.
+        await create_task(experiment_id)
         task_queue.submit(lambda: run_experiment(experiment_id), experiment_id=experiment_id)
         return exp
 

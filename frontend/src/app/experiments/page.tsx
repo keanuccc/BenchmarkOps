@@ -48,12 +48,14 @@ function toSelectItems<T extends { id: string }>(items: T[], labelKey: keyof T, 
 // --- Running banner ----------------------------------------------------------
 function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
   if (tasks.length === 0) return null;
+  const running = tasks.filter((t) => t.status === "running");
+  const queued = tasks.filter((t) => t.status === "queued");
   return (
     <Card className="p-4 border-l-4" style={{ borderLeftColor: "var(--ocd-info)" }}>
       <div className="flex items-center gap-2">
         <Activity size={16} className="text-[var(--ocd-info)] animate-pulse" />
         <span className="text-sm font-medium text-[var(--ocd-text)]">
-          运行中实验：{tasks.length}
+          运行中实验：{running.length} · 排队：{queued.length}
         </span>
       </div>
       <ul className="mt-2 space-y-1">
@@ -64,6 +66,9 @@ function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
               className="text-sm text-[var(--ocd-accent)] hover:underline"
             >
               {t.name}
+              <span className="ml-2 text-xs text-[var(--ocd-text-faint)]">
+                {t.status}
+              </span>
             </Link>
           </li>
         ))}

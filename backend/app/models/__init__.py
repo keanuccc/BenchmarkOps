@@ -15,6 +15,7 @@ from app.models.prompt import Prompt  # noqa: F401
 from app.models.benchmark import Benchmark  # noqa: F401
 from app.models.experiment import Experiment, ExperimentResult  # noqa: F401
 from app.models.report import Report  # noqa: F401
+from app.models.task import EvaluationTask  # noqa: F401
 
 __all__ = [
     "Base",
@@ -27,4 +28,5 @@ __all__ = [
     "Experiment",
     "ExperimentResult",
     "Report",
+    "EvaluationTask",
 ]

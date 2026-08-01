@@ -37,22 +37,34 @@ async def _recover_stale_experiments() -> None:
     the run did not complete successfully.
     """
     from app.core.database import AsyncSessionLocal
+    from app.evaluation.task_records import mark_failed_after_restart
     from app.repositories.experiment import ExperimentRepository
 
+    all_stale: list = []
     async with AsyncSessionLocal() as session:
         repo = ExperimentRepository(session)
         stale = await repo.list(filters={"status": "running"})
         queued = await repo.list(filters={"status": "queued"})
-        total = len(stale) + len(queued)
-        if total == 0:
+        all_stale = list(stale) + list(queued)
+        if not all_stale:
             return
-        logger.info("recovering %d stale experiment(s)", total)
-        for exp in list(stale) + list(queued):
-            await repo.update(exp, {
-                "status": "failed",
-                "error": f"Server shutdown during execution (was {'running' if exp.status == 'running' else 'queued'})",
-            })
+        logger.info("recovering %d stale experiment(s)", len(all_stale))
+        for exp in all_stale:
+            reason = (
+                "Server shutdown during execution "
+                f"(was {'running' if exp.status == 'running' else 'queued'})"
+            )
+            await repo.update(exp, {"status": "failed", "error": reason})
         await session.commit()
+
+    # Mark task records failed on isolated sessions AFTER the experiment
+    # transaction commits, so the two SQLite writers never contend.
+    for exp in all_stale:
+        reason = (
+            "Server shutdown during execution "
+            f"(was {'running' if exp.status == 'running' else 'queued'})"
+        )
+        await mark_failed_after_restart(exp.id, reason)
 
 
 def create_app() -> FastAPI:

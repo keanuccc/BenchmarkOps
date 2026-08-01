@@ -28,6 +28,7 @@ from app.repositories.experiment import (
     ExperimentResultRepository,
 )
 from app.evaluation.task_queue import _mark_experiment_cancelled
+from app.evaluation.task_records import mark_done, mark_running
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +332,7 @@ async def run_experiment(experiment_id: str) -> None:
         if not await exp_repo.set_running_if_not_running(experiment_id):
             return
         await load_session.commit()
+        await mark_running(experiment_id)
 
         snap = experiment.prompt_snapshot
         if snap:
@@ -643,6 +645,7 @@ async def run_experiment(experiment_id: str) -> None:
                     if current_exp and current_exp.status == "cancelled":
                         logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
                         await _mark_experiment_cancelled(experiment_id)
+                        await mark_done(experiment_id, status="cancelled")
                         return
             except Exception:  # noqa: BLE001
                 pass  # best-effort only — don't fail the run if check fails
@@ -672,6 +675,7 @@ async def run_experiment(experiment_id: str) -> None:
                     if current_exp and current_exp.status == "cancelled":
                         logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
                         await _mark_experiment_cancelled(experiment_id)
+                        await mark_done(experiment_id, status="cancelled")
                         return
             except Exception:  # noqa: BLE001
                 pass
@@ -745,9 +749,15 @@ async def run_experiment(experiment_id: str) -> None:
     # experiment stuck in 'running'.
     try:
         await with_retry_on_lock(_persist)
+        await mark_done(
+            experiment_id,
+            status="succeeded" if status in ("completed", "partial") else "failed",
+            error=rate_limited_msg or None,
+        )
     except Exception as exc:
         logger.exception("experiment %s persist failed", experiment_id)
         # Preserve the original diagnostic; a 'database is locked' failure is the
         # common case, but any other persist error (e.g. disk I/O) must keep its
         # own message so it stays debuggable in the UI.
         await _mark_failed(experiment_id, str(exc)[:500])
+        await mark_done(experiment_id, status="failed", error=str(exc)[:500])
