@@ -7,7 +7,7 @@ decoupled — consistent with the rest of v1.
 """
 from __future__ import annotations
 
-from sqlalchemy import Float, Integer, String, Text
+from sqlalchemy import CheckConstraint, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, JSONType, TimestampMixin, UUIDMixin
@@ -15,6 +15,13 @@ from app.models.base import Base, JSONType, TimestampMixin, UUIDMixin
 
 class Experiment(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "experiments"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'queued', 'running', 'completed', "
+            "'partial', 'failed', 'cancelled')",
+            name="ck_experiments_status",
+        ),
+    )
 
     project_id: Mapped[str] = mapped_column(String(36), index=True)
     name: Mapped[str] = mapped_column(String(200))
@@ -36,7 +43,7 @@ class Experiment(Base, UUIDMixin, TimestampMixin):
     dataset_snapshot: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
 
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
-    # pending | running | completed | partial | failed
+    # pending | queued | running | completed | partial | failed | cancelled
 
     progress: Mapped[int] = mapped_column(Integer, default=0)  # rows processed so far
     rows_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -59,6 +66,11 @@ class Experiment(Base, UUIDMixin, TimestampMixin):
 
 class ExperimentResult(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "experiment_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_id", "row_idx", name="uq_experiment_results_experiment_row"
+        ),
+    )
 
     experiment_id: Mapped[str] = mapped_column(String(36), index=True)
     row_idx: Mapped[int] = mapped_column(Integer)

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.database import engine
@@ -163,6 +164,9 @@ _MIGRATION_NAMES: dict[int, str] = {
     11: "experiment_progress_cells",
     12: "experiment_result_diagnostics",
     13: "dataset_contract_columns",
+    14: "experiment_dataset_snapshot",
+    15: "evaluation_tasks",
+    16: "integrity_constraints",
 }
 
 
@@ -171,14 +175,14 @@ async def get_migration_status() -> MigrationStatus:
     """Return the current migration status — which versions are applied and pending."""
     from app.migrations import MIGRATIONS
 
-    # Read applied versions from the schema_version table
+    # Read applied versions from the schema_migrations table
     applied: list[int] = []
     try:
         from app.core.database import AsyncSessionLocal
 
         async with AsyncSessionLocal() as session:
             result = await session.execute(
-                "SELECT version FROM schema_version ORDER BY version"
+                text("SELECT version FROM schema_migrations ORDER BY version")
             )
             applied = [row[0] for row in result.fetchall()]
     except Exception:  # noqa: BLE001

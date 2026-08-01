@@ -6,10 +6,14 @@ import {
   listProjects,
   createBenchmark,
   deleteBenchmark,
+  archiveBenchmark,
+  unarchiveBenchmark,
+  apiErrorMessage,
   getMetrics,
   type Benchmark,
   type Project,
 } from "@/lib/api";
+import { useToast } from "@/components/notifications";
 import {
   Button,
   Card,
@@ -20,11 +24,12 @@ import {
   Spinner,
 } from "@/components/ui";
 import { PaginationBar } from "@/components/pagination";
-import { Target, Plus, Trash2 } from "lucide-react";
+import { Target, Plus, Trash2, Archive, ArchiveRestore } from "lucide-react";
 
 const TYPES = ["qa", "coding", "agent", "classification", "generation"];
 
 export default function BenchmarksPage() {
+  const { addToast } = useToast();
   const [items, setItems] = useState<Benchmark[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
@@ -99,14 +104,37 @@ export default function BenchmarksPage() {
       });
       setOpen(false);
       await refresh();
+      addToast("success", "基准创建成功");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "创建基准失败"));
     } finally {
       setSubmitting(false);
     }
   }
 
   async function remove(id: string) {
-    await deleteBenchmark(id);
-    await refresh();
+    try {
+      await deleteBenchmark(id);
+      await refresh();
+      addToast("success", "基准已删除");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "删除基准失败"));
+    }
+  }
+
+  async function toggleArchive(b: Benchmark) {
+    try {
+      if (b.is_archived) {
+        await unarchiveBenchmark(b.id);
+        addToast("success", `已恢复「${b.name}」`);
+      } else {
+        await archiveBenchmark(b.id);
+        addToast("success", `已归档「${b.name}」`);
+      }
+      await refresh();
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "归档操作失败"));
+    }
   }
 
   return (
@@ -174,9 +202,26 @@ export default function BenchmarksPage() {
                     {b.description ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Button variant="danger" onClick={() => remove(b.id)}>
-                      <Trash2 size={14} />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        title={b.is_archived ? "取消归档" : "归档"}
+                        onClick={() => toggleArchive(b)}
+                      >
+                        {b.is_archived ? (
+                          <ArchiveRestore size={14} />
+                        ) : (
+                          <Archive size={14} />
+                        )}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        title="删除"
+                        onClick={() => remove(b.id)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

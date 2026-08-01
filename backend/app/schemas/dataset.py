@@ -51,6 +51,7 @@ class DatasetRead(BaseModel):
     import_status: str = "ready"
     import_errors: list = Field(default_factory=list)
     schema_version: int = 1
+    is_archived: bool = False
     created_at: datetime
     updated_at: datetime
 

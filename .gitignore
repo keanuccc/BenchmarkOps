@@ -14,8 +14,13 @@ venv/
 
 # Databases
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
+
+# Runtime logs
+*.log
 
 # E2E test caches
 frontend/e2e/.pytest_cache/

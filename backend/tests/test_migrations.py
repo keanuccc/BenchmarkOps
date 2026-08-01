@@ -1,7 +1,8 @@
 """Tests for the zero-dependency migration mechanism.
 
 These verify that `run_migrations` is idempotent and that the framework
-`schema_version` table is created and tracks applied versions.
+`schema_migrations` table is created and tracks applied versions (legacy
+`schema_version` tables are migrated into it).
 
 The tests use a private throwaway DB (not the session-shared test DB) so they
 stay isolated from other tests that run the real migrations (e.g. the v10
@@ -31,8 +32,8 @@ def _make_engine():
     return create_async_engine(f"sqlite+aiosqlite:///{path}", future=True)
 
 
-async def test_schema_version_table_created_and_idempotent() -> None:
-    """run_migrations creates schema_version and is safe to call twice."""
+async def test_schema_migrations_table_created_and_idempotent() -> None:
+    """run_migrations creates schema_migrations and is safe to call twice."""
     original = _snapshot_migrations()
     engine = _make_engine()
     MIGRATIONS.clear()
@@ -42,11 +43,11 @@ async def test_schema_version_table_created_and_idempotent() -> None:
 
         async with engine.begin() as conn:
             result = await conn.execute(
-                sa.text("SELECT name FROM sqlite_master WHERE name = 'schema_version'")
+                sa.text("SELECT name FROM sqlite_master WHERE name = 'schema_migrations'")
             )
             assert result.fetchone() is not None
 
-            rows = await conn.execute(sa.text("SELECT version FROM schema_version"))
+            rows = await conn.execute(sa.text("SELECT version FROM schema_migrations"))
             assert rows.fetchall() == []
     finally:
         await engine.dispose()
@@ -77,9 +78,48 @@ async def test_registered_migration_applied_once() -> None:
         assert marker["n"] == 1
 
         async with engine.begin() as conn:
-            rows = await conn.execute(sa.text("SELECT version FROM schema_version"))
+            rows = await conn.execute(sa.text("SELECT version FROM schema_migrations"))
             versions = sorted(r[0] for r in rows.fetchall())
             assert versions == [1]
+    finally:
+        await engine.dispose()
+        MIGRATIONS.clear()
+        MIGRATIONS.update(original)
+
+
+async def test_legacy_schema_version_is_migrated_to_schema_migrations() -> None:
+    """A pre-existing schema_version table is copied and then dropped."""
+    original = _snapshot_migrations()
+    engine = _make_engine()
+    MIGRATIONS.clear()
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(
+                sa.text(
+                    """
+                    CREATE TABLE schema_version (
+                        version INTEGER PRIMARY KEY,
+                        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                )
+            )
+            await conn.execute(
+                sa.text("INSERT INTO schema_version (version) VALUES (10), (15)")
+            )
+
+        await run_migrations(engine)
+
+        async with engine.begin() as conn:
+            rows = await conn.execute(
+                sa.text("SELECT version FROM schema_migrations ORDER BY version")
+            )
+            versions = [r[0] for r in rows.fetchall()]
+            legacy = await conn.execute(
+                sa.text("SELECT name FROM sqlite_master WHERE name = 'schema_version'")
+            )
+        assert versions == [10, 15]
+        assert legacy.fetchone() is None
     finally:
         await engine.dispose()
         MIGRATIONS.clear()

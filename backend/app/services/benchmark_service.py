@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_session
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
@@ -95,7 +96,13 @@ class BenchmarkService:
             metric=metric,
             metric_config=data.metric_config,
         )
-        return await self.repo.create(obj)
+        try:
+            return await self.repo.create(obj)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Benchmark '{data.name}' already exists in project '{data.project_id}'"
+            ) from None
 
     async def get(self, benchmark_id: str) -> Benchmark:
         obj = await self.repo.get(benchmark_id)
@@ -140,7 +147,24 @@ class BenchmarkService:
         metric = payload.get("metric") or obj.metric
         metric_config = payload.get("metric_config", obj.metric_config)
         validate_metric_suite(metric, metric_config)
-        return await self.repo.update(obj, payload)
+        old_name = obj.name
+        old_project_id = obj.project_id
+        try:
+            return await self.repo.update(obj, payload)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Benchmark '{payload.get('name', old_name)}' already exists "
+                f"in project '{old_project_id}'"
+            ) from None
+
+    async def archive(self, benchmark_id: str) -> Benchmark:
+        obj = await self.get(benchmark_id)
+        return await self.repo.update(obj, {"is_archived": True})
+
+    async def unarchive(self, benchmark_id: str) -> Benchmark:
+        obj = await self.get(benchmark_id)
+        return await self.repo.update(obj, {"is_archived": False})
 
     async def delete(self, benchmark_id: str) -> None:
         obj = await self.get(benchmark_id)

@@ -56,6 +56,14 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** Extract a user-readable message from any thrown error. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiRequestError && err.message) {
+    return err.message;
+  }
+  return fallback;
+}
+
 interface RequestOptions extends RequestInit {
   /** Per-request timeout in ms. Defaults to DEFAULT_TIMEOUT_MS. Ignored if `signal` is provided. */
   timeoutMs?: number;
@@ -304,6 +312,7 @@ export interface Dataset {
   name: string;
   description: string | null;
   format: string;
+  is_archived?: boolean;
   version: number;
   row_count: number;
   tags: string[];
@@ -350,6 +359,10 @@ export const validateDatasetQuick = (id: string) =>
 export const uploadDataset = (form: FormData) =>
   api.upload<Dataset>("/datasets/upload", form);
 export const deleteDataset = (id: string) => api.del<void>(`/datasets/${id}`);
+export const archiveDataset = (id: string) =>
+  api.post<Dataset>(`/datasets/${id}/archive`);
+export const unarchiveDataset = (id: string) =>
+  api.post<Dataset>(`/datasets/${id}/unarchive`);
 
 // --- Prompts ---
 export interface Prompt {
@@ -360,6 +373,7 @@ export interface Prompt {
   variables: string[];
   version: number;
   description: string | null;
+  is_archived?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -382,6 +396,10 @@ export const createPrompt = (body: {
   description?: string;
 }) => api.post<Prompt>("/prompts/", body);
 export const deletePrompt = (id: string) => api.del<void>(`/prompts/${id}`);
+export const archivePrompt = (id: string) =>
+  api.post<Prompt>(`/prompts/${id}/archive`);
+export const unarchivePrompt = (id: string) =>
+  api.post<Prompt>(`/prompts/${id}/unarchive`);
 
 // --- Benchmarks ---
 export interface Benchmark {
@@ -392,6 +410,7 @@ export interface Benchmark {
   type: string;
   metric: string;
   metric_config: Record<string, unknown>;
+  is_archived?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -415,6 +434,10 @@ export const createBenchmark = (body: {
   description?: string;
 }) => api.post<Benchmark>("/benchmarks/", body);
 export const deleteBenchmark = (id: string) => api.del<void>(`/benchmarks/${id}`);
+export const archiveBenchmark = (id: string) =>
+  api.post<Benchmark>(`/benchmarks/${id}/archive`);
+export const unarchiveBenchmark = (id: string) =>
+  api.post<Benchmark>(`/benchmarks/${id}/unarchive`);
 export const getMetrics = () =>
   api.get<{ metrics: string[]; defaults: Record<string, string> }>(
     "/benchmarks/metrics/available",

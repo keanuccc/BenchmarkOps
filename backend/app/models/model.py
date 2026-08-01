@@ -1,7 +1,7 @@
 """Model Center ORM model — an LLM offering (e.g. via OpenRouter)."""
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, JSONType, TimestampMixin, UUIDMixin
@@ -9,6 +9,9 @@ from app.models.base import Base, JSONType, TimestampMixin, UUIDMixin
 
 class Model(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "models"
+    __table_args__ = (
+        UniqueConstraint("provider", "model_id", name="uq_models_provider_model_id"),
+    )
 
     name: Mapped[str] = mapped_column(String(200))
     provider: Mapped[str] = mapped_column(String(50))

@@ -7,6 +7,7 @@ from typing import Any, Sequence
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_session
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
@@ -113,7 +114,13 @@ class DatasetService:
             import_errors=[],
             schema_version=dataset_contract["schema_version"],
         )
-        created = await self.datasets.create(dataset)
+        try:
+            created = await self.datasets.create(dataset)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Dataset '{name}' already exists in project '{project_id}'"
+            ) from None
         for obj in row_objs:
             obj.dataset_id = created.id
         await self.rows.bulk_create(row_objs)
@@ -148,7 +155,24 @@ class DatasetService:
     async def update(self, dataset_id: str, data: DatasetUpdate) -> Dataset:
         dataset = await self.get(dataset_id)
         payload = data.model_dump(exclude_unset=True)
-        return await self.datasets.update(dataset, payload)
+        old_name = dataset.name
+        old_project_id = dataset.project_id
+        try:
+            return await self.datasets.update(dataset, payload)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Dataset '{payload.get('name', old_name)}' already exists "
+                f"in project '{old_project_id}'"
+            ) from None
+
+    async def archive(self, dataset_id: str) -> Dataset:
+        dataset = await self.get(dataset_id)
+        return await self.datasets.update(dataset, {"is_archived": True})
+
+    async def unarchive(self, dataset_id: str) -> Dataset:
+        dataset = await self.get(dataset_id)
+        return await self.datasets.update(dataset, {"is_archived": False})
 
     async def delete(self, dataset_id: str) -> None:
         dataset = await self.get(dataset_id)

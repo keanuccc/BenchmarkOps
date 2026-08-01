@@ -29,5 +29,6 @@ class PromptRead(BaseModel):
     variables: list
     version: int
     description: str | None
+    is_archived: bool = False
     created_at: datetime
     updated_at: datetime

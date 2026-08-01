@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import Depends
 import httpx
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
@@ -98,7 +99,13 @@ class ModelService:
             capabilities=data.capabilities,
             is_active=data.is_active,
         )
-        return await self.repo.create(obj)
+        try:
+            return await self.repo.create(obj)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Model {data.provider}/{data.model_id} already exists"
+            ) from None
 
     async def get(self, model_pk: str) -> Model:
         obj = await self.repo.get(model_pk)
@@ -152,7 +159,17 @@ class ModelService:
     async def update(self, model_pk: str, data: ModelUpdate) -> Model:
         obj = await self.get(model_pk)
         payload = data.model_dump(exclude_unset=True)
-        return await self.repo.update(obj, payload)
+        old_provider = obj.provider
+        old_model_id = obj.model_id
+        try:
+            return await self.repo.update(obj, payload)
+        except IntegrityError:
+            provider = payload.get("provider", old_provider)
+            model_id = payload.get("model_id", old_model_id)
+            await self.session.rollback()
+            raise ConflictError(
+                f"Model {provider}/{model_id} already exists"
+            ) from None
 
     async def delete(self, model_pk: str) -> None:
         obj = await self.get(model_pk)
@@ -262,7 +279,13 @@ class ModelService:
 
     async def seed_defaults(self) -> int:
         seeded = 0
+        result = await self.session.execute(
+            select(Model.provider, Model.model_id)
+        )
+        existing = {(provider, model_id) for provider, model_id in result.all()}
         for spec in _DEFAULT_MODELS:
+            if (spec["provider"], spec["model_id"]) in existing:
+                continue
             obj = Model(
                 name=spec["name"],
                 provider=spec["provider"],
@@ -272,6 +295,7 @@ class ModelService:
                 capabilities=spec["capabilities"],
             )
             await self.repo.create(obj)
+            existing.add((spec["provider"], spec["model_id"]))
             seeded += 1
         return seeded
 

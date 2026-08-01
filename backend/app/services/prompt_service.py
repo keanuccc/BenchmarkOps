@@ -7,6 +7,7 @@ from typing import Sequence
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_session
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
@@ -45,7 +46,13 @@ class PromptService:
             variables=extract_variables(template),
             description=description,
         )
-        return await self.prompts.create(prompt)
+        try:
+            return await self.prompts.create(prompt)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Prompt '{name}' already exists in project '{project_id}'"
+            ) from None
 
     async def get(self, prompt_id: str) -> Prompt:
         prompt = await self.prompts.get(prompt_id)
@@ -79,7 +86,24 @@ class PromptService:
         if "template" in payload and payload["template"] != prompt.template:
             payload["version"] = prompt.version + 1
             payload["variables"] = extract_variables(payload["template"])
-        return await self.prompts.update(prompt, payload)
+        old_name = prompt.name
+        old_project_id = prompt.project_id
+        try:
+            return await self.prompts.update(prompt, payload)
+        except IntegrityError:
+            await self.session.rollback()
+            raise ConflictError(
+                f"Prompt '{payload.get('name', old_name)}' already exists "
+                f"in project '{old_project_id}'"
+            ) from None
+
+    async def archive(self, prompt_id: str) -> Prompt:
+        prompt = await self.get(prompt_id)
+        return await self.prompts.update(prompt, {"is_archived": True})
+
+    async def unarchive(self, prompt_id: str) -> Prompt:
+        prompt = await self.get(prompt_id)
+        return await self.prompts.update(prompt, {"is_archived": False})
 
     async def delete(self, prompt_id: str) -> None:
         prompt = await self.get(prompt_id)

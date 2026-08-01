@@ -58,5 +58,6 @@ class BenchmarkRead(BaseModel):
     type: str
     metric: str
     metric_config: dict
+    is_archived: bool = False
     created_at: datetime
     updated_at: datetime

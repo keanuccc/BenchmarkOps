@@ -6,9 +6,13 @@ import {
   listProjects,
   createPrompt,
   deletePrompt,
+  archivePrompt,
+  unarchivePrompt,
+  apiErrorMessage,
   type Prompt,
   type Project,
 } from "@/lib/api";
+import { useToast } from "@/components/notifications";
 import {
   Button,
   Card,
@@ -18,9 +22,10 @@ import {
   Spinner,
 } from "@/components/ui";
 import { PaginationBar } from "@/components/pagination";
-import { Library, Plus, Trash2 } from "lucide-react";
+import { Library, Plus, Trash2, Archive, ArchiveRestore } from "lucide-react";
 
 export default function PromptsPage() {
+  const { addToast } = useToast();
   const [items, setItems] = useState<Prompt[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
@@ -82,14 +87,37 @@ export default function PromptsPage() {
       });
       setOpen(false);
       await refresh();
+      addToast("success", "提示词创建成功");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "创建提示词失败"));
     } finally {
       setSubmitting(false);
     }
   }
 
   async function remove(id: string) {
-    await deletePrompt(id);
-    await refresh();
+    try {
+      await deletePrompt(id);
+      await refresh();
+      addToast("success", "提示词已删除");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "删除提示词失败"));
+    }
+  }
+
+  async function toggleArchive(p: Prompt) {
+    try {
+      if (p.is_archived) {
+        await unarchivePrompt(p.id);
+        addToast("success", `已恢复「${p.name}」`);
+      } else {
+        await archivePrompt(p.id);
+        addToast("success", `已归档「${p.name}」`);
+      }
+      await refresh();
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "归档操作失败"));
+    }
   }
 
   return (
@@ -161,9 +189,26 @@ export default function PromptsPage() {
                     {p.description ?? "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <Button variant="danger" onClick={() => remove(p.id)}>
-                      <Trash2 size={14} />
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        title={p.is_archived ? "取消归档" : "归档"}
+                        onClick={() => toggleArchive(p)}
+                      >
+                        {p.is_archived ? (
+                          <ArchiveRestore size={14} />
+                        ) : (
+                          <Archive size={14} />
+                        )}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        title="删除"
+                        onClick={() => remove(p.id)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

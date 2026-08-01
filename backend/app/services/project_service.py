@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.models.prompt import Prompt
 from app.models.report import Report
 from app.repositories.project import ProjectRepository
+from app.repositories.task import TaskRepository
 from app.schemas.project import ProjectCreate, ProjectUpdate
 
 from fastapi import Depends
@@ -86,6 +87,10 @@ class ProjectService:
             )
         ).scalars().all()
         if experiment_ids:
+            # Keep the task audit trail, but mark rows for deleted experiments.
+            await TaskRepository(self.session).mark_experiment_deleted(
+                list(experiment_ids)
+            )
             await self.session.execute(
                 delete(ExperimentResult).where(
                     ExperimentResult.experiment_id.in_(experiment_ids)

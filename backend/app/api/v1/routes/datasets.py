@@ -217,6 +217,24 @@ async def update_dataset(
     return await service.update(dataset_id, data)
 
 
+@router.post("/{dataset_id}/archive", response_model=DatasetRead)
+async def archive_dataset(
+    dataset_id: str,
+    service: DatasetService = Depends(get_dataset_service),
+    _: None = Depends(require_auth),
+) -> Dataset:
+    return await service.archive(dataset_id)
+
+
+@router.post("/{dataset_id}/unarchive", response_model=DatasetRead)
+async def unarchive_dataset(
+    dataset_id: str,
+    service: DatasetService = Depends(get_dataset_service),
+    _: None = Depends(require_auth),
+) -> Dataset:
+    return await service.unarchive(dataset_id)
+
+
 @router.delete("/{dataset_id}", status_code=204, response_model=None)
 async def delete_dataset(
     dataset_id: str,

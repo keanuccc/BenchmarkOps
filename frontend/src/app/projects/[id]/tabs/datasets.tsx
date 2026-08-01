@@ -5,6 +5,8 @@ import {
   listDatasets,
   uploadDataset,
   deleteDataset,
+  archiveDataset,
+  unarchiveDataset,
   previewDataset,
   getDatasetPreviewRaw,
   validateDatasetQuick,
@@ -15,6 +17,7 @@ import {
   type DatasetValidationResult,
 } from "@/lib/api";
 import { Button, Card, EmptyState, Spinner } from "@/components/ui";
+import { Archive, ArchiveRestore } from "lucide-react";
 
 /** Simple CSV/JSON parser for previewing a file before upload. */
 function parsePreviewFile(file: File, fmt: string): Promise<DatasetRow[]> {
@@ -123,6 +126,24 @@ export function DatasetsTab({
       onChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
+    }
+  }
+
+  async function toggleArchive(d: Dataset) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (d.is_archived) {
+        await unarchiveDataset(d.id);
+      } else {
+        await archiveDataset(d.id);
+      }
+      refresh();
+      onChange();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "归档操作失败");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -418,6 +439,14 @@ export function DatasetsTab({
                     }}
                   >
                     预览
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    title={d.is_archived ? "取消归档" : "归档"}
+                    onClick={() => toggleArchive(d)}
+                  >
+                    {d.is_archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                   </Button>
                   <Button
                     variant="danger"

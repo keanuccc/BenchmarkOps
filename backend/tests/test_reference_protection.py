@@ -89,9 +89,18 @@ def test_bulk_delete_rejects_referenced_models(client):
 
 
 def test_unreferenced_model_can_be_deleted(client):
-    c = _build_components(client)
-    models = client.get("/api/v1/models/").json()["items"]
-    other = next(m["id"] for m in models if m["id"] != c["model_id"])
+    # Seeding is idempotent now, so create a dedicated unreferenced model
+    # instead of assuming a seeded model has no experiment references.
+    created = client.post(
+        "/api/v1/models/",
+        json={
+            "name": "Unreferenced probe",
+            "provider": "openai",
+            "model_id": "openai/unreferenced-probe",
+        },
+    )
+    assert created.status_code in (200, 201)
+    other = created.json()["id"]
     r = client.delete(f"/api/v1/models/{other}")
     assert r.status_code == 204
 

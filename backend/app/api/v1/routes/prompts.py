@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.security import require_auth
+from app.models.prompt import Prompt
 from app.schemas.common import ListResponse
 from app.schemas.prompt import PromptCreate, PromptRead, PromptUpdate
 from app.services.prompt_service import PromptService, get_prompt_service
@@ -58,6 +59,24 @@ async def update_prompt(
     _: None = Depends(require_auth),
 ) -> Prompt:
     return await service.update(prompt_id, data)
+
+
+@router.post("/{prompt_id}/archive", response_model=PromptRead)
+async def archive_prompt(
+    prompt_id: str,
+    service: PromptService = Depends(get_prompt_service),
+    _: None = Depends(require_auth),
+) -> Prompt:
+    return await service.archive(prompt_id)
+
+
+@router.post("/{prompt_id}/unarchive", response_model=PromptRead)
+async def unarchive_prompt(
+    prompt_id: str,
+    service: PromptService = Depends(get_prompt_service),
+    _: None = Depends(require_auth),
+) -> Prompt:
+    return await service.unarchive(prompt_id)
 
 
 @router.delete("/{prompt_id}", status_code=204, response_model=None)

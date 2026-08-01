@@ -66,6 +66,24 @@ async def update_benchmark(
     return BenchmarkRead.model_validate(obj)
 
 
+@router.post("/{benchmark_id}/archive", response_model=BenchmarkRead)
+async def archive_benchmark(
+    benchmark_id: str,
+    service: BenchmarkService = Depends(get_benchmark_service),
+    _: None = Depends(require_auth),
+) -> BenchmarkRead:
+    return BenchmarkRead.model_validate(await service.archive(benchmark_id))
+
+
+@router.post("/{benchmark_id}/unarchive", response_model=BenchmarkRead)
+async def unarchive_benchmark(
+    benchmark_id: str,
+    service: BenchmarkService = Depends(get_benchmark_service),
+    _: None = Depends(require_auth),
+) -> BenchmarkRead:
+    return BenchmarkRead.model_validate(await service.unarchive(benchmark_id))
+
+
 @router.delete("/{benchmark_id}", status_code=204, response_model=None)
 async def delete_benchmark(
     benchmark_id: str,

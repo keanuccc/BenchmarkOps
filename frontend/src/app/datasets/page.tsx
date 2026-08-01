@@ -6,11 +6,15 @@ import {
   listProjects,
   uploadDataset,
   deleteDataset,
+  archiveDataset,
+  unarchiveDataset,
+  apiErrorMessage,
   previewDataset,
   type Dataset,
   type DatasetRow,
   type Project,
 } from "@/lib/api";
+import { useToast } from "@/components/notifications";
 import {
   Button,
   Card,
@@ -21,9 +25,18 @@ import {
   Spinner,
 } from "@/components/ui";
 import { PaginationBar } from "@/components/pagination";
-import { Database, Upload, Trash2, ArrowLeft, Eye } from "lucide-react";
+import {
+  Database,
+  Upload,
+  Trash2,
+  ArrowLeft,
+  Eye,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 
 export default function DatasetsPage() {
+  const { addToast } = useToast();
   const [items, setItems] = useState<Dataset[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
@@ -89,6 +102,9 @@ export default function DatasetsPage() {
       await uploadDataset(form);
       setUploadOpen(false);
       await refresh();
+      addToast("success", "数据集上传成功");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "上传数据集失败"));
     } finally {
       setSubmitting(false);
     }
@@ -107,11 +123,31 @@ export default function DatasetsPage() {
   }
 
   async function remove(id: string) {
-    await deleteDataset(id);
-    if (items.length === 1 && page > 1) {
-      setPage((p) => p - 1);
-    } else {
+    try {
+      await deleteDataset(id);
+      if (items.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      } else {
+        await refresh();
+      }
+      addToast("success", "数据集已删除");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "删除数据集失败"));
+    }
+  }
+
+  async function toggleArchive(d: Dataset) {
+    try {
+      if (d.is_archived) {
+        await unarchiveDataset(d.id);
+        addToast("success", `已恢复「${d.name}」`);
+      } else {
+        await archiveDataset(d.id);
+        addToast("success", `已归档「${d.name}」`);
+      }
       await refresh();
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "归档操作失败"));
     }
   }
 
@@ -198,6 +234,17 @@ export default function DatasetsPage() {
                     <div className="flex gap-2">
                       <Button variant="ghost" onClick={() => openPreview(d)}>
                         <Eye size={14} /> 预览
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        title={d.is_archived ? "取消归档" : "归档"}
+                        onClick={() => toggleArchive(d)}
+                      >
+                        {d.is_archived ? (
+                          <ArchiveRestore size={14} />
+                        ) : (
+                          <Archive size={14} />
+                        )}
                       </Button>
                       <Button variant="danger" onClick={() => remove(d.id)}>
                         <Trash2 size={14} />

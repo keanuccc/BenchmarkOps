@@ -11,6 +11,7 @@ from sqlalchemy.exc import OperationalError
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, with_retry_on_lock
 from app.evaluation.errors import RetryableTaskError
+from app.evaluation.experiment_metrics import metric_columns
 from app.evaluation.metrics import (
     _call_metric,
     get_metric,
@@ -311,10 +312,9 @@ async def _persist_progress(
                     current_metrics = dict(exp.metrics or {})
                     current_metrics.update(metrics_update)
                     update["metrics"] = current_metrics
-                    # Keep the materialized accuracy column in sync so the
-                    # dashboard / SSE show live accuracy during the run.
-                    if "accuracy" in metrics_update:
-                        update["accuracy"] = metrics_update["accuracy"]
+                    # Keep materialized columns in sync with the JSON blob so
+                    # the dashboard / SSE show live values during the run.
+                    update.update(metric_columns(current_metrics))
                 await repo.update(
                     exp,
                     update,
@@ -763,8 +763,7 @@ async def _run_experiment(experiment_id: str) -> None:
                     "cells_done": cells_done,
                     "cells_error": cells_error,
                     "metrics": metrics,
-                    "accuracy": round(accuracy, 4),
-                    "avg_latency_ms": round(avg_latency, 1),
+                    **metric_columns(metrics),
                     "total_cost": round(total_cost, 6),
                     "total_tokens": total_tokens,
                     "runtime_ms": runtime_ms,

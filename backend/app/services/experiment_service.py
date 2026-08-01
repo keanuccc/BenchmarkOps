@@ -31,6 +31,7 @@ from app.repositories.experiment import (
     ExperimentRepository,
     ExperimentResultRepository,
 )
+from app.repositories.task import TaskRepository
 from app.schemas.experiment import ExperimentCreate, ExperimentUpdate
 from app.services.benchmark_service import build_benchmark_snapshot
 
@@ -152,6 +153,9 @@ class ExperimentService:
 
     async def delete(self, experiment_id: str) -> None:
         exp = await self.get(experiment_id)
+        # Keep the audit trail: mark the task as belonging to a deleted
+        # experiment instead of hard-deleting the row.
+        await TaskRepository(self.session).mark_experiment_deleted([experiment_id])
         await self.results.delete_by_experiment(experiment_id)
         await self.experiments.delete(exp)
         logger.info("experiment %s deleted", experiment_id)

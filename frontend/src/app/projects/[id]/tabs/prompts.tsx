@@ -5,11 +5,13 @@ import {
   listPrompts,
   createPrompt,
   deletePrompt,
+  archivePrompt,
+  unarchivePrompt,
   ApiRequestError,
   type Prompt,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
-import { Eye } from "lucide-react";
+import { Eye, Archive, ArchiveRestore } from "lucide-react";
 
 export function PromptsTab({
   projectId,
@@ -49,6 +51,24 @@ export function PromptsTab({
       onChange();
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "创建失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleArchive(p: Prompt) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (p.is_archived) {
+        await unarchivePrompt(p.id);
+      } else {
+        await archivePrompt(p.id);
+      }
+      refresh();
+      onChange();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "归档操作失败");
     } finally {
       setBusy(false);
     }
@@ -109,6 +129,14 @@ export function PromptsTab({
                     disabled={busy}
                   >
                     <Eye size={14} /> 预览
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    title={p.is_archived ? "取消归档" : "归档"}
+                    onClick={() => toggleArchive(p)}
+                  >
+                    {p.is_archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
                   </Button>
                   <Button
                     variant="danger"

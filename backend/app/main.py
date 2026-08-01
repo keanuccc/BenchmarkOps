@@ -23,9 +23,31 @@ logger = logging.getLogger("benchmarkops")
 async def lifespan(app: FastAPI):  # type: ignore[override]
     acquire_writer_lock()  # Ensure only one backend process writes to SQLite
     await init_db()
+    await _log_integrity_summary()
     # Recover any experiments stuck in "running" or "queued" from a previous crash.
     await _recover_stale_experiments()
     yield
+
+
+async def _log_integrity_summary() -> None:
+    """Log dangling-reference counts found on startup (non-fatal)."""
+    from app.core.database import AsyncSessionLocal
+    from app.core.integrity import check_integrity
+
+    try:
+        async with AsyncSessionLocal() as session:
+            results = await check_integrity(session)
+        dangling = {
+            name: count
+            for name, count in results.items()
+            if isinstance(count, int) and count > 0
+        }
+        if dangling:
+            logger.warning("integrity check found issues: %s", dangling)
+        else:
+            logger.info("integrity check passed")
+    except Exception:  # noqa: BLE001 - never block startup on a check
+        logger.exception("integrity check failed")
 
 
 async def _recover_stale_experiments() -> None:

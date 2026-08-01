@@ -5,11 +5,14 @@ import {
   listBenchmarks,
   createBenchmark,
   deleteBenchmark,
+  archiveBenchmark,
+  unarchiveBenchmark,
   getMetrics,
   ApiRequestError,
   type Benchmark,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
+import { Archive, ArchiveRestore } from "lucide-react";
 
 const TYPES = ["qa", "coding", "agent", "classification", "generation"];
 
@@ -59,6 +62,24 @@ export function BenchmarksTab({
       onChange();
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "创建失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleArchive(b: Benchmark) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (b.is_archived) {
+        await unarchiveBenchmark(b.id);
+      } else {
+        await archiveBenchmark(b.id);
+      }
+      refresh();
+      onChange();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "归档操作失败");
     } finally {
       setBusy(false);
     }
@@ -130,10 +151,19 @@ export function BenchmarksTab({
                 </p>
                 <p className="text-xs text-slate-500">metric: {b.metric}</p>
               </div>
-              <Button
-                variant="danger"
-                disabled={busy}
-                onClick={async () => {
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={busy}
+                  title={b.is_archived ? "取消归档" : "归档"}
+                  onClick={() => toggleArchive(b)}
+                >
+                  {b.is_archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={busy}
+                  onClick={async () => {
                   if (!confirm(`确定删除基准「${b.name}」？`)) return;
                   setBusy(true);
                   setError(null);
@@ -149,7 +179,8 @@ export function BenchmarksTab({
                 }}
               >
                 删除
-              </Button>
+                </Button>
+              </div>
             </Card>
           ))}
         </div>

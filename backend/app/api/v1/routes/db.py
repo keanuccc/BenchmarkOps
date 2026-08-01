@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_session
+from app.core.integrity import check_integrity
 from app.core.security import require_auth
 from app.services.db_service import (
     backup_database,
@@ -32,6 +33,12 @@ async def db_info() -> dict:
 async def db_health(session: AsyncSession = Depends(get_session)) -> dict:
     """Quick database health check with row counts."""
     return await check_db_health(session)
+
+
+@router.get("/integrity")
+async def db_integrity(session: AsyncSession = Depends(get_session)) -> dict:
+    """Return one counter per dangling-reference integrity pattern."""
+    return await check_integrity(session)
 
 
 @router.post("/backup")
