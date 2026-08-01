@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "appmarket-dev": {
+      "source": "qiniu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/appmarket-dev/SKILL.md",
+      "computedHash": "cdb1667d7c4531d64dd5b111425356fa163ad23356402fdc7cb1978ae227243b"
+    },
+    "maas": {
+      "source": "qiniu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/maas/SKILL.md",
+      "computedHash": "eccc37f1422b8ac5e4bfdee57446948f4ee9b6d73a74dc7d2b34b0aa2c078a2e"
+    },
+    "miku-live": {
+      "source": "qiniu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/miku-live/SKILL.md",
+      "computedHash": "081864059fc32904775b1cabfd3ec18ea567da410efe88b4fc72bac2c8e37840"
+    },
+    "qshell": {
+      "source": "qiniu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qshell/SKILL.md",
+      "computedHash": "565e5f93766b00f5517963996348074edbf86604042c314c9803f34565758e46"
+    },
+    "xfetch-web": {
+      "source": "qiniu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/xfetch-web/SKILL.md",
+      "computedHash": "0b68d40149e761b8344898545505bbb5a26dfae4c13fd81512b53f30f22b6496"
+    }
+  }
+}

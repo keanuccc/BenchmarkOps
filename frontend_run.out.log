@@ -1,0 +1,21 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://169.254.83.107:3000
+- Environments: .env.local
+✓ Ready in 11.3s
+
+ GET / 200 in 6.8s (next.js: 3.7s, application-code: 3.1s)
+ GET /projects 200 in 510ms (next.js: 316ms, application-code: 194ms)
+ GET /projects/80608ee0-7df0-4e19-8411-7f63fa9a9021 200 in 7.9s (next.js: 7.7s, application-code: 212ms)
+ GET /projects/80608ee0-7df0-4e19-8411-7f63fa9a9021 200 in 2.6s (next.js: 2.5s, application-code: 142ms)
+ GET / 200 in 94ms (next.js: 9ms, application-code: 86ms)
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://169.254.83.107:3000
+- Environments: .env.local
+✓ Ready in 22.6s
+

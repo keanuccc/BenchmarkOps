@@ -1,0 +1,23 @@
+﻿id: eb6beca6-ec86-4302-8290-36853f8ba563
+name: 1 (copy)
+status: completed
+accuracy: 0.0033
+rows_total: 300
+cells_done: 300
+cells_error: 0
+total_cost: 0.0
+runtime_ms: 773152
+created_at: 2026-07-21 12:10:20.929649
+metrics: {"metric": "exact_match_ci", "accuracy": 0.0033, "avg_latency_ms": 2574.6, "rows_total": 300, "rows_scored": 300, "rows_failed": 0, "provider_errors": 0, "prompt_version": 2}
+prompt_snapshot: None
+benchmark_snapshot: None
+model_snapshot: None
+params: {}
+template: 你是一名严谨的推理助手。请对下列问题进行逐步思考（Chain-of-Thought），在内部完成所有推理步骤后，只在最后一行以「答案：」开头给出最终结论，不要输出多余解释。
+
+问题：{question}
+variables: ["question"]
+metric: exact_match_ci
+metric_config: {}
+model_id: deepseek/deepseek-v4-flash
+provider: qiniu
