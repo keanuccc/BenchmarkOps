@@ -5,7 +5,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.evaluation.metrics import (
     DEFAULT_METRIC_FOR_TYPE,
     get_metric,
@@ -14,6 +14,7 @@ from app.evaluation.metrics import (
 )
 from app.models.benchmark import Benchmark
 from app.repositories.benchmark import BenchmarkRepository
+from app.repositories.experiment import ExperimentRepository
 from app.schemas.benchmark import BenchmarkCreate, BenchmarkUpdate
 
 BENCHMARK_TYPES = {"qa", "coding", "agent", "classification", "generation"}
@@ -140,6 +141,14 @@ class BenchmarkService:
 
     async def delete(self, benchmark_id: str) -> None:
         obj = await self.get(benchmark_id)
+        references = await ExperimentRepository(self.session).count_by_component(
+            benchmark_id=benchmark_id
+        )
+        if references:
+            raise ConflictError(
+                f"Benchmark is referenced by {references} experiment(s); "
+                "delete those experiments first"
+            )
         await self.repo.delete(obj)
 
 

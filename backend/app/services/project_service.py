@@ -1,11 +1,16 @@
 """Project service — business logic for the Project module."""
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.core.database import get_session
 from app.core.exceptions import NotFoundError
+from app.models.benchmark import Benchmark
+from app.models.dataset import Dataset, DatasetRow
+from app.models.experiment import Experiment, ExperimentResult
 from app.models.project import Project
+from app.models.prompt import Prompt
+from app.models.report import Report
 from app.repositories.project import ProjectRepository
 from app.schemas.project import ProjectCreate, ProjectUpdate
 
@@ -71,6 +76,48 @@ class ProjectService:
 
     async def delete(self, project_id: str) -> None:
         obj = await self.get(project_id)
+
+        # Cascade-delete everything owned by the project in one transaction so
+        # a deleted project cannot leave orphaned datasets / experiments /
+        # reports behind. Models are global (no project_id) and are untouched.
+        experiment_ids = (
+            await self.session.execute(
+                select(Experiment.id).where(Experiment.project_id == project_id)
+            )
+        ).scalars().all()
+        if experiment_ids:
+            await self.session.execute(
+                delete(ExperimentResult).where(
+                    ExperimentResult.experiment_id.in_(experiment_ids)
+                )
+            )
+            await self.session.execute(
+                delete(Experiment).where(Experiment.id.in_(experiment_ids))
+            )
+
+        dataset_ids = (
+            await self.session.execute(
+                select(Dataset.id).where(Dataset.project_id == project_id)
+            )
+        ).scalars().all()
+        if dataset_ids:
+            await self.session.execute(
+                delete(DatasetRow).where(DatasetRow.dataset_id.in_(dataset_ids))
+            )
+            await self.session.execute(
+                delete(Dataset).where(Dataset.id.in_(dataset_ids))
+            )
+
+        await self.session.execute(
+            delete(Benchmark).where(Benchmark.project_id == project_id)
+        )
+        await self.session.execute(
+            delete(Prompt).where(Prompt.project_id == project_id)
+        )
+        await self.session.execute(
+            delete(Report).where(Report.project_id == project_id)
+        )
+
         await self.repo.delete(obj)
 
 

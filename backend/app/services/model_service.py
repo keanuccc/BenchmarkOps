@@ -7,9 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.core.config import settings
 from app.models.model import Model
+from app.repositories.experiment import ExperimentRepository
 from app.repositories.model import ModelRepository
 from app.schemas.model import ModelCreate, ModelUpdate
 
@@ -140,10 +141,32 @@ class ModelService:
 
     async def delete(self, model_pk: str) -> None:
         obj = await self.get(model_pk)
+        references = await ExperimentRepository(self.session).count_by_component(
+            model_id=model_pk
+        )
+        if references:
+            raise ConflictError(
+                f"Model is referenced by {references} experiment(s); "
+                "delete those experiments first"
+            )
         await self.repo.delete(obj)
 
     async def delete_many(self, ids: list[str] | None = None) -> int:
-        """Delete the given models (or all models when `ids` is empty/None)."""
+        """Delete the given models (or all models when `ids` is empty/None).
+
+        Refuses the whole operation if any target model is still referenced by
+        an experiment, so a bulk "delete all" cannot silently break history.
+        """
+        targets = ids if ids else [m.id for m in await self.list(limit=100_000)]
+        for model_pk in targets:
+            references = await ExperimentRepository(self.session).count_by_component(
+                model_id=model_pk
+            )
+            if references:
+                raise ConflictError(
+                    f"Model {model_pk} is referenced by {references} experiment(s); "
+                    "delete those experiments first"
+                )
         return await self.repo.delete_many(ids)
 
     async def list_presets(self) -> list[dict]:

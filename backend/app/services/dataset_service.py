@@ -9,9 +9,10 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.dataset import Dataset, DatasetRow
 from app.repositories.dataset import DatasetRepository, DatasetRowRepository
+from app.repositories.experiment import ExperimentRepository
 from app.schemas.dataset import DatasetUpdate
 from app.services.dataset_parser import (
     build_dataset_contract,
@@ -140,6 +141,14 @@ class DatasetService:
 
     async def delete(self, dataset_id: str) -> None:
         dataset = await self.get(dataset_id)
+        references = await ExperimentRepository(self.session).count_by_component(
+            dataset_id=dataset_id
+        )
+        if references:
+            raise ConflictError(
+                f"Dataset is referenced by {references} experiment(s); "
+                "delete those experiments first"
+            )
         await self.rows.delete_by_dataset(dataset_id)
         await self.datasets.delete(dataset)
 

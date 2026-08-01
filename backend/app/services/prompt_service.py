@@ -9,8 +9,9 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.prompt import Prompt
+from app.repositories.experiment import ExperimentRepository
 from app.repositories.prompt import PromptRepository
 from app.schemas.prompt import PromptUpdate
 
@@ -71,6 +72,14 @@ class PromptService:
 
     async def delete(self, prompt_id: str) -> None:
         prompt = await self.get(prompt_id)
+        references = await ExperimentRepository(self.session).count_by_component(
+            prompt_id=prompt_id
+        )
+        if references:
+            raise ConflictError(
+                f"Prompt is referenced by {references} experiment(s); "
+                "delete those experiments first"
+            )
         await self.prompts.delete(prompt)
 
     async def render(self, prompt_id: str, variables: dict) -> str:
