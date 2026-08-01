@@ -35,7 +35,18 @@ async def _recover_stale_experiments() -> None:
     DB will have stale status entries. This function scans for them and marks
     them as failed with a diagnostic message so the UI can show the user that
     the run did not complete successfully.
+
+    With the ARQ backend this is intentionally skipped: the queue lives in Redis
+    and workers own the run lifecycle, so a backend restart must not fail jobs
+    that are still queued or being executed by a worker.
     """
+    if settings.task_queue_backend == "arq":
+        logger.info(
+            "task_queue_backend=arq: distributed workers own run recovery; "
+            "skipping stale-experiment marking"
+        )
+        return
+
     from app.core.database import AsyncSessionLocal
     from app.evaluation.task_records import mark_failed_after_restart
     from app.repositories.experiment import ExperimentRepository

@@ -5,6 +5,17 @@
 > 但重启丢任务、无法水平扩展。此前已完成一轮"任务持久化 v1"（`evaluation_tasks`
 > 表 + 重启恢复标记），本大项在此基础上把它升级为真正的分布式队列。
 
+> **实施状态（2026-08-01 更新）：本大项已在分支 `codex/distributed-queue` 落地。**
+> - 已实现：`ArqTaskQueue`（Redis 持久化入队/取消/运行中查询）、`app/worker.py`
+>   （ARQ WorkerSettings + `run_experiment_task`）、配置开关
+>   `TASK_QUEUE_BACKEND=asyncio|arq`、计费安全的重试策略（仅 `RetryableTaskError`
+>   重试）、worker 崩溃接管（stale running → queued 重置）、取消语义（非阻塞
+>   abort 标记 + DB 状态为准）、ARQ 模式下启动恢复跳过。
+> - 测试：`tests/test_distributed_queue.py` 14 个用例（Redis 不可用时自动跳过）；
+>   全量回归 `307 passed`（原基线 293 + 新增 14），默认 asyncio 后端不受影响。
+> - 部署：docker-compose 新增 `redis`（AOF）与 `worker` 服务；`README.md`、
+>   `docs/docker-deployment.md`、`backend/.env.example` 已同步。
+
 ## 1. 现状（已完成的部分）
 
 - `evaluation_tasks` 表（迁移 v15）：每次运行一条审计记录，生命周期
@@ -94,3 +105,17 @@
 - 启动恢复：`backend/app/main.py`
 - 配置：`backend/app/core/config.py`
 - 部署：`docker-compose.yml`、`Dockerfile.backend`
+
+## 8. 落地后的新增/变更文件
+
+- 新增：`backend/app/worker.py`、`backend/app/evaluation/errors.py`、
+  `backend/tests/test_distributed_queue.py`
+- 修改：`backend/app/evaluation/task_queue.py`（`ArqTaskQueue` + 后端切换）、
+  `backend/app/evaluation/runner.py`（取消守卫 + 瞬态锁错误标记）、
+  `backend/app/services/experiment_service.py`（入队失败回滚为 failed）、
+  `backend/app/main.py`（ARQ 模式跳过启动恢复）、`backend/app/core/config.py`、
+  `backend/pyproject.toml`（`arq` + `redis` 依赖）、`docker-compose.yml`、
+  `README.md`、`docs/docker-deployment.md`、`backend/.env.example`、
+  `backend/tests/conftest.py`（测试用独立 Redis DB 15）
+- 本地验证 Redis：本机 Redis 开启 `requirepass` 时，测试通过
+  `REDIS_DSN=redis://:密码@localhost:6379/15` 环境变量注入（不写入仓库）。

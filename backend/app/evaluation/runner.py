@@ -6,8 +6,11 @@ import logging
 import re
 import time
 
+from sqlalchemy.exc import OperationalError
+
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, with_retry_on_lock
+from app.evaluation.errors import RetryableTaskError
 from app.evaluation.metrics import (
     _call_metric,
     get_metric,
@@ -325,12 +328,32 @@ async def _persist_progress(
 
 
 async def run_experiment(experiment_id: str) -> None:
+    """Run an experiment, converting transient pre-billing DB failures into a
+    retryable marker for the distributed queue (ARQ retries those, and only
+    those; provider-side failures stay terminal)."""
+    try:
+        await _run_experiment(experiment_id)
+    except OperationalError as exc:
+        if "database is locked" in str(exc):
+            raise RetryableTaskError(
+                f"transient database lock while claiming experiment {experiment_id}: {exc}"
+            ) from exc
+        raise
+
+
+async def _run_experiment(experiment_id: str) -> None:
     logger.info("experiment %s run started", experiment_id)
 
     async with AsyncSessionLocal() as load_session:
         exp_repo = ExperimentRepository(load_session)
         experiment = await exp_repo.get(experiment_id)
         if experiment is None:
+            return
+        if experiment.status == "cancelled":
+            logger.info(
+                "experiment %s was cancelled; skipping queued run", experiment_id
+            )
+            await mark_done(experiment_id, status="cancelled")
             return
 
         if not await exp_repo.set_running_if_not_running(experiment_id):

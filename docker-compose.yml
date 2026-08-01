@@ -1,6 +1,13 @@
 version: "3.8"
 
 services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -12,6 +19,28 @@ services:
     env_file:
       - path: backend/.env
         required: false
+    environment:
+      - TASK_QUEUE_BACKEND=arq
+      - REDIS_DSN=redis://redis:6379/0
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: ["uv", "run", "arq", "app.worker.WorkerSettings"]
+    volumes:
+      - db_data:/app
+    env_file:
+      - path: backend/.env
+        required: false
+    environment:
+      - TASK_QUEUE_BACKEND=arq
+      - REDIS_DSN=redis://redis:6379/0
+    depends_on:
+      - redis
     restart: unless-stopped
 
   frontend:
@@ -30,3 +59,4 @@ services:
 
 volumes:
   db_data:
+  redis_data:

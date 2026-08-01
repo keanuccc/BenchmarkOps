@@ -229,3 +229,20 @@ python -m pytest -v
 2. **临时数据库：** 隔离后端使用 `benchmarkops_e2e_codex.db`，不会污染主数据库
 3. **端口占用：** 8002/3002 必须未被占用；如冲突可修改端口号
 4. **CI 环境：** CI 使用 `npm run build && npm run start` + `BASE_URL=http://127.0.0.1:3000 pytest -v`，无需手动启停服务
+
+### 6.4 分布式队列自动化测试（ARQ + Redis）
+
+后端 `tests/test_distributed_queue.py` 覆盖 ARQ 入队/去重、取消、运行中查询、
+瞬态错误重试、配额错误不重试、双 worker 只执行一次、worker 崩溃后接管、
+启动恢复跳过等场景。默认在无 Redis 时自动跳过，不阻塞普通 CI。
+
+本地验证（需要可用的 Redis）：
+
+```powershell
+cd backend
+$env:REDIS_DSN='redis://localhost:6379/15'   # 如 Redis 需要密码：
+$env:REDIS_DSN='redis://:密码@localhost:6379/15'
+uv run pytest tests/test_distributed_queue.py -v
+```
+
+测试只使用 Redis 逻辑 DB 15 且按 job id 定向清理，不触碰默认 DB 0。

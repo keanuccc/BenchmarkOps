@@ -20,12 +20,14 @@ docker compose version
 docker compose up --build -d
 ```
 
-这会自动构建两个镜像并以后台模式启动：
+这会自动构建镜像并以后台模式启动：
 
-| 服务   | 端口  | 说明             |
-|--------|-------|------------------|
-| frontend | 3000  | Next.js 前端应用 |
-| backend  | 8000  | FastAPI 后端 API |
+| 服务     | 端口  | 说明                           |
+|----------|-------|--------------------------------|
+| frontend | 3000  | Next.js 前端应用               |
+| backend  | 8000  | FastAPI 后端 API（ARQ 入队）   |
+| worker   | -     | ARQ 评测 worker（消费 Redis 队列） |
+| redis    | 6379  | 任务队列存储（AOF 持久化）     |
 
 访问：
 - 前端页面：http://localhost:3000
@@ -55,12 +57,21 @@ cp backend/.env.example backend/.env
 - `DATABASE_URL` — 默认 SQLite；如需 PostgreSQL 请修改
 - `OPENROUTER_API_KEY` / `QINIU_API_KEY` — 接入真实 LLM 提供商
 - `BACKEND_CORS_ORIGINS` — 允许的前端域名
+- `TASK_QUEUE_BACKEND` — `asyncio`（进程内，默认）或 `arq`（Redis 分布式队列）；compose 中 backend/worker 已固定为 `arq`
+- `REDIS_DSN` — ARQ 使用的 Redis 连接串（compose 内为 `redis://redis:6379/0`）
 
 前端通过 docker-compose.yml 中 `environment` 段配置 `NEXT_PUBLIC_API_BASE_URL`，指向后端地址。
 
 ### 生产环境
 
 将 `APP_ENV=production` 写入 `.env`，并设置 `API_TOKEN` 启用认证。
+
+### 任务队列（Redis + ARQ）
+
+- compose 会启动 `redis`（开启 AOF 持久化）与 `worker`（`uv run arq app.worker.WorkerSettings`）两个服务，backend 通过 `TASK_QUEUE_BACKEND=arq` 把评测任务写入 Redis 队列。
+- 支持多 worker / 多副本水平扩展：额外 `docker compose up --scale worker=N` 即可。
+- **Redis 持久化**：compose 已用 `--appendonly yes` 开启 AOF，数据落在命名卷 `redis_data`；请勿在生产关闭 AOF，否则 Redis 重启会丢失队列中的任务。
+- **SQLite 多写者约束**：compose 默认 backend + worker 共享 SQLite 文件，多写者场景可能出现 `database is locked`。生产环境请切换 PostgreSQL（见 [postgres-migration-guide.md](postgres-migration-guide.md)），或保持单 backend + 任务侧 worker 的形态。
 
 ## 数据持久化
 
@@ -121,6 +132,7 @@ docker compose ps
 # 查看日志
 docker compose logs -f backend
 docker compose logs -f frontend
+docker compose logs -f worker
 
 # 进入后端容器 shell
 docker compose exec backend sh

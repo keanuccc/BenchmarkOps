@@ -1,8 +1,9 @@
 """Task queue abstraction for background evaluation runs.
 
-v1 uses an in-process asyncio task runner (`AsyncioTaskQueue`) so no Redis/Celery
-is required. The Evaluation Engine depends only on `TaskQueue`, so swapping to
-Celery later means implementing one class and changing a single wiring line.
+v1 uses an in-process asyncio task runner (`AsyncioTaskQueue`). The distributed
+backend (`ArqTaskQueue`) persists jobs in Redis and lets multiple worker
+processes consume them. The Evaluation Engine depends only on `TaskQueue`, so
+swapping backends is a config change (`settings.task_queue_backend`).
 
 Task persistence:
 - Task state (queued/running/completed/failed) lives in the experiments DB table.
@@ -18,6 +19,17 @@ import logging
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
+
+from arq.connections import ArqRedis, RedisSettings, create_pool
+from arq.constants import (
+    abort_jobs_ss,
+    default_queue_name,
+    in_progress_key_prefix,
+    job_key_prefix,
+    result_key_prefix,
+)
+from arq.jobs import Job
+from arq.utils import timestamp_ms
 
 from app.core.config import settings
 from app.evaluation.task_records import mark_done
@@ -119,6 +131,115 @@ class AsyncioTaskQueue(TaskQueue):
         return False
 
 
+class ArqTaskQueue(TaskQueue):
+    """Redis-persisted queue backed by ARQ.
+
+    Jobs are enqueued with ``_job_id=experiment_id`` so a duplicate submission is
+    a no-op and a worker can cancel/query by experiment id. All Redis I/O runs
+    on a dedicated background loop so the caller (an HTTP request) never blocks.
+    """
+
+    def __init__(self, *, redis_dsn: str | None = None) -> None:
+        self._redis_dsn = redis_dsn or settings.redis_dsn
+        self._pool: ArqRedis | None = None
+        self._loop = asyncio.new_event_loop()
+        self._ready = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run_loop, daemon=True, name="arq-task-queue"
+        )
+        self._thread.start()
+        self._ready.wait()
+
+    def _run_loop(self) -> None:
+        asyncio.set_event_loop(self._loop)
+        self._ready.set()
+        self._loop.run_forever()
+
+    def _call(self, coro: Awaitable, timeout: float = 10.0):
+        """Run a coroutine on the queue's own loop and wait for its result."""
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result(timeout=timeout)
+
+    async def _get_pool(self) -> ArqRedis:
+        if self._pool is None:
+            self._pool = await create_pool(RedisSettings.from_dsn(self._redis_dsn))
+        return self._pool
+
+    async def _enqueue(self, experiment_id: str) -> None:
+        pool = await self._get_pool()
+        # Keep ARQ's uniqueness guarantee for jobs that are already queued or
+        # claimed: never enqueue a second copy of a live job.
+        if await pool.zscore(default_queue_name, experiment_id) is not None:
+            logger.info(
+                "job for experiment %s already queued; skipping enqueue",
+                experiment_id,
+            )
+            return
+        if await pool.exists(in_progress_key_prefix + experiment_id):
+            logger.info(
+                "experiment %s already running; skipping enqueue", experiment_id
+            )
+            return
+        # A finished job leaves a retained result key, and a cancelled job can
+        # leave its job key and abort marker. All of those would make
+        # ``enqueue_job`` a silent no-op and strand a retried experiment in
+        # 'queued', so clear the stale state before re-enqueueing.
+        await pool.delete(job_key_prefix + experiment_id, result_key_prefix + experiment_id)
+        await pool.zrem(abort_jobs_ss, experiment_id)
+        job = await pool.enqueue_job(
+            "run_experiment", experiment_id, _job_id=experiment_id
+        )
+        if job is None:
+            logger.info(
+                "job for experiment %s already exists in Redis; skipping enqueue",
+                experiment_id,
+            )
+
+    def submit(self, coro_factory: Callable[[], Awaitable[None]], *, experiment_id: str | None = None) -> None:
+        """Enqueue a persistent run_experiment job. The coroutine factory is an
+        in-process-queue detail; ARQ re-executes by experiment id from Redis."""
+        if not experiment_id:
+            raise ValueError("ArqTaskQueue.submit requires experiment_id")
+        self._call(self._enqueue(experiment_id))
+
+    async def _cancel(self, experiment_id: str) -> bool:
+        pool = await self._get_pool()
+        job = Job(
+            experiment_id,
+            pool,
+            _queue_name=pool.default_queue_name,
+            _deserializer=pool.job_deserializer,
+        )
+        if await job.info() is None:
+            return False
+        # Non-blocking cancel: remove the job from the queue and mark it in the
+        # abort set so a worker that already claimed it is cancelled. We do not
+        # call Job.abort() (it blocks until a worker records the result, which
+        # may never happen if no worker is running); the DB status written by
+        # the cancel endpoint is the source of truth.
+        await pool.zrem(default_queue_name, experiment_id)
+        await pool.zadd(abort_jobs_ss, {experiment_id: timestamp_ms()})
+        logger.info("cancel signal sent for experiment %s", experiment_id)
+        return True
+
+    def cancel_task(self, experiment_id: str) -> bool:
+        """Signal cancellation for a queued/running ARQ job. Best-effort."""
+        try:
+            return self._call(self._cancel(experiment_id))
+        except Exception:  # noqa: BLE001
+            logger.exception("failed to cancel ARQ job for experiment %s", experiment_id)
+            return False
+
+    async def _running(self) -> list[str]:
+        pool = await self._get_pool()
+        keys = await pool.keys(in_progress_key_prefix + "*")
+        return [key.decode().rsplit(":", 1)[-1] for key in keys]
+
+    def get_running_tasks(self) -> list[str]:
+        """Return experiment ids of jobs currently being executed by workers."""
+        return self._call(self._running())
+
+
 async def _mark_experiment_failed(experiment_id: str) -> None:
     """Best-effort: mark an experiment as 'failed' when its background task crashes.
 
@@ -161,5 +282,11 @@ async def _mark_experiment_cancelled(experiment_id: str) -> None:
         logger.exception("failed to mark experiment %s as cancelled", experiment_id)
 
 
-# Singleton for v1 (swap for a Celery-backed impl later).
-task_queue: TaskQueue = AsyncioTaskQueue()
+def _create_task_queue() -> TaskQueue:
+    if settings.task_queue_backend == "arq":
+        return ArqTaskQueue()
+    return AsyncioTaskQueue()
+
+
+# Singleton, selected by settings.task_queue_backend ("asyncio" | "arq").
+task_queue: TaskQueue = _create_task_queue()

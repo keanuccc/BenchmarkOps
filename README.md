@@ -37,7 +37,7 @@ Project → Dataset → Benchmark → Prompt → Model → Experiment → Run �
 | **后端** | FastAPI · SQLAlchemy 2.0 (async) · Pydantic v2 · uvicorn |
 | **数据库** | SQLite (aiosqlite, v1) → 可切换 PostgreSQL (postgresql+asyncpg) |
 | **Provider** | Qiniu AI (默认) + OpenRouter + Mock fallback；实验快照固定实际 Provider 路由 |
-| **Runner** | 进程内 asyncio 任务队列，支持并发限制、取消与崩溃恢复 |
+| **Runner** | 进程内 asyncio 任务队列（默认）/ Redis + ARQ 分布式队列（可切换），支持并发限制、取消、任务持久化与崩溃恢复 |
 
 **架构**：Clean Architecture，严格分层 `Router（薄层）→ Service（业务逻辑）→ Repository（数据访问）→ ORM`。Provider 注册表可插拔 — 新增 provider / 指标 / 模块只需新增文件，无需修改既有逻辑。
 
@@ -123,7 +123,11 @@ docker compose up --build
 | `OPENROUTER_API_KEY` | *(空)* | OpenRouter API 密钥。**留空自动走 Mock Provider**，所有功能可离线使用 |
 | `QINIU_API_KEY` | *(空)* | 七牛云 AI Token API 密钥 |
 | `BACKEND_CORS_ORIGINS` | `http://localhost:3000,...` | 允许的浏览器来源，换端口/域名时必须同步更新 |
-| `EVAL_MAX_WORKERS` | `4` | 评测并发 worker 数（进程内 asyncio 任务队列） |
+| `EVAL_MAX_WORKERS` | `4` | 单 worker 进程内的评测并发上限（进程内队列 / ARQ 均生效） |
+| `TASK_QUEUE_BACKEND` | `asyncio` | 任务队列后端：`asyncio`（进程内，默认）或 `arq`（Redis 分布式队列） |
+| `REDIS_DSN` | `redis://localhost:6379/0` | ARQ 队列与 worker 使用的 Redis 连接串（仅 `arq` 模式） |
+| `TASK_MAX_TRIES` | `2` | 单任务最大尝试次数；仅瞬态、计费前失败会重试，Provider 侧失败不重试 |
+| `TASK_RETRY_AFTER` | `30` | 瞬态失败后的重试等待秒数 |
 | `MAX_UPLOAD_BYTES` | `52428800` (50 MB) | 数据集上传大小上限 |
 | `MAX_DATASET_ROWS` | `100000` | 数据集行数上限 |
 
@@ -201,8 +205,11 @@ npm run build               # Next.js 生产构建
 
 ### 评测运行
 
-- 当前评测在**进程内执行**，进程重启会中断进行中的实验。
-- `EVAL_MAX_WORKERS` 在 v1 中为预留配置项，实际并发由进程内线程队列控制。
+- 默认（`TASK_QUEUE_BACKEND=asyncio`）评测在**进程内执行**，进程重启会中断进行中的实验；启动恢复逻辑会把遗留的 running/queued 实验标记为 failed。
+- 设置 `TASK_QUEUE_BACKEND=arq` 后，评测任务持久化在 **Redis（ARQ）** 中，由独立 worker（`uv run arq app.worker.WorkerSettings`）消费，支持多 worker / 多副本与重启不丢任务；此时启动恢复不会误标 queued/running 实验。
+- **计费安全**：ARQ 仅对“调用 Provider 之前”的瞬态失败（如数据库锁）自动重试；429 / 配额耗尽 / 行级错误一律标记失败，人工重试。
+- **Redis 必须开启 AOF 持久化**（compose 中已配置 `--appendonly yes`），否则 Redis 自身重启会丢失队列任务。
+- **多写者约束**：compose 默认后端 + worker 共享 SQLite，存在 `database is locked` 风险；生产环境请按 [docs/postgres-migration-guide.md](docs/postgres-migration-guide.md) 切换 PostgreSQL，或保持单 backend + 任务侧 worker 的部署形态。
 - 未配置 `OPENROUTER_API_KEY` 或 `QINIU_API_KEY` 时，自动使用 **Mock Provider** 生成合成结果，可用于功能演示。
 
 ### 数据集上传注意事项
@@ -239,7 +246,7 @@ npm run build               # Next.js 生产构建
 
 | 阶段 | 计划 |
 |------|------|
-| **v2** | Redis 缓存、Celery 分布式任务队列、MinIO 对象存储 |
+| **v2** | ARQ 分布式任务队列（✅ 已落地）、Redis 缓存、MinIO 对象存储 |
 | **v3** | 多租户 / 组织隔离、完整 RBAC 权限系统 |
 | **v4** | Multi-Agent 评测层、自定义评测智能体 |
 
