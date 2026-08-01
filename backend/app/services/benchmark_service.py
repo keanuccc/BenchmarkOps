@@ -5,7 +5,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.evaluation.metrics import (
     DEFAULT_METRIC_FOR_TYPE,
     get_metric,
@@ -14,6 +14,7 @@ from app.evaluation.metrics import (
 )
 from app.models.benchmark import Benchmark
 from app.repositories.benchmark import BenchmarkRepository
+from app.repositories.experiment import ExperimentRepository
 from app.schemas.benchmark import BenchmarkCreate, BenchmarkUpdate
 
 BENCHMARK_TYPES = {"qa", "coding", "agent", "classification", "generation"}
@@ -36,6 +37,10 @@ def build_benchmark_spec(benchmark: Benchmark) -> dict:
     version = _benchmark_version(metric_config)
     spec["version"] = version
     spec["task_type"] = spec.get("task_type") or benchmark.type
+    spec["metric_suite_explicit"] = bool(
+        isinstance(metric_config.get("metric_suite"), list)
+        or isinstance(embedded.get("metric_suite"), list)
+    )
     spec["metric_suite"] = normalize_metric_suite(
         benchmark.metric,
         metric_config,
@@ -103,6 +108,7 @@ class BenchmarkService:
         *,
         project_id: str | None = None,
         type: str | None = None,
+        q: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> list[Benchmark]:
@@ -111,7 +117,19 @@ class BenchmarkService:
                 offset=offset,
                 limit=limit,
                 filters={"project_id": project_id, "type": type},
+                search=q,
             )
+        )
+
+    async def count(
+        self,
+        *,
+        project_id: str | None = None,
+        type: str | None = None,
+        q: str | None = None,
+    ) -> int:
+        return await self.repo.count(
+            filters={"project_id": project_id, "type": type}, search=q
         )
 
     async def update(self, benchmark_id: str, data: BenchmarkUpdate) -> Benchmark:
@@ -126,6 +144,14 @@ class BenchmarkService:
 
     async def delete(self, benchmark_id: str) -> None:
         obj = await self.get(benchmark_id)
+        references = await ExperimentRepository(self.session).count_by_component(
+            benchmark_id=benchmark_id
+        )
+        if references:
+            raise ConflictError(
+                f"Benchmark is referenced by {references} experiment(s); "
+                "delete those experiments first"
+            )
         await self.repo.delete(obj)
 
 

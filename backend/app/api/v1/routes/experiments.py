@@ -8,7 +8,9 @@ from pydantic import BaseModel
 
 from app.core.exceptions import ConflictError
 from app.core.security import require_auth
+from app.evaluation.task_records import mark_done
 from app.evaluation.task_queue import task_queue
+from app.schemas.common import ListResponse
 from app.schemas.experiment import (
     ExperimentCreate,
     ExperimentRecomputeReport,
@@ -30,6 +32,36 @@ class DuplicateRequest(BaseModel):
     name: str | None = None
 
 
+class RunningTaskInfo(BaseModel):
+    """Info about a queued or currently running background task."""
+    experiment_id: str
+    name: str | None = None
+    project_id: str | None = None
+    status: str = "running"
+
+
+@router.get("/running", response_model=list[RunningTaskInfo])
+async def get_running_tasks(
+    service: ExperimentService = Depends(get_experiment_service),
+) -> list[RunningTaskInfo]:
+    """List experiments that are queued or currently being evaluated.
+
+    Registered before ``/{experiment_id}`` so the literal ``running`` segment
+    is never swallowed by the dynamic id route.
+    """
+    running_exps = await service.list(status="running")
+    queued_exps = await service.list(status="queued")
+    return [
+        RunningTaskInfo(
+            experiment_id=e.id,
+            name=e.name,
+            project_id=e.project_id,
+            status=e.status,
+        )
+        for e in [*running_exps, *queued_exps]
+    ]
+
+
 @router.post("/", response_model=ExperimentRead, status_code=status.HTTP_201_CREATED)
 async def create_experiment(
     payload: ExperimentCreate,
@@ -39,17 +71,20 @@ async def create_experiment(
     return await service.create(payload)
 
 
-@router.get("/", response_model=list[ExperimentRead])
+@router.get("/", response_model=ListResponse[ExperimentRead])
 async def list_experiments(
     project_id: str | None = None,
     status: str | None = None,
+    q: str | None = None,
     offset: int = 0,
     limit: int = 100,
     service: ExperimentService = Depends(get_experiment_service),
 ):
-    return await service.list(
-        project_id=project_id, status=status, offset=offset, limit=limit
+    items = await service.list(
+        project_id=project_id, status=status, q=q, offset=offset, limit=limit
     )
+    total = await service.count(project_id=project_id, status=status, q=q)
+    return ListResponse[ExperimentRead](items=items, total=total)
 
 
 @router.get("/{experiment_id}", response_model=ExperimentRead)
@@ -151,29 +186,9 @@ async def cancel_experiment(
         repo = ExperimentRepository(session)
         await repo.update(exp, {"status": "cancelled"})
         await session.commit()
+    await mark_done(experiment_id, status="cancelled")
     # Also signal the background task to cancel immediately
     task_queue.cancel_task(experiment_id)
     return await service.get(experiment_id)
 
 
-class RunningTaskInfo(BaseModel):
-    """Info about a currently running background task."""
-    experiment_id: str
-    name: str | None = None
-    project_id: str | None = None
-
-
-@router.get("/running", response_model=list[RunningTaskInfo])
-async def get_running_tasks(
-    service: ExperimentService = Depends(get_experiment_service),
-) -> list[RunningTaskInfo]:
-    """List experiments that are currently being evaluated (status=running)."""
-    running_exps = await service.list(status="running")
-    return [
-        RunningTaskInfo(
-            experiment_id=e.id,
-            name=e.name,
-            project_id=e.project_id,
-        )
-        for e in running_exps
-    ]

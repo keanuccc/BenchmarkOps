@@ -28,7 +28,7 @@ def force_mock_provider(monkeypatch):
 def _make_client(client):
     """Seed a project/dataset/benchmark/prompt/model and return an experiment id."""
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    models = client.get("/api/v1/models/").json()
+    models = client.get("/api/v1/models/").json()["items"]
     model_pk = models[0]["id"]
     pid = client.post("/api/v1/projects/", json={"name": "RT"}).json()["id"]
     b = client.post(

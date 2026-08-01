@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.evaluation.metrics import DEFAULT_METRIC_FOR_TYPE, list_metrics
 from app.schemas.benchmark import BenchmarkCreate, BenchmarkRead, BenchmarkUpdate
 from app.services.benchmark_service import BenchmarkService, get_benchmark_service
@@ -21,16 +22,23 @@ async def create_benchmark(
     return BenchmarkRead.model_validate(obj)
 
 
-@router.get("/", response_model=list[BenchmarkRead])
+@router.get("/", response_model=ListResponse[BenchmarkRead])
 async def list_benchmarks(
     project_id: str | None = Query(default=None),
     type: str | None = Query(default=None),
+    q: str | None = Query(default=None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     service: BenchmarkService = Depends(get_benchmark_service),
-) -> list[BenchmarkRead]:
-    objs = await service.list(project_id=project_id, type=type, offset=offset, limit=limit)
-    return [BenchmarkRead.model_validate(o) for o in objs]
+) -> ListResponse[BenchmarkRead]:
+    objs = await service.list(
+        project_id=project_id, type=type, q=q, offset=offset, limit=limit
+    )
+    total = await service.count(project_id=project_id, type=type, q=q)
+    return ListResponse[BenchmarkRead](
+        items=[BenchmarkRead.model_validate(o) for o in objs],
+        total=total,
+    )
 
 
 @router.get("/metrics/available")

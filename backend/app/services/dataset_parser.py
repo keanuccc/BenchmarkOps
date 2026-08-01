@@ -135,15 +135,24 @@ def build_dataset_contract(
     """Build a lightweight dataset contract for import and validation."""
     payload = _json_object(contract, "contract")
     columns = infer_schema(rows)
+    nested_mapping = payload.get("field_mapping")
+    if not isinstance(nested_mapping, dict):
+        nested_mapping = {}
 
     mapped_input = _field_list(
-        input_fields if input_fields is not None else payload.get("input_fields")
+        input_fields
+        if input_fields is not None
+        else payload.get("input_fields", nested_mapping.get("input_fields"))
     )
     mapped_expected = _field_list(
-        expected_fields if expected_fields is not None else payload.get("expected_fields")
+        expected_fields
+        if expected_fields is not None
+        else payload.get("expected_fields", nested_mapping.get("expected_fields"))
     )
     mapped_metadata = _field_list(
-        metadata_fields if metadata_fields is not None else payload.get("metadata_fields")
+        metadata_fields
+        if metadata_fields is not None
+        else payload.get("metadata_fields", nested_mapping.get("metadata_fields"))
     )
 
     if not mapped_expected:
@@ -166,8 +175,17 @@ def build_dataset_contract(
         field = sorted(overlap)[0]
         raise ValidationError(f"Field mapped to multiple roles: {field}")
 
+    for field in mapped_expected:
+        if field not in columns and not any(_source_has_field(row, field) for row in rows):
+            raise ValidationError(f"Expected field '{field}' is not present in source")
+
+    try:
+        schema_version = int(payload.get("schema_version", 1) or 1)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("schema_version must be an integer") from exc
+
     normalized = {
-        "schema_version": int(payload.get("schema_version", 1) or 1),
+        "schema_version": schema_version,
         "task_type": task_type or payload.get("task_type") or "qa",
         "input_fields": mapped_input,
         "expected_fields": mapped_expected,

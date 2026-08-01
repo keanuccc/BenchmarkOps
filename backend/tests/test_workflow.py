@@ -25,7 +25,7 @@ def test_health(client):
 def test_full_evaluation_chain(client):
     # Seed models
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    models = client.get("/api/v1/models/").json()
+    models = client.get("/api/v1/models/").json()["items"]
     assert models, "expected seeded models"
     model_pk = models[0]["id"]
 

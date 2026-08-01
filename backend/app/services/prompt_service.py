@@ -9,8 +9,9 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.prompt import Prompt
+from app.repositories.experiment import ExperimentRepository
 from app.repositories.prompt import PromptRepository
 from app.schemas.prompt import PromptUpdate
 
@@ -53,10 +54,24 @@ class PromptService:
         return prompt
 
     async def list(
-        self, *, project_id: str | None = None, offset: int = 0, limit: int = 100
+        self,
+        *,
+        project_id: str | None = None,
+        q: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> Sequence[Prompt]:
         filters = {"project_id": project_id}
-        return await self.prompts.list(offset=offset, limit=limit, filters=filters)
+        return await self.prompts.list(
+            offset=offset, limit=limit, filters=filters, search=q
+        )
+
+    async def count(
+        self, *, project_id: str | None = None, q: str | None = None
+    ) -> int:
+        return await self.prompts.count(
+            filters={"project_id": project_id}, search=q
+        )
 
     async def update(self, prompt_id: str, data: PromptUpdate) -> Prompt:
         prompt = await self.get(prompt_id)
@@ -68,6 +83,14 @@ class PromptService:
 
     async def delete(self, prompt_id: str) -> None:
         prompt = await self.get(prompt_id)
+        references = await ExperimentRepository(self.session).count_by_component(
+            prompt_id=prompt_id
+        )
+        if references:
+            raise ConflictError(
+                f"Prompt is referenced by {references} experiment(s); "
+                "delete those experiments first"
+            )
         await self.prompts.delete(prompt)
 
     async def render(self, prompt_id: str, variables: dict) -> str:

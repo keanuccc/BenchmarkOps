@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.schemas.model import ModelCreate, ModelRead, ModelUpdate
 from app.services.model_service import ModelService, get_model_service
 
@@ -32,15 +33,20 @@ async def list_presets(
     return await service.list_presets()
 
 
-@router.get("/", response_model=list[ModelRead])
+@router.get("/", response_model=ListResponse[ModelRead])
 async def list_models(
     provider: str | None = None,
     is_active: bool | None = None,
+    q: str | None = None,
     offset: int = 0,
     limit: int = 100,
     service: ModelService = Depends(get_model_service),
-) -> list[ModelRead]:
-    return await service.list(provider=provider, is_active=is_active, offset=offset, limit=limit)
+) -> ListResponse[ModelRead]:
+    items = await service.list(
+        provider=provider, is_active=is_active, q=q, offset=offset, limit=limit
+    )
+    total = await service.count(provider=provider, is_active=is_active, q=q)
+    return ListResponse[ModelRead](items=items, total=total)
 
 
 @router.get("/openrouter")

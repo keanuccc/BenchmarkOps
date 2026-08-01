@@ -30,6 +30,15 @@ from app.providers.qiniu import QiniuProvider
 _RATE_LIMIT_BURST = qiniu_mod._RATE_LIMIT_BURST
 
 
+@pytest.fixture(autouse=True)
+def _qiniu_key(monkeypatch):
+    """QiniuProvider now fails fast when no API key is configured. These unit
+    tests mock the HTTP layer and only need the constructor to succeed, so give
+    the singleton settings a dummy key for this module's tests.
+    """
+    monkeypatch.setattr(qiniu_mod.settings, "qiniu_api_key", "x")
+
+
 def _resp(status: int, *, json: dict | None = None, retry_after: str | None = None) -> httpx.Response:
     headers = {"Retry-After": retry_after} if retry_after else {}
     return httpx.Response(

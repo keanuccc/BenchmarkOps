@@ -1,0 +1,123 @@
+INFO:     Will watch for changes in these directories: ['D:\\code\\benchmarkv1\\backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [570436] using WatchFiles
+INFO:     Started server process [570760]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+2026-07-21 15:32:12,358 INFO app.services.experiment_service experiment cea8dc8a-9d83-4542-9e40-49192f336199 created (project 80608ee0-7df0-4e19-8411-7f63fa9a9021)
+2026-07-21 15:32:16,103 INFO app.api.v1.routes.experiments experiment cea8dc8a-9d83-4542-9e40-49192f336199 run submitted
+2026-07-21 15:32:16,139 INFO app.evaluation.runner experiment cea8dc8a-9d83-4542-9e40-49192f336199 run started
+2026-07-21 15:32:19,549 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:32:22,374 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:32:24,267 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:32:27,096 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:32:45,245 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:32:45,669 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:32:46,806 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:32:48,940 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:32:53,080 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:02,794 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:33:04,294 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:33:06,377 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:33:08,526 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:33:10,272 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-07-21 15:33:10,479 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:11,556 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:11,617 INFO app.services.experiment_service experiment cea8dc8a-9d83-4542-9e40-49192f336199 deleted
+2026-07-21 15:33:13,708 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:17,824 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:24,767 INFO app.services.experiment_service experiment c3005c97-c333-4c81-a54d-57511bfb51bf created (project 80608ee0-7df0-4e19-8411-7f63fa9a9021)
+2026-07-21 15:33:25,985 INFO app.api.v1.routes.experiments experiment c3005c97-c333-4c81-a54d-57511bfb51bf run submitted
+2026-07-21 15:33:25,997 INFO app.evaluation.runner experiment c3005c97-c333-4c81-a54d-57511bfb51bf run started
+2026-07-21 15:33:26,139 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-21 15:33:26,267 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:27,350 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:29,502 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:33,621 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:41,971 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+2026-07-21 15:33:42,305 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:33:58,150 INFO httpx HTTP Request: POST https://api.qnaigc.com/v1/chat/completions "HTTP/1.1 429 Unknown Status"
+2026-07-21 15:34:10,284 ERROR benchmarkops.tasks Background evaluation task failed
+Traceback (most recent call last):
+  File "D:\code\benchmarkv1\backend\app\evaluation\task_queue.py", line 69, in _guard
+    await coro_factory()
+  File "D:\code\benchmarkv1\backend\app\evaluation\runner.py", line 320, in run_experiment
+    _merge(res, is_rl)
+  File "D:\code\benchmarkv1\backend\app\evaluation\runner.py", line 283, in _merge
+    total_cost += res.cost
+TypeError: unsupported operand type(s) for +=: 'float' and 'NoneType'
+2026-07-21 15:34:26,074 ERROR benchmarkops.tasks Background evaluation task failed
+Traceback (most recent call last):
+  File "D:\code\benchmarkv1\backend\app\evaluation\task_queue.py", line 69, in _guard
+    await coro_factory()
+  File "D:\code\benchmarkv1\backend\app\evaluation\runner.py", line 320, in run_experiment
+    _merge(res, is_rl)
+  File "D:\code\benchmarkv1\backend\app\evaluation\runner.py", line 283, in _merge
+    total_cost += res.cost
+TypeError: unsupported operand type(s) for +=: 'float' and 'NoneType'
+2026-07-21 15:37:01,721 INFO app.services.experiment_service experiment c3005c97-c333-4c81-a54d-57511bfb51bf deleted
+ERROR:    Traceback (most recent call last):
+  File "D:\code\benchmarkv1\backend\.venv\Lib\site-packages\uvicorn\_compat.py", line 30, in asyncio_run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 641, in run_until_complete
+    self.run_forever()
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 608, in run_forever
+    self._run_once()
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 1898, in _run_once
+    event_list = self._selector.select(timeout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\selectors.py", line 323, in select
+    r, w, _ = self._select(self._readers, self._writers, [], timeout)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\selectors.py", line 314, in _select
+    r, w, x = select.select(r, w, w, timeout)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [WinError 10055] 由于系统缓冲区空间不足或队列已满，不能执行套接字上的操作。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\code\benchmarkv1\backend\.venv\Lib\site-packages\starlette\routing.py", line 645, in lifespan
+    await receive()
+  File "D:\code\benchmarkv1\backend\.venv\Lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+Process SpawnProcess-1:
+Traceback (most recent call last):
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\process.py", line 314, in _bootstrap
+    self.run()
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\multiprocessing\process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "D:\code\benchmarkv1\backend\.venv\Lib\site-packages\uvicorn\_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "D:\code\benchmarkv1\backend\.venv\Lib\site-packages\uvicorn\server.py", line 74, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\code\benchmarkv1\backend\.venv\Lib\site-packages\uvicorn\_compat.py", line 30, in asyncio_run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 641, in run_until_complete
+    self.run_forever()
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 608, in run_forever
+    self._run_once()
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py", line 1898, in _run_once
+    event_list = self._selector.select(timeout)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\selectors.py", line 323, in select
+    r, w, _ = self._select(self._readers, self._writers, [], timeout)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\czh\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\selectors.py", line 314, in _select
+    r, w, x = select.select(r, w, w, timeout)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [WinError 10055] 由于系统缓冲区空间不足或队列已满，不能执行套接字上的操作。

@@ -20,6 +20,7 @@ import {
   SectionTitle,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Database, Upload, Trash2, ArrowLeft, Eye } from "lucide-react";
 
 export default function DatasetsPage() {
@@ -27,6 +28,10 @@ export default function DatasetsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 20;
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -44,12 +49,17 @@ export default function DatasetsPage() {
     setLoading(true);
     try {
       const [ds, ps] = await Promise.all([
-        listDatasets(""),
+        listDatasets(undefined, {
+          q: search || undefined,
+          offset: (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
         listProjects(),
       ]);
-      setItems(ds);
-      setProjects(ps);
-      setProjectMap(Object.fromEntries(ps.map((p) => [p.id, p.name])));
+      setItems(ds.items);
+      setTotal(ds.total);
+      setProjects(ps.items);
+      setProjectMap(Object.fromEntries(ps.items.map((p) => [p.id, p.name])));
     } finally {
       setLoading(false);
     }
@@ -57,7 +67,8 @@ export default function DatasetsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search]);
 
   function openUpload() {
     setFile(null);
@@ -97,21 +108,37 @@ export default function DatasetsPage() {
 
   async function remove(id: string) {
     await deleteDataset(id);
-    await refresh();
+    if (items.length === 1 && page > 1) {
+      setPage((p) => p - 1);
+    } else {
+      await refresh();
+    }
   }
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">数据集</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             各项目下上传的评测数据集。
           </p>
         </div>
-        <Button onClick={openUpload}>
-          <Upload size={15} /> 上传数据集
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={openUpload}>
+            <Upload size={15} /> 上传数据集
+          </Button>
+        </div>
       </header>
 
       {loading ? (
@@ -181,6 +208,12 @@ export default function DatasetsPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 
@@ -219,13 +252,14 @@ export default function DatasetsPage() {
             />
           </Field>
 
-          <Field label="名称 (可选)">
+          <Field label="名称">
             <input
               className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
               style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="根据文件名自动生成"
+              placeholder="请输入名称"
+              required
             />
           </Field>
 

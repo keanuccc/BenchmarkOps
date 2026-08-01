@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
 from app.models.experiment import Experiment, ExperimentResult
 from app.repositories.base import BaseRepository
@@ -11,6 +11,31 @@ from app.repositories.base import BaseRepository
 
 class ExperimentRepository(BaseRepository[Experiment]):
     model = Experiment
+
+    async def count_by_component(
+        self,
+        *,
+        dataset_id: str | None = None,
+        benchmark_id: str | None = None,
+        prompt_id: str | None = None,
+        model_id: str | None = None,
+    ) -> int:
+        """Count experiments referencing the given component(s).
+
+        Used by delete guards: a component that is still referenced by an
+        experiment must not be deleted, otherwise leaderboards/recomputes break.
+        """
+        stmt = select(func.count()).select_from(Experiment)
+        if dataset_id:
+            stmt = stmt.where(Experiment.dataset_id == dataset_id)
+        if benchmark_id:
+            stmt = stmt.where(Experiment.benchmark_id == benchmark_id)
+        if prompt_id:
+            stmt = stmt.where(Experiment.prompt_id == prompt_id)
+        if model_id:
+            stmt = stmt.where(Experiment.model_id == model_id)
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def set_running_if_not_running(self, experiment_id: str) -> bool:
         """Atomically flip status to 'running' iff it currently isn't.

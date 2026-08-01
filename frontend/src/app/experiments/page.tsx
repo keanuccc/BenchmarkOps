@@ -30,7 +30,9 @@ import {
   ProgressBar,
 } from "@/components/ui";
 import { Combobox } from "@/components/Combobox";
+import { PaginationBar } from "@/components/pagination";
 import { Play, Plus, Activity } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // --- Combobox helper types ---------------------------------------------------
 type SelectItem = { id: string; label: string; subtitle?: string };
@@ -46,12 +48,14 @@ function toSelectItems<T extends { id: string }>(items: T[], labelKey: keyof T, 
 // --- Running banner ----------------------------------------------------------
 function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
   if (tasks.length === 0) return null;
+  const running = tasks.filter((t) => t.status === "running");
+  const queued = tasks.filter((t) => t.status === "queued");
   return (
     <Card className="p-4 border-l-4" style={{ borderLeftColor: "var(--ocd-info)" }}>
       <div className="flex items-center gap-2">
         <Activity size={16} className="text-[var(--ocd-info)] animate-pulse" />
         <span className="text-sm font-medium text-[var(--ocd-text)]">
-          运行中实验：{tasks.length}
+          运行中实验：{running.length} · 排队：{queued.length}
         </span>
       </div>
       <ul className="mt-2 space-y-1">
@@ -62,6 +66,9 @@ function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
               className="text-sm text-[var(--ocd-accent)] hover:underline"
             >
               {t.name}
+              <span className="ml-2 text-xs text-[var(--ocd-text-faint)]">
+                {t.status}
+              </span>
             </Link>
           </li>
         ))}
@@ -71,10 +78,7 @@ function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
 }
 
 export default function ExperimentsPage() {
-  const [items, setItems] = useState<Experiment[]>([]);
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -84,6 +88,9 @@ export default function ExperimentsPage() {
   const [allExperiments, setAllExperiments] = useState<Experiment[]>([]);
   const [templateExpId, setTemplateExpId] = useState("");
   const [runningTasks, setRunningTasks] = useState<RunningTaskInfo[]>([]);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 20;
 
   // Form state
   const [form, setForm] = useState({
@@ -97,26 +104,27 @@ export default function ExperimentsPage() {
     max_tokens: "",
   });
 
-  async function refresh() {
-    setLoading(true);
-    try {
-      const [list, ms] = await Promise.all([
-        listExperiments(),
-        listModels(),
-      ]);
-      setItems(list);
-      setModels(ms);
-      setAllExperiments(list);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Main experiment + models fetch via React Query
+  const { data: experimentsData = { items: [], total: 0 }, isLoading: loading } = useQuery({
+    queryKey: ["experiments", page, search],
+    queryFn: () =>
+      listExperiments(undefined, {
+        q: search || undefined,
+        offset: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+      }),
+  });
+  const experiments = experimentsData.items;
+  const totalExperiments = experimentsData.total;
+
+  const { data: models = [] } = useQuery({
+    queryKey: ["models"],
+    queryFn: () => listModels(),
+    select: (d) => d.items,
+  });
 
   // Poll running tasks every 5s
   useEffect(() => {
-    refresh();
     const t = setInterval(async () => {
       try {
         const tasks = await getRunningTasks();
@@ -127,6 +135,11 @@ export default function ExperimentsPage() {
     }, 5000);
     return () => clearInterval(t);
   }, []);
+
+  // Invalidate experiments after creating one
+  async function handleCreate(_e: React.FormEvent) {
+    void queryClient.invalidateQueries({ queryKey: ["experiments"] });
+  }
 
   function openModal() {
     setForm({
@@ -148,9 +161,9 @@ export default function ExperimentsPage() {
     if (projectId) {
       try {
         const [ds, bms, prs] = await Promise.all([
-          listDatasets(projectId),
-          listBenchmarks(projectId),
-          listPrompts(projectId),
+          listDatasets(projectId).then((r) => r.items),
+          listBenchmarks(projectId).then((r) => r.items),
+          listPrompts(projectId).then((r) => r.items),
         ]);
         setDatasets(ds);
         setBenchmarks(bms);
@@ -186,8 +199,7 @@ export default function ExperimentsPage() {
 
   useEffect(() => {
     if (modalOpen) {
-      listProjects().then(setProjects).catch(() => setProjects([]));
-      listModels().then(setModels).catch(() => setModels([]));
+      listProjects().then((r) => setProjects(r.items)).catch(() => setProjects([]));
     }
   }, [modalOpen]);
 
@@ -211,7 +223,7 @@ export default function ExperimentsPage() {
       };
       await createExperiment(body as Parameters<typeof createExperiment>[0]);
       setModalOpen(false);
-      await refresh();
+      void queryClient.invalidateQueries({ queryKey: ["experiments"] });
     } finally {
       setSubmitting(false);
     }
@@ -237,16 +249,28 @@ export default function ExperimentsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">实验</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             所有项目下的评测运行记录。
           </p>
         </div>
-        <Button onClick={openModal}>
-          <Plus size={14} /> 新建实验
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={openModal}>
+            <Plus size={14} /> 新建实验
+          </Button>
+        </div>
       </header>
 
       {/* Running experiments banner */}
@@ -254,7 +278,7 @@ export default function ExperimentsPage() {
 
       {loading ? (
         <EmptyState message="Loading…" icon={<Spinner size={20} />} />
-      ) : items.length === 0 ? (
+      ) : experiments.length === 0 ? (
         <EmptyState message="暂无实验。创建一项以开始。" />
       ) : (
         <Card className="overflow-x-auto">
@@ -274,7 +298,7 @@ export default function ExperimentsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((e) => (
+              {experiments.map((e) => (
                 <tr
                   key={e.id}
                   className="border-b last:border-0"
@@ -312,6 +336,12 @@ export default function ExperimentsPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={totalExperiments}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

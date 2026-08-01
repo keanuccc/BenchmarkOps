@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from app.core.config import settings
 from app.core.exceptions import ValidationError
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.models.dataset import Dataset, DatasetRow
 from app.schemas.dataset import DatasetRead, DatasetRowRead, DatasetUpdate
 from app.services.dataset_parser import parse_dataset
@@ -90,14 +91,17 @@ async def upload_dataset(
     )
 
 
-@router.get("/", response_model=list[DatasetRead])
+@router.get("/", response_model=ListResponse[DatasetRead])
 async def list_datasets(
     project_id: str | None = Query(None),
+    q: str | None = Query(None),
     offset: int = Query(0),
     limit: int = Query(100),
     service: DatasetService = Depends(get_dataset_service),
-) -> Sequence[Dataset]:
-    return await service.list(project_id=project_id, offset=offset, limit=limit)
+) -> ListResponse[DatasetRead]:
+    items = await service.list(project_id=project_id, q=q, offset=offset, limit=limit)
+    total = await service.count(project_id=project_id, q=q)
+    return ListResponse[DatasetRead](items=items, total=total)
 
 
 @router.get("/{dataset_id}", response_model=DatasetRead)
@@ -106,6 +110,68 @@ async def get_dataset(
     service: DatasetService = Depends(get_dataset_service),
 ) -> Dataset:
     return await service.get(dataset_id)
+
+
+@router.get("/{dataset_id}/preview/raw", response_model=dict)
+async def preview_dataset_raw(
+    dataset_id: str,
+    service: DatasetService = Depends(get_dataset_service),
+) -> dict:
+    """Return first 10 rows + metadata from an uploaded dataset."""
+    dataset = await service.get(dataset_id)
+    rows = await service.preview(dataset_id, offset=0, limit=10)
+    columns: list[str] = dataset.column_schema or []
+    return {
+        "rows": [
+            {k: str(v) for k, v in {**r.input, **(r.expected or {})}.items()}
+            for r in rows
+        ],
+        "total_rows": dataset.row_count,
+        "columns": columns,
+        "sample_count": len(rows),
+    }
+
+
+@router.post("/{dataset_id}/validate/quick", response_model=dict)
+async def validate_dataset_quick(
+    dataset_id: str,
+    service: DatasetService = Depends(get_dataset_service),
+    _: None = Depends(require_auth),
+) -> dict:
+    """Lightweight validation — parseability, required fields, empty rows."""
+    dataset = await service.get(dataset_id)
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # 1. File is parseable (already parsed at upload time; check import_errors)
+    if dataset.import_status != "ready":
+        errors.extend(dataset.import_errors or ["Dataset import failed"])
+
+    # 2. Required fields present (input-like + expected-like)
+    mapping = (dataset.contract or {}).get("field_mapping", dataset.field_mapping or {}) or {}
+    input_fields = mapping.get("input_fields") or []
+    expected_fields = mapping.get("expected_fields") or []
+    if not input_fields:
+        warnings.append("No input fields defined; all columns will be used as input")
+    if not expected_fields:
+        warnings.append("No expected fields defined; answers may not be scored correctly")
+
+    # 3. No empty required rows
+    rows = await service.preview(dataset_id, offset=0, limit=dataset.row_count)
+    contract = dataset.contract or {}
+    required_fields = contract.get("required_fields", []) or []
+    for row in rows:
+        all_vals = {**row.input}
+        if row.expected:
+            all_vals.update(row.expected)
+        for field in required_fields:
+            if field in all_vals and all_vals[field] in (None, "", {}):
+                errors.append(f"Row {row.idx}: required field '{field}' is empty")
+        if not any(v for v in all_vals.values() if v not in (None, "", {})):
+            errors.append(f"Row {row.idx}: all fields are empty")
+
+    valid = len(errors) == 0
+    return {"valid": valid, "errors": errors, "warnings": warnings}
 
 
 @router.get("/{dataset_id}/preview", response_model=list[DatasetRowRead])

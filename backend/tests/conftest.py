@@ -15,6 +15,10 @@ import pytest
 # Point at a unique temp DB for the whole test session, before app import.
 _TMP_DB = os.path.join(tempfile.gettempdir(), f"benchmarkops_test_{uuid.uuid4().hex}.db")
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP_DB}"
+# Distributed-queue tests use a dedicated Redis logical DB so they never touch
+# whatever is stored in the default DB 0. Set before app import so Settings
+# picks it up; tests skip when Redis is unreachable.
+os.environ.setdefault("REDIS_DSN", "redis://localhost:6379/15")
 
 
 @pytest.fixture()

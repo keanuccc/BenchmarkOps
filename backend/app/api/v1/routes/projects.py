@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from app.services.project_service import ProjectService, get_project_service
 
@@ -19,15 +20,17 @@ async def create_project(
     return await service.create(data)
 
 
-@router.get("/", response_model=list[ProjectRead])
+@router.get("/", response_model=ListResponse[ProjectRead])
 async def list_projects(
     status: str | None = None,
     q: str | None = None,
     offset: int = 0,
     limit: int = 100,
     service: ProjectService = Depends(get_project_service),
-) -> list[ProjectRead]:
-    return await service.list(status=status, q=q, offset=offset, limit=limit)
+) -> ListResponse[ProjectRead]:
+    items = await service.list(status=status, q=q, offset=offset, limit=limit)
+    total = await service.count(status=status, q=q)
+    return ListResponse[ProjectRead](items=items, total=total)
 
 
 @router.get("/{project_id}", response_model=ProjectRead)

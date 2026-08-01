@@ -12,7 +12,7 @@ import asyncio
 import pytest
 
 from app.core.database import AsyncSessionLocal
-from app.evaluation.runner import run_experiment
+from app.evaluation.runner import _persist_progress, run_experiment
 from app.models.experiment import Experiment, ExperimentResult
 from app.providers.base import CompletionRequest, CompletionResult, LLMProvider
 from app.repositories.experiment import (
@@ -45,7 +45,7 @@ def patched_partial(monkeypatch):
 
 def _build_experiment(client):
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    models = client.get("/api/v1/models/").json()
+    models = client.get("/api/v1/models/").json()["items"]
     model_pk = models[0]["id"]
     pid = client.post("/api/v1/projects/", json={"name": "NL"}).json()["id"]
     b = client.post(
@@ -96,6 +96,9 @@ def test_runner_reports_cells_done_and_error(client, patched_partial):
     assert exp.rows_total == 3
     assert exp.cells_done == 1
     assert exp.cells_error == 2
+    assert exp.metrics["dataset_rows_total"] == 3
+    assert exp.metrics["coverage"] == pytest.approx(1 / 3, abs=1e-4)
+    assert exp.metrics["failure_rate"] == pytest.approx(2 / 3, abs=1e-4)
     assert len(results) == 3
     ok = [r for r in results if not r.error]
     bad = [r for r in results if r.error]
@@ -127,3 +130,41 @@ def test_runner_all_success_counts_only_cells_done(client, patched_partial, monk
     assert exp.status == "completed", exp.error
     assert exp.cells_done == 3
     assert exp.cells_error == 0
+
+
+def test_persist_progress_merges_live_metrics(client, patched_partial):
+    """Mid-run progress writes must merge live metrics (avg_ms_per_row) into the
+    metrics blob and keep the materialized accuracy column in sync so the UI's
+    ETA / live accuracy are populated before the run finishes."""
+    eid = _build_experiment(client)
+
+    async def _mark_running():
+        async with AsyncSessionLocal() as session:
+            repo = ExperimentRepository(session)
+            exp = await repo.get(eid)
+            await repo.update(exp, {"status": "running"})
+            await session.commit()
+
+    asyncio.run(_mark_running())
+
+    asyncio.run(
+        _persist_progress(
+            eid,
+            processed=1,
+            rows_total=3,
+            cells_done=1,
+            cells_error=0,
+            metrics_update={"avg_ms_per_row": 12.5, "accuracy": 0.5},
+        )
+    )
+
+    async def _inspect():
+        async with AsyncSessionLocal() as session:
+            return await ExperimentRepository(session).get(eid)
+
+    exp = asyncio.run(_inspect())
+    assert exp.progress == 1
+    assert exp.cells_done == 1
+    assert exp.metrics.get("avg_ms_per_row") == 12.5
+    assert exp.metrics.get("accuracy") == 0.5
+    assert exp.accuracy == 0.5

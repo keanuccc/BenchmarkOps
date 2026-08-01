@@ -29,7 +29,7 @@ export function PromptsTab({
   } | null>(null);
 
   async function refresh() {
-    setItems(await listPrompts(projectId));
+    setItems((await listPrompts(projectId)).items);
   }
   useEffect(() => {
     refresh();

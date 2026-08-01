@@ -7,6 +7,7 @@ import {
   listExperiments,
   generateReport,
   exportReport,
+  exportReportPdf,
   type Report,
   type Project,
   type Experiment,
@@ -20,6 +21,7 @@ import {
   SectionTitle,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { FileLineChart, Download, Plus } from "lucide-react";
 
 function fmt(d: string) {
@@ -29,12 +31,16 @@ function fmt(d: string) {
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+  const [search, setSearch] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [pdfExporting, setPdfExporting] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
   async function handleExport(r: Report) {
@@ -49,6 +55,15 @@ export default function ReportsPage() {
     }
   }
 
+  async function handleExportPdf(r: Report) {
+    setPdfExporting(r.id);
+    try {
+      await exportReportPdf(r.id, r.title);
+    } finally {
+      setPdfExporting(null);
+    }
+  }
+
   const [formProject, setFormProject] = useState("");
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [title, setTitle] = useState("");
@@ -57,13 +72,17 @@ export default function ReportsPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const ps = await listProjects();
+      const ps = (await listProjects()).items;
       setProjects(ps);
       if (ps.length === 0) {
         setReports([]);
       } else {
-        const lists = await Promise.all(ps.map((p) => listReports(p.id)));
-        setReports(lists.flat());
+        const lists = await Promise.all(
+          ps.map((p) =>
+            listReports(p.id, { q: search || undefined, limit: 500 }),
+          ),
+        );
+        setReports(lists.map((l) => l.items).flat());
       }
     } finally {
       setLoading(false);
@@ -72,14 +91,15 @@ export default function ReportsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   async function onProjectChange(pid: string) {
     setFormProject(pid);
     setChecked([]);
     setTitle("");
     if (pid) {
-      const exs = await listExperiments(pid);
+      const exs = (await listExperiments(pid)).items;
       setExperiments(exs);
     } else {
       setExperiments([]);
@@ -103,6 +123,10 @@ export default function ReportsPage() {
   }
 
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? id;
+  const visibleReports = reports.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
 
   if (loading) {
     return <EmptyState message="Loading…" icon={<Spinner size={20} />} />;
@@ -110,16 +134,28 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">AI 报告</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             生成并查看 AI 生成的评测报告。
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus size={15} /> 生成报告
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索标题…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={() => setOpen(true)}>
+            <Plus size={15} /> 生成报告
+          </Button>
+        </div>
       </header>
 
       {exportError && (
@@ -134,8 +170,9 @@ export default function ReportsPage() {
           icon={<FileLineChart size={28} />}
         />
       ) : (
+        <>
         <div className="grid gap-4 md:grid-cols-2">
-          {reports.map((r) => (
+          {visibleReports.map((r) => (
             <Card key={r.id} className="flex flex-col p-5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold">{r.title}</h3>
@@ -161,7 +198,19 @@ export default function ReportsPage() {
                       ) : (
                         <Download size={14} />
                       )}
-                      导出
+                      导出 .md
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleExportPdf(r)}
+                      disabled={pdfExporting === r.id}
+                    >
+                      {pdfExporting === r.id ? (
+                        <Spinner size={14} />
+                      ) : (
+                        <Download size={14} />
+                      )}
+                      导出 .pdf
                     </Button>
                     <Button variant="ghost" onClick={() => setExpanded(null)}>
                       收起
@@ -183,13 +232,32 @@ export default function ReportsPage() {
                     ) : (
                       <Download size={14} />
                     )}
-                    导出
+                    导出 .md
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleExportPdf(r)}
+                    disabled={pdfExporting === r.id}
+                  >
+                    {pdfExporting === r.id ? (
+                      <Spinner size={14} />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                    导出 .pdf
                   </Button>
                 </div>
               )}
             </Card>
           ))}
         </div>
+        <PaginationBar
+          total={reports.length}
+          page={page}
+          pageSize={PAGE_SIZE}
+          onChange={setPage}
+        />
+        </>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title="生成报告">

@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
+from collections import Counter
 from collections.abc import Callable
 from typing import ParamSpec
 
@@ -35,6 +37,14 @@ P = ParamSpec("P")
 Metric = Callable[..., float]
 
 _METRICS: dict[str, Metric] = {}
+
+
+class MetricEvaluationError(Exception):
+    """A scoring metric could not produce a trustworthy score."""
+
+    def __init__(self, message: str, *, kind: str = "metric"):
+        self.kind = kind
+        super().__init__(message)
 
 
 
@@ -69,7 +79,10 @@ def _explicit_metric_suite(metric_config: dict | None) -> list | None:
 
 
 def has_metric_suite(metric_config: dict | None, spec: dict | None = None) -> bool:
-    return bool(_explicit_metric_suite(metric_config))
+    return bool(
+        _explicit_metric_suite(metric_config)
+        or (spec or {}).get("metric_suite_explicit", False)
+    )
 
 
 def _configured_metric_suite(metric_config: dict | None, spec: dict | None = None) -> list | None:
@@ -95,16 +108,22 @@ def normalize_metric_suite(
         return [{"name": metric_name, "weight": 1.0, "config": metric_config or {}}]
 
     normalized: list[dict] = []
+    seen_names: set[str] = set()
     for item in suite:
         if not isinstance(item, dict):
             raise ValidationError("metric_suite entries must be objects")
         name = item.get("name")
         if not isinstance(name, str) or not name:
             raise ValidationError("metric_suite entries require a metric name")
+        if name in seen_names:
+            raise ValidationError(f"metric_suite contains duplicate metric {name!r}")
+        seen_names.add(name)
         try:
             weight = float(item.get("weight", 1.0))
         except (TypeError, ValueError) as exc:
             raise ValidationError(f"Invalid weight for metric {name!r}") from exc
+        if not math.isfinite(weight):
+            raise ValidationError(f"Weight for metric {name!r} must be finite")
         config = item.get("config") or {}
         if not isinstance(config, dict):
             raise ValidationError(f"Config for metric {name!r} must be an object")
@@ -139,11 +158,18 @@ async def _call_metric(metric_fn: Metric, *args, **kwargs) -> float:
     doesn't need to know which kind of metric it is calling.
     """
     if asyncio.iscoroutinefunction(metric_fn):
-        return await metric_fn(*args, **kwargs)
-    result = metric_fn(*args, **kwargs)
+        result = await metric_fn(*args, **kwargs)
+    else:
+        result = metric_fn(*args, **kwargs)
     if asyncio.isfuture(result) or isinstance(result, asyncio.Future):
-        return await result
-    return float(result)
+        result = await result
+    try:
+        score = float(result)
+    except (TypeError, ValueError) as exc:
+        raise MetricEvaluationError("Metric returned a non-numeric score") from exc
+    if not math.isfinite(score) or not 0.0 <= score <= 1.0:
+        raise MetricEvaluationError("Metric score must be finite and within [0, 1]")
+    return score
 
 
 # Default metric per benchmark type (consumed by the Benchmark service).
@@ -154,6 +180,38 @@ DEFAULT_METRIC_FOR_TYPE: dict[str, str] = {
     "generation": "f1_token",
     "agent": "contains",
 }
+
+
+_UNIT_SUFFIX_RE = re.compile(
+    r"(?<=\d)(?:平方千米|平方公里|平方米|平方厘米|平方毫米|"
+    r"立方米|立方分米|立方厘米|立方毫米|公顷|千米|公里|米|厘米|毫米|"
+    r"毫升|升|千克|克|吨|秒|分钟|小时|天|年|万元|亿元|个|只|头|条|张|本|辆|架|"
+    r"倍|分|度|℃|°C|°F|kg|g|mg|ml|L|m|cm|mm|km|元|块|美元|人民币)$",
+    flags=re.IGNORECASE,
+)
+
+
+def _normalize_match_text(
+    value: object,
+    *,
+    answer_policy: dict | None = None,
+    remove_whitespace: bool = True,
+) -> str:
+    text = "" if value is None else str(value).strip()
+    policy = answer_policy or {}
+    if policy.get("strip_units", True):
+        compact = re.sub(r"\s+", "", text)
+        stripped = _UNIT_SUFFIX_RE.sub("", compact)
+        if stripped != compact:
+            text = stripped
+    if len(text) >= 2 and ((text[0], text[-1]) in (("(", ")"), ("（", "）"))):
+        text = text[1:-1].strip()
+    text = text.rstrip("。,.!?！，、；：")
+    if remove_whitespace:
+        text = re.sub(r"\s+", "", text)
+    else:
+        text = re.sub(r"\s+", " ", text)
+    return text.casefold()
 
 
 def _flatten_strings(value: object) -> list[str]:
@@ -177,35 +235,89 @@ def _flatten_strings(value: object) -> list[str]:
     return [str(value)]
 
 
-def _exact_ci_candidates(expected: str | None, expected_raw: dict | list | None) -> list[str]:
+def _policy_values(answer_policy: dict | None) -> list[str]:
+    policy = answer_policy or {}
+    values: list[str] = []
+    for key in ("aliases", "accepted_answers", "valid_answers"):
+        raw = policy.get(key, [])
+        values.extend(_flatten_strings(raw))
+    return values
+
+
+def _raw_answer_candidates(
+    expected: str | None,
+    expected_raw: dict | list | None,
+    answer_policy: dict | None = None,
+) -> list[str]:
     values = [expected or ""]
     if isinstance(expected_raw, list):
         values.extend(_flatten_strings(expected_raw))
     elif isinstance(expected_raw, dict):
         values.extend(_flatten_strings(expected_raw))
-        aliases = expected_raw.get("aliases", [])
-        values.extend(_flatten_strings(aliases))
-    return [re.sub(r"\s+", "", v.strip()).lower() for v in values if v and v.strip()]
+        values.extend(_flatten_strings(expected_raw.get("aliases", [])))
+    values.extend(_policy_values(answer_policy))
+    return [value for value in values if value and str(value).strip()]
+
+
+def _exact_ci_candidates(
+    expected: str | None,
+    expected_raw: dict | list | None,
+    answer_policy: dict | None = None,
+    *,
+    remove_whitespace: bool = True,
+) -> list[str]:
+    values = _raw_answer_candidates(expected, expected_raw, answer_policy)
+    return [
+        _normalize_match_text(
+            v,
+            answer_policy=answer_policy,
+            remove_whitespace=remove_whitespace,
+        )
+        for v in values
+        if v and str(v).strip()
+    ]
+
+
+def _required_answer_values(expected: str | None, expected_raw: dict | list | None) -> list[str]:
+    if isinstance(expected_raw, list):
+        return _flatten_strings(expected_raw)
+    if isinstance(expected_raw, dict) and "answer" in expected_raw:
+        return _flatten_strings(expected_raw["answer"])
+    return [expected or ""]
+
+
+def _split_answer_values(value: str, *, answer_policy: dict | None = None) -> list[str]:
+    if (answer_policy or {}).get("multi_answer") not in ("all", "set"):
+        return [value]
+    return [part.strip() for part in re.split(r"[,，、]\s*", value) if part.strip()]
 
 
 @register("exact_match")
 def exact_match(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
-    pred = prediction.strip()
-    exp = (expected or "").strip()
-    if not exp:
-        return 0.0
-    # If expected_raw contains a list of valid answers, match any of them.
-    if isinstance(expected_raw, list):
-        return 1.0 if pred in [str(a).strip().lower() for a in expected_raw] else 0.0
-    return 1.0 if pred.lower() == exp.lower() else 0.0
+    return 1.0 if expected is not None and expected.strip() and prediction == expected else 0.0
 
 
 @register("exact_match_ci")
 def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
-    pred_n = re.sub(r"\s+", "", prediction.strip()).lower()
-    candidates = _exact_ci_candidates(expected, expected_raw)
+    answer_policy = kwargs.get("answer_policy")
+    if not _normalize_match_text(expected, answer_policy=answer_policy):
+        return 0.0
+    pred_n = _normalize_match_text(prediction, answer_policy=answer_policy)
+    candidates = _exact_ci_candidates(expected, expected_raw, answer_policy)
     if not candidates:
         return 0.0
+    mode = (answer_policy or {}).get("multi_answer")
+    if mode in ("all", "set"):
+        required = {
+            _normalize_match_text(v, answer_policy=answer_policy)
+            for v in _required_answer_values(expected, expected_raw)
+            if str(v).strip()
+        }
+        parts = {
+            _normalize_match_text(v, answer_policy=answer_policy)
+            for v in _split_answer_values(prediction, answer_policy=answer_policy)
+        }
+        return 1.0 if (parts == required if mode == "set" else required <= parts) else 0.0
     if pred_n in candidates:
         return 1.0
     return 0.0
@@ -213,18 +325,51 @@ def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict 
 
 @register("contains")
 def contains(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
-    exp = (expected or "").strip()
-    if not exp:
+    answer_policy = kwargs.get("answer_policy")
+    if not _normalize_match_text(expected, answer_policy=answer_policy):
         return 0.0
-    # If expected_raw contains a list, check if any expected value appears in prediction.
-    if isinstance(expected_raw, list):
-        preds_lower = prediction.lower()
-        for item in expected_raw:
-            s = str(item).strip().lower()
-            if s and s in preds_lower:
-                return 1.0
-        return 0.0
-    return 1.0 if exp.lower() in prediction.lower() else 0.0
+    prediction_text = _normalize_match_text(
+        prediction,
+        answer_policy=answer_policy,
+        remove_whitespace=False,
+    )
+    mode = (answer_policy or {}).get("multi_answer")
+    required = _required_answer_values(expected, expected_raw)
+    candidates = (
+        required
+        if mode in ("all", "set") and len(required) > 1
+        else _exact_ci_candidates(
+            expected,
+            expected_raw,
+            answer_policy,
+            remove_whitespace=False,
+        )
+    )
+
+    def _matches(candidate: str) -> bool:
+        candidate_text = _normalize_match_text(
+            candidate,
+            answer_policy=answer_policy,
+            remove_whitespace=False,
+        )
+        if not candidate_text:
+            return False
+        if re.fullmatch(r"[a-z0-9]+(?:[ _-][a-z0-9]+)*", candidate_text):
+            return bool(re.search(
+                rf"(?<![a-z0-9]){re.escape(candidate_text)}(?![a-z0-9])",
+                prediction_text,
+                flags=re.IGNORECASE,
+            ))
+        if any("\u3400" <= char <= "\u9fff" for char in candidate_text):
+            return bool(re.search(
+                rf"(?<![\u3400-\u9fff]){re.escape(candidate_text)}(?![\u3400-\u9fff])",
+                prediction_text,
+            ))
+        return candidate_text.casefold() in prediction_text.casefold()
+
+    if mode in ("all", "set") and len(required) > 1:
+        return 1.0 if all(_matches(value) for value in required) else 0.0
+    return 1.0 if any(_matches(candidate) for candidate in candidates) else 0.0
 
 
 @register("f1_token")
@@ -240,10 +385,14 @@ def f1_token(prediction: str, expected: str | None, *, expected_raw: dict | list
         # use jieba for proper word segmentation.
         has_cjk = any("　" <= ch <= "鿿" for ch in text)
         if not has_cjk:
-            return text.lower().split()
+            return re.findall(r"[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)?", text.casefold())
         try:
             import jieba
-            return [t for t in jieba.lcut(text.lower()) if t.strip()]
+            return [
+                t.casefold()
+                for t in jieba.lcut(text)
+                if t.strip() and any(ch.isalnum() for ch in t)
+            ]
         except ImportError:
             # Fallback: character-level n-grams when jieba is unavailable.
             # This is imperfect but still better than treating the whole string
@@ -253,37 +402,64 @@ def f1_token(prediction: str, expected: str | None, *, expected_raw: dict | list
             return chars + bigrams
 
     pred_tokens = _tokenize(prediction)
-    exp_tokens = _tokenize(expected or "")
-    if not pred_tokens or not exp_tokens:
+    if not pred_tokens:
         return 0.0
-    common = set(pred_tokens) & set(exp_tokens)
-    if not common:
-        return 0.0
-    precision = len(common) / len(pred_tokens)
-    recall = len(common) / len(exp_tokens)
-    return 2 * precision * recall / (precision + recall)
+    best = 0.0
+    candidates = _raw_answer_candidates(
+        expected, expected_raw, kwargs.get("answer_policy")
+    )
+    if kwargs.get("answer_policy", {}).get("multi_answer") in ("all", "set"):
+        required = _required_answer_values(expected, expected_raw)
+        if len(required) > 1:
+            candidates = [" ".join(required)]
+    for candidate in candidates:
+        exp_tokens = _tokenize(candidate)
+        if not exp_tokens:
+            continue
+        common = sum((Counter(pred_tokens) & Counter(exp_tokens)).values())
+        if not common:
+            continue
+        precision = common / len(pred_tokens)
+        recall = common / len(exp_tokens)
+        best = max(best, 2 * precision * recall / (precision + recall))
+    return best
 
 
 @register("numeric_match")
 def numeric_match(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
-    def _to_float(value: str | None) -> float | None:
-        match = re.search(
-            r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?",
+    def _to_floats(value: str | None) -> list[float]:
+        matches = re.finditer(
+            r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?",
             (value or "").strip(),
         )
-        if match is None:
-            return None
-        cleaned = match.group(0).replace(",", "")
-        try:
-            return float(cleaned)
-        except ValueError:
-            return None
+        values: list[float] = []
+        for match in matches:
+            try:
+                values.append(float(match.group(0).replace(",", "")))
+            except ValueError:
+                continue
+        return values
 
-    a = _to_float(prediction)
-    b = _to_float(expected)
-    if a is None or b is None:
+    predicted = _to_floats(prediction)
+    candidates = _raw_answer_candidates(expected, expected_raw, kwargs.get("answer_policy"))
+    if not predicted or not candidates:
         return 0.0
-    return 1.0 if abs(a - b) < 1e-6 else 0.0
+    tolerance = float(kwargs.get("tolerance", 1e-6))
+    if not math.isfinite(tolerance) or tolerance < 0:
+        raise ValidationError("tolerance must be finite and non-negative")
+    expected_values = [value for candidate in candidates for value in _to_floats(candidate)]
+    mode = (kwargs.get("answer_policy") or {}).get("multi_answer")
+    if mode in ("all", "set") and len(expected_values) > 1:
+        matched = sum(
+            any(abs(actual - target) <= tolerance for actual in predicted)
+            for target in expected_values
+        )
+        return 1.0 if matched == len(expected_values) else 0.0
+    return 1.0 if any(
+        abs(actual - target) <= tolerance
+        for actual in predicted
+        for target in expected_values
+    ) else 0.0
 
 
 @register("llm_judge")
@@ -317,20 +493,27 @@ async def llm_judge(
     max_tokens=16 to keep cost and latency minimal.
     """
     from app.evaluation.judge_prompts import get_judge_prompt
-    from app.providers.base import ChatMessage, CompletionRequest
+    from app.providers.base import ChatMessage, CompletionRequest, ProviderRateLimitedError
     from app.providers.registry import get_provider
 
     if not expected or not expected.strip():
         return 0.0
 
+    raise_on_error = bool(kwargs.get("raise_on_error", False))
+
     # Resolve judge model/provider. Fall back to primary model/provider if not set.
     model_id = judge_model or kwargs.get("model_id", "")
     provider_name = judge_provider or kwargs.get("provider", "mock")
+    cache_enabled = bool(judge_model or judge_provider or kwargs.get("model_id") or kwargs.get("provider"))
 
     try:
         provider = get_provider(provider_name)
-    except Exception:
+    except Exception as exc:
         logger.warning("llm_judge: provider %r unavailable, skipping", provider_name)
+        if raise_on_error:
+            raise MetricEvaluationError(
+                f"llm judge provider unavailable: {exc}", kind="provider"
+            ) from exc
         return 0.0
 
     prompt_text = get_judge_prompt(benchmark_type or "qa")
@@ -342,6 +525,16 @@ async def llm_judge(
             content=prompt_text.format(expected=expected, prediction=pred_for_judge),
         )
     ]
+
+    cache_key = _llm_judge_cache_key(
+        prediction,
+        expected,
+        model_id=model_id,
+        provider=provider_name,
+        benchmark_type=benchmark_type,
+    )
+    if cache_enabled and cache_key in _llm_judge_cache:
+        return _llm_judge_cache[cache_key]
 
     try:
         completion = await asyncio.wait_for(
@@ -355,22 +548,36 @@ async def llm_judge(
             ),
             timeout=30,
         )
+    except ProviderRateLimitedError:
+        raise
     except Exception as exc:
         logger.warning("llm_judge: judge call failed: %s", exc)
+        if raise_on_error:
+            raise MetricEvaluationError(
+                f"llm judge provider call failed: {exc}", kind="provider"
+            ) from exc
         return 0.0
 
     text = (completion.text or "").strip().upper()
-    # Check negative signals first — "NO_MATCH" contains "MATCH", so order matters.
-    if any(tok in text for tok in ("NO_MATCH", "NO", "INCORRECT", "FALSE")):
+    # The prompt requires one token. Substring matching would accept values such
+    # as UNTRUE and can turn malformed judge output into a false positive.
+    if text in {"NO_MATCH", "NO", "INCORRECT", "FALSE"}:
         score = 0.0
-    elif any(tok in text for tok in ("MATCH", "YES", "CORRECT", "TRUE")):
+    elif text in {"MATCH", "YES", "CORRECT", "TRUE"}:
         score = 1.0
     else:
-        # Ambiguous / malformed response: default to 0.0 (conservative).
+        if raise_on_error:
+            raise MetricEvaluationError(
+                f"llm judge returned an invalid response: {text!r}",
+                kind="metric",
+            )
         score = 0.0
 
     # Cache the result for identical prediction+expected pairs.
-    _llm_judge_cached(prediction, expected, cached_value=score)
+    if cache_enabled:
+        _llm_judge_cache[cache_key] = score
+        if len(_llm_judge_cache) > _MAX_CACHE_SIZE:
+            _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
     return score
 
 
@@ -382,29 +589,26 @@ _llm_judge_cache: dict[str, float] = {}
 _MAX_CACHE_SIZE = 4096
 
 
-def _llm_judge_cache_key(prediction: str, expected: str) -> str:
-    """Deterministic cache key from prediction+expected strings."""
-    import hashlib
-    raw = f"{prediction.strip()}|||{expected.strip()}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:32]
-
-
-def _llm_judge_cached(
+def _llm_judge_cache_key(
     prediction: str,
     expected: str,
     *,
-    cached_value: float,
-) -> float:
-    """Check the LLM judge cache; if hit, return cached value and evict LRU on miss."""
-    key = _llm_judge_cache_key(prediction, expected)
-    if key in _llm_judge_cache:
-        return _llm_judge_cache[key]
-    # On miss, store the result and evict oldest if full
-    if len(_llm_judge_cache) >= _MAX_CACHE_SIZE:
-        # Pop first inserted key (Python 3.7+ dicts preserve insertion order)
-        _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
-    _llm_judge_cache[key] = cached_value
-    return cached_value
+    model_id: str = "",
+    provider: str = "",
+    benchmark_type: str | None = None,
+) -> str:
+    """Deterministic cache key from prediction+expected strings."""
+    import hashlib
+    raw = "|||".join(
+        (
+            prediction.strip(),
+            expected.strip(),
+            model_id,
+            provider,
+            benchmark_type or "qa",
+        )
+    )
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
 # --- Fuzzy Match Metric -------------------------------------------------------
@@ -447,9 +651,8 @@ def fuzzy_match(
 
     Handles CJK by normalizing whitespace and case before comparison.
     """
-    exp = (expected or "").strip()
-    if not exp:
-        return 0.0
+    if not 0.0 <= threshold <= 1.0 or not math.isfinite(threshold):
+        raise ValidationError("threshold must be finite and between 0 and 1")
 
     pred = prediction.strip()
     if not pred:
@@ -457,19 +660,15 @@ def fuzzy_match(
 
     # Normalize: remove whitespace, lowercase
     pred_n = re.sub(r"\s+", "", pred).lower()
-    exp_n = re.sub(r"\s+", "", exp).lower()
-
-    if pred_n == exp_n:
-        return 1.0
-
-    max_len = max(len(pred_n), len(exp_n))
-    if max_len == 0:
-        return 0.0
-
-    dist = _levenshtein_distance(pred_n, exp_n)
-    similarity = 1.0 - (dist / max_len)
-
-    return 1.0 if similarity >= threshold else 0.0
+    candidates = _exact_ci_candidates(expected, expected_raw, kwargs.get("answer_policy"))
+    return 1.0 if any(
+        1.0 - (
+            _levenshtein_distance(pred_n, re.sub(r"\s+", "", candidate).lower())
+            / max(len(pred_n), len(re.sub(r"\s+", "", candidate).lower()))
+        ) >= threshold
+        for candidate in candidates
+        if candidate and max(len(pred_n), len(re.sub(r"\s+", "", candidate).lower()))
+    ) else 0.0
 
 
 @register("fuzzy_match_ci")
@@ -487,9 +686,8 @@ def fuzzy_match_ci(
     Checks all candidates from expected_raw (aliases, lists, etc.).
     Returns 1.0 if ANY candidate matches within the threshold.
     """
-    exp = (expected or "").strip()
-    if not exp:
-        return 0.0
+    if not 0.0 <= threshold <= 1.0 or not math.isfinite(threshold):
+        raise ValidationError("threshold must be finite and between 0 and 1")
 
     pred = prediction.strip()
     if not pred:
@@ -498,7 +696,11 @@ def fuzzy_match_ci(
     # Normalize
     pred_n = re.sub(r"\s+", "", pred).lower()
 
-    candidates = _exact_ci_candidates(expected, expected_raw)
+    candidates = _exact_ci_candidates(
+        expected,
+        expected_raw,
+        kwargs.get("answer_policy"),
+    )
     if not candidates:
         return 0.0
 

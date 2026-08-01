@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Sequence
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -30,6 +30,11 @@ from app.schemas.report import ReportGenerateRequest
 # Runtime default model slug used ONLY as a provider call argument when no other
 # default is configured. This is a runtime model choice, not application config.
 DEFAULT_REPORT_MODEL_ID = "openai/gpt-4o-mini"
+
+
+def resolve_report_model_id() -> str:
+    """Model id used for AI-generated reports (configurable via REPORT_MODEL_ID)."""
+    return settings.report_model_id or DEFAULT_REPORT_MODEL_ID
 
 
 class ReportService:
@@ -64,8 +69,8 @@ class ReportService:
         generated_by = "template"
         try:
             if settings.provider_enabled:
-                provider = get_provider()
-                model_id = getattr(settings, "report_model_id", None) or DEFAULT_REPORT_MODEL_ID
+                provider = get_provider(settings.report_provider or None)
+                model_id = resolve_report_model_id()
                 content_markdown, sections = await ai_report(context, provider, model_id)
                 generated_by = active_provider_name()
             else:
@@ -108,11 +113,30 @@ class ReportService:
         return report
 
     async def list(
-        self, project_id: str, *, offset: int = 0, limit: int = 100
+        self,
+        project_id: str,
+        *,
+        q: str | None = None,
+        offset: int = 0,
+        limit: int = 100,
     ) -> Sequence[Report]:
-        return await self.reports.list(
-            offset=offset, limit=limit, filters={"project_id": project_id}
+        stmt = select(Report).where(Report.project_id == project_id)
+        if q:
+            stmt = stmt.where(Report.title.ilike(f"%{q}%"))
+        stmt = stmt.order_by(Report.created_at.desc()).offset(offset).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def count(self, project_id: str, *, q: str | None = None) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Report)
+            .where(Report.project_id == project_id)
         )
+        if q:
+            stmt = stmt.where(Report.title.ilike(f"%{q}%"))
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def delete(self, report_id: str) -> None:
         report = await self.get(report_id)

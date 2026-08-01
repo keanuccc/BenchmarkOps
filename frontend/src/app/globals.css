@@ -1,88 +1,205 @@
 @import "tailwindcss";
 
-/* ============================================================
-   BenchmarkOps — Design Tokens
-   Oklch-based palette, purple accent (#6366F1 / oklch(0.55 0.20 265)).
-   Dark by default; .light overrides for light mode.
-   ============================================================ */
 @theme inline {
   --color-accent: var(--ocd-accent);
   --color-accent-fg: var(--ocd-accent-fg);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--ocd-font-sans);
+  --font-mono: var(--ocd-font-mono);
 }
 
 :root {
   color-scheme: dark;
-
-  /* Surfaces */
-  --ocd-bg: oklch(0.19 0.01 265);          /* app background */
-  --ocd-surface: oklch(0.24 0.012 265);    /* card */
-  --ocd-surface-2: oklch(0.28 0.012 265);  /* card hover / inset */
-  --ocd-sidebar: oklch(0.16 0.012 265);    /* dark sidebar */
-  --ocd-border: oklch(0.32 0.012 265);
-  --ocd-border-soft: oklch(0.28 0.012 265);
-
-  /* Text */
-  --ocd-text: oklch(0.97 0.005 265);
-  --ocd-text-muted: oklch(0.70 0.01 265);
-  --ocd-text-faint: oklch(0.55 0.012 265);
-
-  /* Accent (purple) */
-  --ocd-accent: oklch(0.55 0.20 265);
-  --ocd-accent-fg: oklch(0.98 0.01 265);
-  --ocd-accent-soft: oklch(0.55 0.20 265 / 0.15);
-
-  /* Status */
-  --ocd-ok: oklch(0.70 0.16 150);
-  --ocd-warn: oklch(0.78 0.16 85);
-  --ocd-info: oklch(0.68 0.15 240);
-  --ocd-bad: oklch(0.64 0.20 25);
-
-  /* Chart series */
-  --ocd-c1: oklch(0.55 0.20 265);
-  --ocd-c2: oklch(0.70 0.16 150);
-  --ocd-c3: oklch(0.76 0.15 80);
-  --ocd-c4: oklch(0.68 0.15 240);
-  --ocd-c5: oklch(0.62 0.18 320);
-
-  --ocd-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 4px 16px oklch(0 0 0 / 0.25);
-  --ocd-radius: 12px;
+  --ocd-bg: #090d0f;
+  --ocd-surface: #101719;
+  --ocd-surface-2: #172225;
+  --ocd-surface-3: #1c2a2e;
+  --ocd-sidebar: #0b1113;
+  --ocd-sidebar-text: #f2f2e9;
+  --ocd-sidebar-muted: rgb(255 255 255 / 0.52);
+  --ocd-sidebar-faint: rgb(255 255 255 / 0.35);
+  --ocd-sidebar-hover: rgb(255 255 255 / 0.08);
+  --ocd-sidebar-active: rgb(213 243 106 / 0.10);
+  --ocd-sidebar-panel: rgb(255 255 255 / 0.035);
+  --ocd-header: rgb(9 13 15 / 0.88);
+  --ocd-grid-line: rgb(255 255 255 / 0.018);
+  --ocd-sheen: linear-gradient(120deg, transparent 0 38%, rgb(213 243 106 / 0.035) 50%, transparent 62%);
+  --ocd-panel-sheen: linear-gradient(145deg, rgb(255 255 255 / 0.035), transparent 38%);
+  --ocd-panel-highlight: linear-gradient(90deg, transparent, rgb(213 243 106 / 0.3), transparent);
+  --ocd-border: #27383c;
+  --ocd-border-soft: #1c2a2e;
+  --ocd-text: #f2f2e9;
+  --ocd-text-muted: #a2b0ad;
+  --ocd-text-faint: #667875;
+  --ocd-accent: #d5f36a;
+  --ocd-accent-fg: #10150e;
+  --ocd-accent-soft: rgb(213 243 106 / 0.12);
+  --ocd-coral: #f49b74;
+  --ocd-ok: #77d79a;
+  --ocd-warn: #f2c56d;
+  --ocd-info: #89c8ff;
+  --ocd-bad: #ff8f8f;
+  --ocd-c1: #d5f36a;
+  --ocd-c2: #77d79a;
+  --ocd-c3: #f2c56d;
+  --ocd-c4: #89c8ff;
+  --ocd-c5: #f49b74;
+  --ocd-font-sans: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ocd-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --ocd-shadow: 0 20px 55px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.22);
+  --ocd-radius: 16px;
 }
 
 :root.light {
   color-scheme: light;
-  --ocd-bg: oklch(0.985 0.003 265);
-  --ocd-surface: oklch(1 0 0);
-  --ocd-surface-2: oklch(0.965 0.004 265);
-  --ocd-sidebar: oklch(0.235 0.014 265);
-  --ocd-border: oklch(0.90 0.006 265);
-  --ocd-border-soft: oklch(0.93 0.005 265);
-  --ocd-text: oklch(0.22 0.012 265);
-  --ocd-text-muted: oklch(0.45 0.012 265);
-  --ocd-text-faint: oklch(0.60 0.012 265);
-  --ocd-accent: oklch(0.55 0.20 265);
-  --ocd-accent-fg: oklch(0.98 0.01 265);
-  --ocd-accent-soft: oklch(0.55 0.20 265 / 0.12);
-  --ocd-shadow: 0 1px 2px oklch(0 0 0 / 0.06), 0 4px 16px oklch(0 0 0 / 0.05);
+  --ocd-bg: #f4f5ee;
+  --ocd-surface: #ffffff;
+  --ocd-surface-2: #edf1e7;
+  --ocd-surface-3: #e4eadb;
+  --ocd-sidebar: #f8faf4;
+  --ocd-sidebar-text: #17201e;
+  --ocd-sidebar-muted: #61726b;
+  --ocd-sidebar-faint: #8b9a94;
+  --ocd-sidebar-hover: rgb(23 32 30 / 0.06);
+  --ocd-sidebar-active: rgb(156 196 59 / 0.16);
+  --ocd-sidebar-panel: rgb(23 32 30 / 0.055);
+  --ocd-header: rgb(244 245 238 / 0.90);
+  --ocd-grid-line: rgb(23 32 30 / 0.055);
+  --ocd-sheen: linear-gradient(120deg, transparent 0 38%, rgb(156 196 59 / 0.07) 50%, transparent 62%);
+  --ocd-panel-sheen: linear-gradient(145deg, rgb(23 32 30 / 0.025), transparent 38%);
+  --ocd-panel-highlight: linear-gradient(90deg, transparent, rgb(156 196 59 / 0.36), transparent);
+  --ocd-border: #d6dfd4;
+  --ocd-border-soft: #e4e9df;
+  --ocd-text: #17201e;
+  --ocd-text-muted: #5f706b;
+  --ocd-text-faint: #91a19a;
+  --ocd-accent: #9cc43b;
+  --ocd-accent-fg: #122008;
+  --ocd-accent-soft: rgb(156 196 59 / 0.14);
+  --ocd-shadow: 0 14px 35px rgb(30 52 39 / 0.09), 0 2px 5px rgb(30 52 39 / 0.06);
 }
 
 html,
 body {
+  min-height: 100%;
   background: var(--ocd-bg);
   color: var(--ocd-text);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--ocd-font-sans);
 }
 
 * {
   border-color: var(--ocd-border);
 }
 
+body {
+  background-image: linear-gradient(var(--ocd-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ocd-grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background: var(--ocd-sheen);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease,
+    transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--ocd-accent);
+  outline-offset: 3px;
+}
+
+.surface-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--ocd-border);
+  border-radius: var(--ocd-radius);
+  background: var(--ocd-panel-sheen), var(--ocd-surface);
+  box-shadow: var(--ocd-shadow);
+}
+
+.surface-panel::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: var(--ocd-panel-highlight);
+  opacity: 0.65;
+}
+
+.reveal {
+  animation: reveal 420ms ease both;
+}
+
+.reveal-delay-1 { animation-delay: 60ms; }
+.reveal-delay-2 { animation-delay: 120ms; }
+.reveal-delay-3 { animation-delay: 180ms; }
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--ocd-border);
-  border-radius: 8px;
+  border-radius: 999px;
 }
+
+::selection {
+  color: var(--ocd-accent-fg);
+  background: var(--ocd-accent);
+}
+
+/* Keep older page-level utility classes inside the new visual system. */
+.bg-slate-50 { background-color: var(--ocd-surface-2) !important; }
+.bg-slate-100 { background-color: var(--ocd-surface-3) !important; }
+.text-slate-400 { color: var(--ocd-text-faint) !important; }
+.text-slate-500 { color: var(--ocd-text-muted) !important; }
+.text-slate-600 { color: var(--ocd-text) !important; }
+.border-slate-200,
+.border-slate-300 { border-color: var(--ocd-border) !important; }
+
+.sidebar-brand { color: var(--ocd-sidebar-text); }
+.sidebar-control { color: var(--ocd-sidebar-muted); }
+.sidebar-control:hover { color: var(--ocd-sidebar-text); background: var(--ocd-sidebar-hover); }
+.sidebar-section-label { color: var(--ocd-sidebar-faint); }
+.sidebar-nav-link { color: var(--ocd-sidebar-muted); }
+.sidebar-nav-link:hover { color: var(--ocd-sidebar-text); background: var(--ocd-sidebar-hover); }
+.sidebar-nav-link-active { color: var(--ocd-sidebar-text); background: var(--ocd-sidebar-active); }
+.sidebar-profile { background: var(--ocd-sidebar-panel); }
+.sidebar-profile-name { color: var(--ocd-sidebar-text); }
+.sidebar-profile-meta { color: var(--ocd-sidebar-faint); }

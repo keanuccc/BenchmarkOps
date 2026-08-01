@@ -19,6 +19,7 @@ import {
   SectionTitle,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Target, Plus, Trash2 } from "lucide-react";
 
 const TYPES = ["qa", "coding", "agent", "classification", "generation"];
@@ -29,6 +30,10 @@ export default function BenchmarksPage() {
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const [metrics, setMetrics] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 20;
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -41,10 +46,18 @@ export default function BenchmarksPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const [bms, ps] = await Promise.all([listBenchmarks(""), listProjects()]);
-      setItems(bms);
-      setProjects(ps);
-      setProjectMap(Object.fromEntries(ps.map((p) => [p.id, p.name])));
+      const [bms, ps] = await Promise.all([
+        listBenchmarks(undefined, {
+          q: search || undefined,
+          offset: (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
+        listProjects(),
+      ]);
+      setItems(bms.items);
+      setTotal(bms.total);
+      setProjects(ps.items);
+      setProjectMap(Object.fromEntries(ps.items.map((p) => [p.id, p.name])));
     } finally {
       setLoading(false);
     }
@@ -52,7 +65,8 @@ export default function BenchmarksPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search]);
 
   function openModal() {
     setName("");
@@ -97,16 +111,28 @@ export default function BenchmarksPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">基准</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             各项目的评测协议与评分指标。
           </p>
         </div>
-        <Button onClick={openModal}>
-          <Plus size={15} /> 新建基准
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={openModal}>
+            <Plus size={15} /> 新建基准
+          </Button>
+        </div>
       </header>
 
       {loading ? (
@@ -156,6 +182,12 @@ export default function BenchmarksPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

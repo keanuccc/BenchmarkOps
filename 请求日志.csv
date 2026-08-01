@@ -1,0 +1,98 @@
+﻿日志ID,API Key,模型,服务类型,状态码,状态,开始时间,结束时间,耗时,输入费用（元）,输出费用（元）,总费用（元）,输入（token）,输出（token）,错误信息
+chatcmpl-01dcee80b85f4f3080fbc33ace34a952,sk-65***beb21,deepseek-v3,对话补全,200,成功,2026-07-21 00:50:22,2026-07-21 00:50:23,1.0s,0.000008,0.000096,0.00010400000000000001,4,12,
+chatcmpl-71a1b8c0afac42348f323d08a7b00b90,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,403,失败,2026-07-21 00:40:16,2026-07-21 00:40:16,0ms,0,0,0,0,0,access denied for invalid user
+chatcmpl-538ad2987b5a480db8ce4cc15de3370c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:40:08,2026-07-21 00:40:16,8.0s,0.000055,0.000858,0.0009130000000000001,55,429,
+chatcmpl-9c1b1f49f2e3473db609ba5e4978bd04,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:39:52,2026-07-21 00:39:52,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-b79dd2238914413db26957bf20ff7472,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:39:43,2026-07-21 00:39:43,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-1d23a02abf0b4791bfd112e5d23abc5d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:39:39,2026-07-21 00:39:39,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-d69d60f279b241d88fcde34b7a622c7e,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:39:37,2026-07-21 00:39:37,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-236dfed5055c48f181365af272bf8d4b,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:39:36,2026-07-21 00:39:36,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-3b890459c9c1458a828c04127833938a,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:39:29,2026-07-21 00:39:36,7.0s,0.000055,0.001246,0.0013009999999999999,55,623,
+chatcmpl-4b09d871c720495fb1a519ccecad3500,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:39:23,2026-07-21 00:39:29,6.0s,0.000054,0.000736,0.00079,54,368,
+chatcmpl-6267be2ca99340a69766a1cf4481272a,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:39:16,2026-07-21 00:39:23,7.0s,0.000055,0.001048,0.001103,55,524,
+chatcmpl-d809f23269b24ee6b37664543d996e4b,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:39:10,2026-07-21 00:39:16,6.0s,0.000054,0.000868,0.000922,54,434,
+chatcmpl-e4e9d5de4e7d48079c463aa0ebf2cc9e,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:39:07,2026-07-21 00:39:10,3.0s,0.000055,0.000474,0.000529,55,237,
+chatcmpl-94dcf62db7eb4fe9babead28b1675a0f,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:38:51,2026-07-21 00:38:51,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-fafdae25a4df40579a6a1ef643179373,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:38:43,2026-07-21 00:38:43,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-9ca1860929c74c8f9cc43bb9e8d335d4,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:38:39,2026-07-21 00:38:39,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-aef88c287f184a36831bcc14f074b61c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:38:37,2026-07-21 00:38:37,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-07e495060b2e4bbb915bfd6e91264800,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:38:35,2026-07-21 00:38:35,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-3ce4e17af5b04ee6bd1027c0d7905131,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:38:25,2026-07-21 00:38:35,10.0s,0.000054,0.001732,0.001786,54,866,
+chatcmpl-96d51806eaee46a5a2c9b989ce87d948,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:38:21,2026-07-21 00:38:25,4.0s,0.000055,0.000784,0.000839,55,392,
+chatcmpl-951e0d26064d49a08cd7687c177a6c52,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:38:13,2026-07-21 00:38:20,7.0s,0.000055,0.00118,0.001235,55,590,
+chatcmpl-1c9d5c134f6a469381ba63f8d8407f30,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:38:08,2026-07-21 00:38:13,5.0s,0.000055,0.000704,0.000759,55,352,
+chatcmpl-c0d6cd86492743e69c6dfa788caee762,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:38:00,2026-07-21 00:38:08,8.0s,0.000054,0.001358,0.001412,54,679,
+chatcmpl-0d40aa485de84ba597b13b0dfbbd2b40,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:37:51,2026-07-21 00:37:51,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-9d515a3056b249de838c848d8593e486,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:37:47,2026-07-21 00:37:47,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-55b15986b2ce4d3a8dc8674a863845d3,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:37:45,2026-07-21 00:37:45,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-2d29e6d0fba04ccd8ffa4c5dc54c9a48,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:37:44,2026-07-21 00:37:44,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-c8c73ed960634ef49ceda04da2515955,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:37:38,2026-07-21 00:37:44,6.0s,0.000055,0.001084,0.0011389999999999998,55,542,
+chatcmpl-c8ad345519b545589ac268155de0f732,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:37:31,2026-07-21 00:37:37,6.0s,0.000055,0.0011,0.001155,55,550,
+chatcmpl-926dba29af5947ce848fc49d042ea089,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:37:22,2026-07-21 00:37:31,9.0s,0.000054,0.001708,0.0017620000000000001,54,854,
+chatcmpl-50eeb0c23b2646fd94b6f79a5109f2e2,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:37:14,2026-07-21 00:37:21,7.0s,0.000054,0.001316,0.00137,54,658,
+chatcmpl-c2cfe48be7674d35ab81ad588443a10b,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:37:00,2026-07-21 00:37:14,14.0s,0.000054,0.00234,0.002394,54,1170,
+chatcmpl-731947795a17465ea77a74d56bb18b68,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:36:48,2026-07-21 00:36:48,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-20d937e1830d48dfaac6c9f806b167ce,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:36:46,2026-07-21 00:36:46,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-0477da5e2a984fd6a330e0feb977b230,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:36:44,2026-07-21 00:36:44,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-428d378f8399470f83c36d868bb2fecf,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:36:39,2026-07-21 00:36:44,5.0s,0.000054,0.000796,0.0008500000000000001,54,398,
+chatcmpl-ecdb75229bd6443889d397263b18a69c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:36:31,2026-07-21 00:36:39,8.0s,0.000055,0.001212,0.001267,55,606,
+chatcmpl-2d52acad018844aa9c5c7ed509f1fd2f,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:36:26,2026-07-21 00:36:31,5.0s,0.000054,0.000862,0.000916,54,431,
+chatcmpl-0838a8f5e83b41bc82dc78fbf6d29988,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:36:14,2026-07-21 00:36:26,12.0s,0.000055,0.002236,0.002291,55,1118,
+chatcmpl-be2e8ceffff74f089612a6bb8f32bfb9,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:36:02,2026-07-21 00:36:14,12.0s,0.000054,0.002152,0.0022059999999999996,54,1076,
+chatcmpl-f2f47579a3d744729bc1ac458b4169c3,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:35:54,2026-07-21 00:35:54,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-57af71e9c3714826b27860924c442bb0,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:35:50,2026-07-21 00:35:50,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-b2c683814ed7444a92ae8d265bad59b7,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:35:48,2026-07-21 00:35:48,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-d11a2a4a5d0a4fa2aa47b44d9b27bb0e,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:35:46,2026-07-21 00:35:46,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-c492fd1a1e6e4046b5e7767798a9562d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:35:34,2026-07-21 00:35:46,12.0s,0.000054,0.002338,0.0023919999999999996,54,1169,
+chatcmpl-b6ca6430c88b44fd92079cfb568ea76d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:35:24,2026-07-21 00:35:34,10.0s,0.000054,0.001918,0.001972,54,959,
+chatcmpl-eb2ffc89a7894d7d9102ce0fc0d6e2ba,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:35:19,2026-07-21 00:35:23,4.0s,0.000055,0.00047,0.000525,55,235,
+chatcmpl-a7abb5591b8f41048aaf88cbcb7d26e3,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:35:12,2026-07-21 00:35:19,7.0s,0.000054,0.001138,0.001192,54,569,
+chatcmpl-c49642e6e0a54124a651881aa2334cbc,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:35:01,2026-07-21 00:35:12,11.0s,0.000055,0.002046,0.002101,55,1023,
+chatcmpl-22e6d5098f0c4180978a690c0ed1d568,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:34:57,2026-07-21 00:34:57,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-ec6f563481214ff29ad47749fdea68db,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:34:55,2026-07-21 00:34:55,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-03fbc77b92564c279ce00862f57e74fd,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:34:53,2026-07-21 00:34:53,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-7dbab0558ab544c7b60ebf4a9dbdb03f,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:34:43,2026-07-21 00:34:53,10.0s,0.000055,0.001862,0.0019169999999999999,55,931,
+chatcmpl-88350481b7b84ba5a8f07effbb3c217c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:34:39,2026-07-21 00:34:43,4.0s,0.000054,0.000658,0.000712,54,329,
+chatcmpl-7461bde5edab4ee9a1cba27c025f8788,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:34:23,2026-07-21 00:34:38,15.0s,0.000054,0.003022,0.0030759999999999997,54,1511,
+chatcmpl-357af646766a47e389a68314165660c1,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:34:18,2026-07-21 00:34:22,4.0s,0.000055,0.00074,0.000795,55,370,
+chatcmpl-0c28afb60b31458eaef7bc534f8cf9c7,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:34:02,2026-07-21 00:34:18,16.0s,0.000054,0.002874,0.0029279999999999996,54,1437,
+chatcmpl-b71feb4a2d904d32a17122c832fd4f6a,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:33:54,2026-07-21 00:33:54,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-fa9c33ebcdd345469279fb5533057577,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:33:50,2026-07-21 00:33:50,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-9a237287b6c842789948dee88773741c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:33:48,2026-07-21 00:33:48,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-355ea20d349d43819c140341f9abed61,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:33:47,2026-07-21 00:33:47,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-adfc2adf494643718329746126b13b5f,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:33:41,2026-07-21 00:33:47,6.0s,0.000054,0.000936,0.00099,54,468,
+chatcmpl-5d45bfed4ec441ef8ff1ed00c55244f0,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:33:32,2026-07-21 00:33:41,9.0s,0.000054,0.001404,0.001458,54,702,
+chatcmpl-c626d7c9d8164eee97bf5cd72676ba61,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:33:25,2026-07-21 00:33:32,7.0s,0.000055,0.001116,0.001171,55,558,
+chatcmpl-f3ce5cf2b47845e2bc123f0345d92f4c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:33:14,2026-07-21 00:33:25,11.0s,0.000054,0.001856,0.00191,54,928,
+chatcmpl-c95470efc2db46a591a9833b3476b65c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:33:07,2026-07-21 00:33:14,7.0s,0.000055,0.001166,0.0012209999999999999,55,583,
+chatcmpl-1adf38e97231426a813f497d63cf87c6,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:32:53,2026-07-21 00:33:07,14.0s,0.000054,0.002646,0.0026999999999999997,54,1323,
+chatcmpl-1d4e76b1de734147b168afa461de4e7c,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:32:45,2026-07-21 00:32:53,8.0s,0.000054,0.001222,0.001276,54,611,
+chatcmpl-d5d66497f5c9458d907e12a7ea6f9f39,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:32:40,2026-07-21 00:32:45,5.0s,0.000055,0.000438,0.0004930000000000001,55,219,
+chatcmpl-ef969c69eb414969aad1beb6e71ae9e2,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:32:26,2026-07-21 00:32:40,14.0s,0.000054,0.002622,0.002676,54,1311,
+chatcmpl-8d035e93683a44be959142066f5dab6a,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:32:14,2026-07-21 00:32:26,12.0s,0.000054,0.00209,0.0021439999999999996,54,1045,
+chatcmpl-d34b8569897b4c6589bf208848357434,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:31:58,2026-07-21 00:31:58,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-d744d8032c974298ad77bebe45ce5adf,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:31:50,2026-07-21 00:31:50,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-99fc8fa71ce14576b915e0f60de95c20,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:31:46,2026-07-21 00:31:46,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-2345df9c011e485881be89a620c22a86,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:31:44,2026-07-21 00:31:44,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-2b48ba9dc2d64c0a9f789b35aa1f207d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:31:43,2026-07-21 00:31:43,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-dd321a9d66564b4e93b193579bbd036d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:31:30,2026-07-21 00:31:42,12.0s,0.000054,0.002376,0.00243,54,1188,
+chatcmpl-15e0bc27d8ac4c2e81a012d738775260,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:31:25,2026-07-21 00:31:29,4.0s,0.000054,0.000742,0.000796,54,371,
+chatcmpl-e145c2926e764b28906910dfb9d158b1,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:31:19,2026-07-21 00:31:25,6.0s,0.000055,0.000896,0.000951,55,448,
+chatcmpl-6f988b7368ce4ff2b5778b5806b4e334,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:31:13,2026-07-21 00:31:18,5.0s,0.000055,0.000924,0.000979,55,462,
+chatcmpl-f0711332704e4dc0b664afbcd4813260,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:31:07,2026-07-21 00:31:12,5.0s,0.000055,0.000764,0.0008190000000000001,55,382,
+chatcmpl-1af8abafc305472db314c97a97521224,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:30:59,2026-07-21 00:30:59,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-33a23dcc40fc4522a23c5245feafa1c7,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:30:55,2026-07-21 00:30:55,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-4db0ecc04aac44de8721a793c0930447,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:30:53,2026-07-21 00:30:53,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-47ee5171b6864183a2d8b7a3a9899c6d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,429,失败,2026-07-21 00:30:52,2026-07-21 00:30:52,0ms,0,0,0,0,0,rate limit reached for RPM
+chatcmpl-a880542dbea34f718ead96e9ce774285,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:30:44,2026-07-21 00:30:52,8.0s,0.000054,0.001274,0.001328,54,637,
+chatcmpl-d8c6b87dbf35471eb497db0b82db69d8,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:30:39,2026-07-21 00:30:44,5.0s,0.000055,0.000876,0.0009310000000000001,55,438,
+chatcmpl-06877cd46d5a4dc996e4f19cd80c113d,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:30:32,2026-07-21 00:30:38,6.0s,0.000055,0.001018,0.001073,55,509,
+chatcmpl-e4623f23fc9b4453ab25a208c5e42ab8,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:30:25,2026-07-21 00:30:32,7.0s,0.000055,0.001092,0.001147,55,546,
+chatcmpl-4f6de33d481d4b33bf27a2c57a972977,sk-65***beb21,deepseek/deepseek-v4-flash,对话补全,200,成功,2026-07-21 00:30:18,2026-07-21 00:30:25,7.0s,0.000055,0.0011,0.001155,55,550,
+chatcmpl-97775126657448008f85756d7b2c30f9,sk-65***beb21,zhipuai/glm-4,对话补全,400,失败,2026-07-20 23:17:25,2026-07-20 23:17:25,0ms,0,0,0,0,0,no available channels for model zhipuai/glm-4
+chatcmpl-5943dd0fb1334c40a89d4e1227f034a7,sk-65***beb21,zhipuai/glm-4,对话补全,400,失败,2026-07-20 23:17:06,2026-07-20 23:17:06,0ms,0,0,0,0,0,no available channels for model zhipuai/glm-4
+chatcmpl-ed2aba3dd5254ea387d442f67f90e415,sk-65***beb21,zhipuai/glm-4,对话补全,400,失败,2026-07-20 23:15:34,2026-07-20 23:15:34,0ms,0,0,0,0,0,no available channels for model zhipuai/glm-4
+chatcmpl-87c6dea938b9445ab460114564771876,sk-65***beb21,zhipuai/glm-4,对话补全,400,失败,2026-07-20 23:13:47,2026-07-20 23:13:47,0ms,0,0,0,0,0,no available channels for model zhipuai/glm-4
+chatcmpl-5808cf42f7d94b15ac108a7d4ebdf049,sk-65***beb21,openai/gpt-4o-mini,对话补全,400,失败,2026-07-20 23:11:21,2026-07-20 23:11:21,0ms,0,0,0,0,0,no available channels for model openai/gpt-4o-mini
+chatcmpl-818c92ed24eb4836b9b0c00ded3f0a92,sk-65***beb21,qwen/qwen-2.5-72b-instruct,对话补全,400,失败,2026-07-20 23:07:43,2026-07-20 23:07:43,0ms,0,0,0,0,0,no available channels for model qwen/qwen-2.5-72b-instruct
+chatcmpl-e25ad29557e54dab817db9f7cfbcde6e,sk-65***beb21,zhipuai/glm-4,对话补全,400,失败,2026-07-20 23:02:08,2026-07-20 23:02:08,0ms,0,0,0,0,0,no available channels for model zhipuai/glm-4

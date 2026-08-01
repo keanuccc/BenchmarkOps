@@ -6,15 +6,20 @@ import logging
 import re
 import time
 
+from sqlalchemy.exc import OperationalError
+
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, with_retry_on_lock
+from app.evaluation.errors import RetryableTaskError
 from app.evaluation.metrics import (
     _call_metric,
     get_metric,
     has_metric_suite,
+    MetricEvaluationError,
     normalize_metric_suite,
 )
 from app.models.benchmark import Benchmark
+from app.models.dataset import Dataset
 from app.models.experiment import ExperimentResult
 from app.models.model import Model
 from app.models.prompt import Prompt
@@ -26,6 +31,7 @@ from app.repositories.experiment import (
     ExperimentResultRepository,
 )
 from app.evaluation.task_queue import _mark_experiment_cancelled
+from app.evaluation.task_records import mark_done, mark_running
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +41,7 @@ _PROGRESS_EVERY = 50
 logger = logging.getLogger(__name__)
 
 _ANSWER_PREFIX_RE = re.compile(
-    r"^(?:答[案题]?[：:\s]*|answer[s]?[：:]?\s*|final\s+answer\s*[：:]?\s*|结论[：:\s]*|最终答案[：:\s]*)",
+    r"^(?:最\s*终\s*答\s*案[：:\s]*|答\s*案(?:\s*是)?[：:\s]*|回\s*答[：:\s]*|答\s*题?[：:\s]*|answer[s]?[：:]?\s*|final\s+answer\s*[：:]?\s*|结\s*论[：:\s]*)",
     flags=re.IGNORECASE,
 )
 
@@ -88,7 +94,7 @@ def _first_value(d: dict | None) -> str:
         return str(value).strip()
 
     # First pass: look for known answer keys at the top level.
-    for key in ("answer", "label", "output", "target", "ground_truth"):
+    for key in ("answer", "label", "output", "target", "ground_truth", "value", "text"):
         if key in d:
             result = _flatten(d[key])
             if result:
@@ -100,7 +106,27 @@ def _first_value(d: dict | None) -> str:
     return "" if not result else result
 
 
-def _extract_answer(text: str) -> str:
+def _estimate_tokens(text: str) -> int:
+    """Rough token estimate used for context-window pre-checks.
+
+    CJK characters cost roughly one token each; other scripts average around
+    4 chars per token. This deliberately errs toward *over*-estimating so we
+    fail a row before the upstream rejects it with 400.
+    """
+    if not text:
+        return 0
+    cjk = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
+    other = len(text) - cjk
+    return cjk + max(0, (other + 3) // 4)
+
+
+def _extract_answer(
+    text: str,
+    *,
+    split_commas: bool = True,
+    normalize_whitespace: bool = True,
+    strip_units: bool = True,
+) -> str:
     """Strip the model's formatting noise so the metric compares against the
     bare answer.
 
@@ -133,17 +159,22 @@ def _extract_answer(text: str) -> str:
     # Remove surrounding quotes that some models add.
     last = last.strip().strip('"').strip("'").strip()
 
-    # Drop a trailing parenthetical annotation (e.g. "碳（C）" -> "碳").
-    last = re.sub(r"\s*[（(][^）)]*[）)]\s*$", "", last)
+    # Drop a trailing parenthetical annotation (e.g. "碳（C）" -> "碳"),
+    # but keep a parenthesized answer such as "(A)".
+    if not re.fullmatch(r"[（(][^）)]*[）)]", last):
+        last = re.sub(r"\s*[（(][^）)]*[）)]\s*$", "", last)
+    if len(last) >= 2 and ((last[0], last[-1]) in (("(", ")"), ("（", "）"))):
+        last = last[1:-1].strip()
 
     # If the answer contains a Chinese comma suggesting multiple values were
     # given, take only the first segment. This handles cases like
     # "40平方厘米，13厘米" -> "40平方厘米" where the expected answer is just
     # the first value "40".
-    if "，" in last:
-        last = last.split("，", 1)[0].strip()
-    elif "," in last and not re.fullmatch(r"[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?", last):
-        last = last.split(",", 1)[0].strip()
+    if split_commas:
+        if "，" in last:
+            last = last.split("，", 1)[0].strip()
+        elif "," in last and not re.fullmatch(r"[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?", last):
+            last = last.split(",", 1)[0].strip()
 
     # Strip leading labels like "面积=" / "半周长=" / "体积=" etc.
     last = re.sub(r"^(?:面积|周长|半周长|体积|质量|速度|时间|长度|宽度|高度)[=：:\s]*", "", last)
@@ -151,31 +182,49 @@ def _extract_answer(text: str) -> str:
     # Drop trailing Chinese currency / measurement units that the model often appends.
     # Order matters: match compound units (e.g. 平方千米, 立方米) before atomic units
     # (米, 厘米) to avoid partial stripping like "100立方" from "100立方厘米".
-    last = re.sub(r"(?:元|块|美元|人民币|元/|$/)?$", "", last)
-    last = re.sub(
-        r"(?:平方千米|平方公里|平方米|平方厘米|平方毫米|"
-        r"立方米|立方分米|立方厘米|立方毫米|"
-        r"公顷|千米|公里|米|厘米|毫米|"
-        r"毫升|升|千克|克|吨|秒|分钟|小时|天|年|万元|亿元|个|只|头|条|张|本|辆|架|"
-        r"倍|分|度|℃|°C|°F|kg|g|mg|ml|L|m|cm|mm|km)$",
-        "",
-        last,
-    )
+    if strip_units:
+        last = re.sub(r"(?:元|块|美元|人民币|元/|$/)?$", "", last)
+        last = re.sub(
+            r"(?<=\d)\s*(?:平方千米|平方公里|平方米|平方厘米|平方毫米|"
+            r"立方米|立方分米|立方厘米|立方毫米|"
+            r"公顷|千米|公里|米|厘米|毫米|"
+            r"毫升|升|千克|克|吨|秒|分钟|小时|天|年|万元|亿元|个|只|头|条|张|本|辆|架|"
+            r"倍|分|度|℃|°C|°F|kg|g|mg|ml|L|m|cm|mm|km)$",
+            "",
+            last,
+        )
 
     # Strip trailing punctuation that snuck into the answer.
     last = last.rstrip("。,.!?！，、；：")
 
     # Normalize whitespace inside the answer so "18 世纪" matches "18世纪".
-    last = re.sub(r"\s+", "", last)
+    last = re.sub(r"\s+", "" if normalize_whitespace else " ", last).strip()
 
     return last
 
 
 def _score_reason(
-    metric_name: str, score: float, cleaned_prediction: str, expected_canonical: str
+    metric_name: str,
+    score: float,
+    cleaned_prediction: str,
+    expected_canonical: str,
+    metric_scores: dict[str, float] | None = None,
 ) -> str:
     outcome = "matched" if score >= 1.0 else "did not match"
-    if cleaned_prediction == expected_canonical:
+    if metric_scores:
+        components = ", ".join(
+            f"{name}={value:.4f}" for name, value in metric_scores.items()
+        )
+        detail = f"weighted metric components: {components}"
+    elif metric_name in ("contains", "agent"):
+        detail = "expected substring matched as a standalone text span"
+    elif metric_name == "numeric_match":
+        detail = "first numeric values matched within tolerance"
+    elif metric_name in ("fuzzy_match", "fuzzy_match_ci"):
+        detail = "normalized Levenshtein similarity met the configured threshold"
+    elif metric_name == "llm_judge":
+        detail = "LLM judge classified the prediction as semantically equivalent"
+    elif cleaned_prediction == expected_canonical:
         detail = "cleaned prediction equals expected canonical answer"
     else:
         detail = (
@@ -232,7 +281,13 @@ async def _mark_failed(experiment_id: str, error: str) -> None:
 
 
 async def _persist_progress(
-    experiment_id: str, processed: int, rows_total: int, *, cells_done: int = 0, cells_error: int = 0
+    experiment_id: str,
+    processed: int,
+    rows_total: int,
+    *,
+    cells_done: int = 0,
+    cells_error: int = 0,
+    metrics_update: dict | None = None,
 ) -> None:
     """Best-effort progress update on an isolated short session.
 
@@ -246,14 +301,23 @@ async def _persist_progress(
             repo = ExperimentRepository(session)
             exp = await repo.get(experiment_id)
             if exp is not None and exp.status == "running":
+                update = {
+                    "progress": processed,
+                    "rows_total": rows_total,
+                    "cells_done": cells_done,
+                    "cells_error": cells_error,
+                }
+                if metrics_update:
+                    current_metrics = dict(exp.metrics or {})
+                    current_metrics.update(metrics_update)
+                    update["metrics"] = current_metrics
+                    # Keep the materialized accuracy column in sync so the
+                    # dashboard / SSE show live accuracy during the run.
+                    if "accuracy" in metrics_update:
+                        update["accuracy"] = metrics_update["accuracy"]
                 await repo.update(
                     exp,
-                    {
-                        "progress": processed,
-                        "rows_total": rows_total,
-                        "cells_done": cells_done,
-                        "cells_error": cells_error,
-                    },
+                    update,
                 )
                 await session.commit()
 
@@ -264,6 +328,20 @@ async def _persist_progress(
 
 
 async def run_experiment(experiment_id: str) -> None:
+    """Run an experiment, converting transient pre-billing DB failures into a
+    retryable marker for the distributed queue (ARQ retries those, and only
+    those; provider-side failures stay terminal)."""
+    try:
+        await _run_experiment(experiment_id)
+    except OperationalError as exc:
+        if "database is locked" in str(exc):
+            raise RetryableTaskError(
+                f"transient database lock while claiming experiment {experiment_id}: {exc}"
+            ) from exc
+        raise
+
+
+async def _run_experiment(experiment_id: str) -> None:
     logger.info("experiment %s run started", experiment_id)
 
     async with AsyncSessionLocal() as load_session:
@@ -271,10 +349,17 @@ async def run_experiment(experiment_id: str) -> None:
         experiment = await exp_repo.get(experiment_id)
         if experiment is None:
             return
+        if experiment.status == "cancelled":
+            logger.info(
+                "experiment %s was cancelled; skipping queued run", experiment_id
+            )
+            await mark_done(experiment_id, status="cancelled")
+            return
 
         if not await exp_repo.set_running_if_not_running(experiment_id):
             return
         await load_session.commit()
+        await mark_running(experiment_id)
 
         snap = experiment.prompt_snapshot
         if snap:
@@ -304,6 +389,14 @@ async def run_experiment(experiment_id: str) -> None:
             benchmark_spec = {}
             benchmark_type = benchmark.type
 
+        dsnap = experiment.dataset_snapshot
+        if dsnap:
+            answer_policy = dsnap.get("answer_policy", {}) or {}
+        else:
+            dataset = await load_session.get(Dataset, experiment.dataset_id)
+            contract = dataset.contract if dataset is not None else {}
+            answer_policy = (contract or {}).get("answer_policy", {}) or {}
+
         msnap = experiment.model_snapshot
         if msnap:
             model_ref = msnap.get("model_id")
@@ -312,6 +405,7 @@ async def run_experiment(experiment_id: str) -> None:
             # else fall back to the configured default provider.
             model_provider = msnap.get("provider") or settings.default_provider
             model_is_free = bool(msnap.get("is_free", False))
+            context_length = msnap.get("context_length")
         else:
             model = await load_session.get(Model, experiment.model_id)
             if model is None:
@@ -319,6 +413,7 @@ async def run_experiment(experiment_id: str) -> None:
             model_ref = model.model_id
             pricing = model.pricing
             model_provider = model.provider or settings.default_provider
+            context_length = model.context_length
             # Model table has no is_free column; derive from the ":free" suffix
             # convention and, for Qiniu, the configured free-model set.
             model_is_free = (
@@ -359,6 +454,7 @@ async def run_experiment(experiment_id: str) -> None:
     total_latency = 0
     scored = 0
     provider_errors = 0
+    metric_errors = 0
     processed = 0
     cells_done = 0   # rows scored successfully (drives the progress bar's "scored" count)
     cells_error = 0   # rows whose provider call failed
@@ -372,6 +468,22 @@ async def run_experiment(experiment_id: str) -> None:
         callers merge the returned object into shared accumulators after gather so the
         concurrent phase never touches shared state across an await point."""
         rendered = _render_prompt(template, variables, row.input)
+        if context_length is not None:
+            estimated = _estimate_tokens(rendered) + int(max_tokens or 0)
+            if estimated > context_length:
+                res = ExperimentResult(
+                    experiment_id=experiment_id,
+                    row_idx=row.idx,
+                    input=row.input,
+                    expected=row.expected,
+                    output="",
+                    score=0.0,
+                    error=(
+                        f"context_overflow: estimated {estimated} tokens exceeds "
+                        f"model context_length {context_length}"
+                    ),
+                )
+                return res, False, {}, "provider"
         req = CompletionRequest(
             model_id=model_ref,
             messages=[ChatMessage(role="user", content=rendered)],
@@ -388,27 +500,48 @@ async def run_experiment(experiment_id: str) -> None:
             # Clean both sides before scoring: expected may come from a dict key,
             # prediction may carry prompt-enforced prefixes like 「答案：」.
             cleaned_expected = expected_str.strip()
-            cleaned_prediction = _extract_answer(completion.text).strip()
+            multi_answer = answer_policy.get("multi_answer")
+            cleaned_prediction = _extract_answer(
+                completion.text,
+                split_commas=multi_answer not in ("all", "set"),
+                normalize_whitespace=False,
+                strip_units=answer_policy.get("strip_units", True),
+            ).strip()
 
             metric_scores: dict[str, float] = {}
             weighted_score = 0.0
             for item in metric_suite:
                 kwargs = dict(item["config"])
                 kwargs.setdefault("benchmark_type", benchmark_type)
-                metric_score = float(
-                    await _call_metric(
-                        metric_fns[item["name"]],
-                        cleaned_prediction,
-                        cleaned_expected,
-                        expected_raw=row.expected,
-                        **kwargs,
+                kwargs.setdefault("model_id", model_ref)
+                kwargs.setdefault("provider", model_provider)
+                kwargs.setdefault("answer_policy", answer_policy)
+                kwargs["raise_on_error"] = True
+                try:
+                    metric_score = float(
+                        await _call_metric(
+                            metric_fns[item["name"]],
+                            cleaned_prediction,
+                            cleaned_expected,
+                            expected_raw=row.expected,
+                            **kwargs,
+                        )
                     )
-                )
+                except MetricEvaluationError:
+                    raise
+                except Exception as exc:
+                    raise MetricEvaluationError(
+                        f"metric {item['name']!r} failed: {exc}", kind="metric"
+                    ) from exc
                 metric_scores[item["name"]] = metric_score
                 weighted_score += metric_score * item["weight"]
             score = weighted_score / total_weight
             score_reason = _score_reason(
-                metric_name, score, cleaned_prediction, cleaned_expected
+                metric_name,
+                score,
+                cleaned_prediction,
+                cleaned_expected,
+                metric_scores,
             )
 
             cost = _cost(pricing or {}, completion.prompt_tokens, completion.completion_tokens)
@@ -426,7 +559,7 @@ async def run_experiment(experiment_id: str) -> None:
                 tokens=completion.total_tokens,
                 cost=cost,
             )
-            return res, False, metric_scores
+            return res, False, metric_scores, None
         except ProviderRateLimitedError as exc:
             res = ExperimentResult(
                 experiment_id=experiment_id,
@@ -437,7 +570,18 @@ async def run_experiment(experiment_id: str) -> None:
                 score=0.0,
                 error=str(exc)[:500],
             )
-            return res, True, {}
+            return res, True, {}, "provider"
+        except MetricEvaluationError as exc:
+            res = ExperimentResult(
+                experiment_id=experiment_id,
+                row_idx=row.idx,
+                input=row.input,
+                expected=row.expected,
+                output=completion.text,
+                score=0.0,
+                error=f"metric_error[{exc.kind}]: {exc}"[:500],
+            )
+            return res, False, {}, exc.kind
         except Exception as exc:
             res = ExperimentResult(
                 experiment_id=experiment_id,
@@ -448,14 +592,14 @@ async def run_experiment(experiment_id: str) -> None:
                 score=0.0,
                 error=str(exc)[:500],
             )
-            return res, False, {}
+            return res, False, {}, "provider"
 
     metric_totals: dict[str, float] = {item["name"]: 0.0 for item in metric_suite}
 
-    def _merge(res, is_rate_limited, metric_scores):
+    def _merge(res, is_rate_limited, metric_scores, error_kind):
         """Fold one processed row into the shared accumulators. Called after gather, so
         no two merges run concurrently — safe without extra locking."""
-        nonlocal scored, cells_done, cells_error, provider_errors, total_score, total_cost
+        nonlocal scored, cells_done, cells_error, provider_errors, metric_errors, total_score, total_cost
         nonlocal total_tokens, total_latency, rate_limited, rate_limited_msg
         result_objs.append(res)
         if is_rate_limited:
@@ -466,7 +610,10 @@ async def run_experiment(experiment_id: str) -> None:
         else:
             # A successful completion vs a non-429 failure is distinguished by score/error.
             if res.error:
-                provider_errors += 1
+                if error_kind == "metric":
+                    metric_errors += 1
+                else:
+                    provider_errors += 1
                 cells_error += 1
             else:
                 total_score += res.score or 0.0
@@ -477,6 +624,17 @@ async def run_experiment(experiment_id: str) -> None:
                     metric_totals[name] = metric_totals.get(name, 0.0) + metric_score
                 scored += 1
                 cells_done += 1
+
+    def _progress_metrics() -> dict:
+        """Live metrics for the running experiment (drives the UI's ETA)."""
+        runtime_now = time.perf_counter() - started
+        avg_ms = (runtime_now * 1000 / scored) if scored else None
+        metrics: dict = {}
+        if avg_ms is not None:
+            metrics["avg_ms_per_row"] = round(avg_ms, 1)
+        if scored:
+            metrics["accuracy"] = round(total_score / scored, 4)
+        return metrics
 
     is_free = model_is_free
     if is_free:
@@ -493,14 +651,19 @@ async def run_experiment(experiment_id: str) -> None:
         for i in range(0, len(rows), settings.free_model_concurrency):
             batch = rows[i : i + settings.free_model_concurrency]
             outcomes = await asyncio.gather(*(_guarded(r) for r in batch))
-            for res, is_rl, metric_scores in outcomes:
-                _merge(res, is_rl, metric_scores)
+            for res, is_rl, metric_scores, error_kind in outcomes:
+                _merge(res, is_rl, metric_scores, error_kind)
             processed += len(batch)
             # Report progress per batch (batch size == free_model_concurrency, well
             # under _PROGRESS_EVERY), so the UI bar advances without waiting
             # for a full _PROGRESS_EVERY worth of rows under concurrency.
             await _persist_progress(
-                experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
+                experiment_id,
+                processed,
+                len(rows),
+                cells_done=cells_done,
+                cells_error=cells_error,
+                metrics_update=_progress_metrics(),
             )
             if rate_limited:
                 break
@@ -512,6 +675,7 @@ async def run_experiment(experiment_id: str) -> None:
                     if current_exp and current_exp.status == "cancelled":
                         logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
                         await _mark_experiment_cancelled(experiment_id)
+                        await mark_done(experiment_id, status="cancelled")
                         return
             except Exception:  # noqa: BLE001
                 pass  # best-effort only — don't fail the run if check fails
@@ -519,12 +683,17 @@ async def run_experiment(experiment_id: str) -> None:
         # Non-free models: keep the original strict-serial behavior (rate safety is
         # handled by the task queue's eval_max_workers, not by in-run concurrency).
         for row in rows:
-            res, is_rl, metric_scores = await _process_row(row)
-            _merge(res, is_rl, metric_scores)
+            res, is_rl, metric_scores, error_kind = await _process_row(row)
+            _merge(res, is_rl, metric_scores, error_kind)
             processed += 1
             if processed % _PROGRESS_EVERY == 0:
                 await _persist_progress(
-                    experiment_id, processed, len(rows), cells_done=cells_done, cells_error=cells_error
+                    experiment_id,
+                    processed,
+                    len(rows),
+                    cells_done=cells_done,
+                    cells_error=cells_error,
+                    metrics_update=_progress_metrics(),
                 )
             if rate_limited:
                 break
@@ -536,6 +705,7 @@ async def run_experiment(experiment_id: str) -> None:
                     if current_exp and current_exp.status == "cancelled":
                         logger.info("experiment %s cancelled by user at row %d", experiment_id, processed)
                         await _mark_experiment_cancelled(experiment_id)
+                        await mark_done(experiment_id, status="cancelled")
                         return
             except Exception:  # noqa: BLE001
                 pass
@@ -545,7 +715,9 @@ async def run_experiment(experiment_id: str) -> None:
     avg_latency = (total_latency / scored) if scored else 0.0
     runtime_s = (time.perf_counter() - started) if scored > 0 else 0
     avg_ms_per_row = (runtime_s * 1000 / scored) if scored > 0 else 0
-    status = "failed" if rate_limited else ("partial" if provider_errors > 0 else "completed")
+    status = "failed" if rate_limited else (
+        "partial" if provider_errors + metric_errors > 0 else "completed"
+    )
     metrics_by_name = {
         name: metric_total / scored
         for name, metric_total in metric_totals.items()
@@ -559,9 +731,14 @@ async def run_experiment(experiment_id: str) -> None:
         "avg_latency_ms": round(avg_latency, 1),
         "avg_ms_per_row": round(avg_ms_per_row, 1),
         "rows_total": n,
+        "dataset_rows_total": len(rows),
         "rows_scored": scored,
         "rows_failed": n - scored,
+        "rows_unprocessed": len(rows) - processed,
+        "coverage": round(scored / len(rows), 4) if rows else 0.0,
+        "failure_rate": round((provider_errors + metric_errors) / len(rows), 4) if rows else 0.0,
         "provider_errors": provider_errors,
+        "metric_errors": metric_errors,
         "prompt_version": prompt_version,
     }
     runtime_ms = int((time.perf_counter() - started) * 1000)
@@ -602,9 +779,15 @@ async def run_experiment(experiment_id: str) -> None:
     # experiment stuck in 'running'.
     try:
         await with_retry_on_lock(_persist)
+        await mark_done(
+            experiment_id,
+            status="succeeded" if status in ("completed", "partial") else "failed",
+            error=rate_limited_msg or None,
+        )
     except Exception as exc:
         logger.exception("experiment %s persist failed", experiment_id)
         # Preserve the original diagnostic; a 'database is locked' failure is the
         # common case, but any other persist error (e.g. disk I/O) must keep its
         # own message so it stays debuggable in the UI.
         await _mark_failed(experiment_id, str(exc)[:500])
+        await mark_done(experiment_id, status="failed", error=str(exc)[:500])

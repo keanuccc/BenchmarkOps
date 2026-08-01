@@ -29,7 +29,7 @@ export function HealthBadge({ compact = false }: { compact?: boolean }) {
     return (
       <span
         className="rounded px-1.5 py-0.5 font-mono text-[10px]"
-        style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.75)" }}
+        style={{ background: "var(--ocd-surface-2)", color: "var(--ocd-text-muted)" }}
       >
         {error ? "offline" : health?.provider_mode ?? "mock"}
       </span>

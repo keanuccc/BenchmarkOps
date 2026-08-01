@@ -17,6 +17,7 @@ import {
   Modal,
   Spinner,
 } from "@/components/ui";
+import { PaginationBar } from "@/components/pagination";
 import { Library, Plus, Trash2 } from "lucide-react";
 
 export default function PromptsPage() {
@@ -24,6 +25,10 @@ export default function PromptsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMap, setProjectMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 20;
 
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -35,10 +40,18 @@ export default function PromptsPage() {
   async function refresh() {
     setLoading(true);
     try {
-      const [prs, ps] = await Promise.all([listPrompts(""), listProjects()]);
-      setItems(prs);
-      setProjects(ps);
-      setProjectMap(Object.fromEntries(ps.map((p) => [p.id, p.name])));
+      const [prs, ps] = await Promise.all([
+        listPrompts(undefined, {
+          q: search || undefined,
+          offset: (page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+        }),
+        listProjects(),
+      ]);
+      setItems(prs.items);
+      setTotal(prs.total);
+      setProjects(ps.items);
+      setProjectMap(Object.fromEntries(ps.items.map((p) => [p.id, p.name])));
     } finally {
       setLoading(false);
     }
@@ -46,7 +59,8 @@ export default function PromptsPage() {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search]);
 
   function openModal() {
     setName("");
@@ -80,16 +94,28 @@ export default function PromptsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">提示词库</h1>
           <p className="mt-1 text-sm text-[var(--ocd-text-muted)]">
             可复用的提示词模板,使用单花括号变量占位符。
           </p>
         </div>
-        <Button onClick={openModal}>
-          <Plus size={15} /> 新建提示词
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="搜索名称…"
+            className="h-10 w-48 rounded-xl border bg-[var(--ocd-bg)] px-3 text-sm text-[var(--ocd-text)]"
+            style={{ borderColor: "var(--ocd-border)" }}
+          />
+          <Button onClick={openModal}>
+            <Plus size={15} /> 新建提示词
+          </Button>
+        </div>
       </header>
 
       {loading ? (
@@ -143,6 +169,12 @@ export default function PromptsPage() {
               ))}
             </tbody>
           </table>
+          <PaginationBar
+            total={total}
+            page={page}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+          />
         </Card>
       )}
 

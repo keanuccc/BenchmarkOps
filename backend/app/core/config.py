@@ -57,11 +57,32 @@ class Settings(BaseSettings):
     eval_max_workers: int = 4
     eval_request_timeout: int = 60
 
+    # AI report generation: model id + optional provider for the LLM that writes
+    # reports. Empty model id falls back to the report service default; empty
+    # provider routes through the configured default gateway.
+    report_model_id: str = ""
+    report_provider: str = ""
+
     # Free-model throttle: cap in-flight rows per run. With Qiniu RPM=75, a concurrency
     # of 5 keeps batch fan-out moderate so the provider-layer token bucket can smooth
     # the send rate without tripping the upstream rate limiter.
     free_model_concurrency: int = 5
     free_model_rpm_cap: int = 300
+
+    # Task queue backend: "asyncio" (in-process, default) or "arq" (Redis-backed
+    # distributed queue consumed by `app.worker.WorkerSettings` workers).
+    task_queue_backend: str = "asyncio"
+
+    # ARQ / Redis settings (only used when task_queue_backend == "arq").
+    redis_dsn: str = "redis://localhost:6379/0"
+    # Max attempts per job: 2 = one initial attempt + one retry. ARQ only retries
+    # when the job function raises arq.Retry (wired to RetryableTaskError).
+    task_max_tries: int = 2
+    # Seconds to wait before retrying a transient (pre-billing) failure.
+    task_retry_after: int = 30
+    # Overall timeout for one job attempt; evaluation runs are long, so this is
+    # a safety valve rather than a working limit.
+    task_job_timeout: int = 86400
 
     # Dataset upload limits (resource-exhaustion protection)
     max_upload_bytes: int = 50 * 1024 * 1024  # 50 MB

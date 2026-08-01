@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import acquire_writer_lock, init_db
 from app.core.exceptions import register_exception_handlers
 from app.middleware import get_metrics_summary, setup_structured_logging
 
@@ -21,7 +21,7 @@ logger = logging.getLogger("benchmarkops")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[override]
-    # v1: create tables on startup. Later: Alembic migrations.
+    acquire_writer_lock()  # Ensure only one backend process writes to SQLite
     await init_db()
     # Recover any experiments stuck in "running" or "queued" from a previous crash.
     await _recover_stale_experiments()
@@ -35,24 +35,47 @@ async def _recover_stale_experiments() -> None:
     DB will have stale status entries. This function scans for them and marks
     them as failed with a diagnostic message so the UI can show the user that
     the run did not complete successfully.
+
+    With the ARQ backend this is intentionally skipped: the queue lives in Redis
+    and workers own the run lifecycle, so a backend restart must not fail jobs
+    that are still queued or being executed by a worker.
     """
+    if settings.task_queue_backend == "arq":
+        logger.info(
+            "task_queue_backend=arq: distributed workers own run recovery; "
+            "skipping stale-experiment marking"
+        )
+        return
+
     from app.core.database import AsyncSessionLocal
+    from app.evaluation.task_records import mark_failed_after_restart
     from app.repositories.experiment import ExperimentRepository
 
+    all_stale: list = []
     async with AsyncSessionLocal() as session:
         repo = ExperimentRepository(session)
         stale = await repo.list(filters={"status": "running"})
         queued = await repo.list(filters={"status": "queued"})
-        total = len(stale) + len(queued)
-        if total == 0:
+        all_stale = list(stale) + list(queued)
+        if not all_stale:
             return
-        logger.info("recovering %d stale experiment(s)", total)
-        for exp in list(stale) + list(queued):
-            await repo.update(exp, {
-                "status": "failed",
-                "error": f"Server shutdown during execution (was {'running' if exp.status == 'running' else 'queued'})",
-            })
+        logger.info("recovering %d stale experiment(s)", len(all_stale))
+        for exp in all_stale:
+            reason = (
+                "Server shutdown during execution "
+                f"(was {'running' if exp.status == 'running' else 'queued'})"
+            )
+            await repo.update(exp, {"status": "failed", "error": reason})
         await session.commit()
+
+    # Mark task records failed on isolated sessions AFTER the experiment
+    # transaction commits, so the two SQLite writers never contend.
+    for exp in all_stale:
+        reason = (
+            "Server shutdown during execution "
+            f"(was {'running' if exp.status == 'running' else 'queued'})"
+        )
+        await mark_failed_after_restart(exp.id, reason)
 
 
 def create_app() -> FastAPI:

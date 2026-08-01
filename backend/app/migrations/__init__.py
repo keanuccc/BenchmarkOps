@@ -41,6 +41,16 @@ MigrationFn = Callable[[sa.ext.asyncio.AsyncConnection], Awaitable[None]]
 MIGRATIONS: dict[int, MigrationFn] = {}
 
 
+async def _table_columns(conn, table_name: str) -> set[str]:  # type: ignore[no-untyped-def]
+    """Inspect columns through SQLAlchemy so migrations work on SQLite and PostgreSQL."""
+    return await conn.run_sync(
+        lambda sync_conn: {
+            column["name"]
+            for column in sa.inspect(sync_conn).get_columns(table_name)
+        }
+    )
+
+
 async def _upgrade_experiment_snapshot_and_metrics(conn) -> None:  # type: ignore[no-untyped-def]
     """Add experiment snapshot / progress / materialized-metric columns.
 
@@ -56,11 +66,7 @@ async def _upgrade_experiment_snapshot_and_metrics(conn) -> None:  # type: ignor
         "accuracy": "FLOAT NOT NULL DEFAULT 0.0",
         "avg_latency_ms": "FLOAT NOT NULL DEFAULT 0.0",
     }
-    existing = {
-        r[1]
-        for r in await conn.execute(sa.text("PRAGMA table_info(experiments)"))
-        if r and len(r) > 1
-    }
+    existing = await _table_columns(conn, "experiments")
     for col, dtype in cols.items():
         if col not in existing:
             await conn.execute(
@@ -82,11 +88,7 @@ async def _upgrade_experiment_progress_cells(conn) -> None:  # type: ignore[no-u
         "cells_done": "INTEGER NOT NULL DEFAULT 0",
         "cells_error": "INTEGER NOT NULL DEFAULT 0",
     }
-    existing = {
-        r[1]
-        for r in await conn.execute(sa.text("PRAGMA table_info(experiments)"))
-        if r and len(r) > 1
-    }
+    existing = await _table_columns(conn, "experiments")
     for col, dtype in cols.items():
         if col not in existing:
             await conn.execute(
@@ -104,11 +106,7 @@ async def _upgrade_experiment_result_diagnostics(conn) -> None:  # type: ignore[
         "expected_canonical": "TEXT",
         "score_reason": "TEXT",
     }
-    existing = {
-        r[1]
-        for r in await conn.execute(sa.text("PRAGMA table_info(experiment_results)"))
-        if r and len(r) > 1
-    }
+    existing = await _table_columns(conn, "experiment_results")
     for col, dtype in cols.items():
         if col not in existing:
             await conn.execute(
@@ -131,11 +129,7 @@ async def _upgrade_dataset_contract_columns(conn) -> None:  # type: ignore[no-un
         "import_errors": "JSON NOT NULL DEFAULT '[]'",
         "schema_version": "INTEGER NOT NULL DEFAULT 1",
     }
-    existing = {
-        r[1]
-        for r in await conn.execute(sa.text("PRAGMA table_info(datasets)"))
-        if r and len(r) > 1
-    }
+    existing = await _table_columns(conn, "datasets")
     for col, dtype in cols.items():
         if col not in existing:
             await conn.execute(sa.text(f"ALTER TABLE datasets ADD COLUMN {col} {dtype}"))
@@ -148,6 +142,55 @@ async def _upgrade_dataset_contract_columns(conn) -> None:  # type: ignore[no-un
 
 
 MIGRATIONS[13] = _upgrade_dataset_contract_columns
+
+
+async def _upgrade_experiment_dataset_snapshot(conn) -> None:  # type: ignore[no-untyped-def]
+    """Add the dataset answer-policy snapshot used by reproducible scoring."""
+    existing = await _table_columns(conn, "experiments")
+    if "dataset_snapshot" not in existing:
+        await conn.execute(
+            sa.text("ALTER TABLE experiments ADD COLUMN dataset_snapshot JSON")
+        )
+
+
+MIGRATIONS[14] = _upgrade_experiment_dataset_snapshot
+
+
+async def _upgrade_create_evaluation_tasks(conn) -> None:  # type: ignore[no-untyped-def]
+    """Create the evaluation_tasks table (task audit + startup recovery)."""
+    await conn.execute(
+        sa.text(
+            """
+            CREATE TABLE IF NOT EXISTS evaluation_tasks (
+                id VARCHAR(36) PRIMARY KEY,
+                experiment_id VARCHAR(36) NOT NULL,
+                action VARCHAR(20) NOT NULL DEFAULT 'run',
+                status VARCHAR(20) NOT NULL DEFAULT 'queued',
+                attempts INTEGER NOT NULL DEFAULT 1,
+                error TEXT,
+                started_at DATETIME,
+                finished_at DATETIME,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )
+            """
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_evaluation_tasks_experiment_id "
+            "ON evaluation_tasks (experiment_id)"
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX IF NOT EXISTS ix_evaluation_tasks_status "
+            "ON evaluation_tasks (status)"
+        )
+    )
+
+
+MIGRATIONS[15] = _upgrade_create_evaluation_tasks
 
 
 async def _ensure_version_table(conn: sa.ext.asyncio.AsyncConnection) -> None:
