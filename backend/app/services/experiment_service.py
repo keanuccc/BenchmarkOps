@@ -131,6 +131,16 @@ class ExperimentService:
             filters={"project_id": project_id, "status": status},
         )
 
+    async def count(
+        self,
+        *,
+        project_id: str | None = None,
+        status: str | None = None,
+    ) -> int:
+        return await self.experiments.count(
+            filters={"project_id": project_id, "status": status}
+        )
+
     async def update(self, experiment_id: str, data: ExperimentUpdate) -> Experiment:
         exp = await self.get(experiment_id)
         return await self.experiments.update(exp, data.model_dump(exclude_unset=True))

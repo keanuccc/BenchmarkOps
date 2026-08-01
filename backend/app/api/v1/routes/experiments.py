@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.core.exceptions import ConflictError
 from app.core.security import require_auth
 from app.evaluation.task_queue import task_queue
+from app.schemas.common import ListResponse
 from app.schemas.experiment import (
     ExperimentCreate,
     ExperimentRecomputeReport,
@@ -39,7 +40,7 @@ async def create_experiment(
     return await service.create(payload)
 
 
-@router.get("/", response_model=list[ExperimentRead])
+@router.get("/", response_model=ListResponse[ExperimentRead])
 async def list_experiments(
     project_id: str | None = None,
     status: str | None = None,
@@ -47,9 +48,11 @@ async def list_experiments(
     limit: int = 100,
     service: ExperimentService = Depends(get_experiment_service),
 ):
-    return await service.list(
+    items = await service.list(
         project_id=project_id, status=status, offset=offset, limit=limit
     )
+    total = await service.count(project_id=project_id, status=status)
+    return ListResponse[ExperimentRead](items=items, total=total)
 
 
 @router.get("/{experiment_id}", response_model=ExperimentRead)

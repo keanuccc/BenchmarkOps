@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.schemas.report import ReportGenerateRequest, ReportRead
 from app.services.report_service import ReportService, get_report_service
 
@@ -22,14 +23,16 @@ async def generate_report(
     return await service.generate(payload)
 
 
-@router.get("/", response_model=list[ReportRead])
+@router.get("/", response_model=ListResponse[ReportRead])
 async def list_reports(
     project_id: str,
     offset: int = 0,
     limit: int = 100,
     service: ReportService = Depends(get_report_service),
 ):
-    return await service.list(project_id, offset=offset, limit=limit)
+    items = await service.list(project_id, offset=offset, limit=limit)
+    total = await service.count(project_id)
+    return ListResponse[ReportRead](items=items, total=total)
 
 
 @router.get("/{report_id}", response_model=ReportRead)

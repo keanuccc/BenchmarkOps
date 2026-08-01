@@ -128,7 +128,7 @@ def test_models_presets_and_catalog(client):
 def test_models_seed_list_get_update(client):
     seeded = client.post("/api/v1/models/seed").json()["seeded"]
     assert seeded == 8
-    models = client.get("/api/v1/models/").json()
+    models = client.get("/api/v1/models/").json()["items"]
     assert len(models) >= 8
     assert client.get(f"/api/v1/models/{models[0]['id']}").status_code == 200
 
@@ -146,14 +146,14 @@ def test_models_seed_list_get_update(client):
 
 
 def test_models_provider_filter(client, free_model):
-    ten = client.get("/api/v1/models/", params={"provider": "tencent"}).json()
+    ten = client.get("/api/v1/models/", params={"provider": "tencent"}).json()["items"]
     assert any(m["model_id"] == FREE_MODEL for m in ten)
 
 
 # ----------------------------- Projects -----------------------------
 def test_projects_crud(client):
     pid = client.post("/api/v1/projects/", json={"name": "P"}).json()["id"]
-    assert any(p["id"] == pid for p in client.get("/api/v1/projects/").json())
+    assert any(p["id"] == pid for p in client.get("/api/v1/projects/").json()["items"])
     assert client.get(f"/api/v1/projects/{pid}").status_code == 200
     assert client.patch(f"/api/v1/projects/{pid}", json={"description": "d"}).json()["description"] == "d"
     arch = client.post(f"/api/v1/projects/{pid}/archive").json()
@@ -193,7 +193,7 @@ def test_benchmarks_crud(client, project_and_parts):
     pid = project_and_parts["project_id"]
     assert "metrics" in client.get("/api/v1/benchmarks/metrics/available").json()
     bmid = project_and_parts["benchmark_id"]
-    assert any(b["id"] == bmid for b in client.get("/api/v1/benchmarks/", params={"project_id": pid}).json())
+    assert any(b["id"] == bmid for b in client.get("/api/v1/benchmarks/", params={"project_id": pid}).json()["items"])
     assert client.get(f"/api/v1/benchmarks/{bmid}").status_code == 200
     assert client.patch(f"/api/v1/benchmarks/{bmid}", json={"description": "e"}).status_code == 200
 
@@ -217,7 +217,7 @@ def evaluated_experiments(client, project_and_parts, free_model):
     assert client.get(f"/api/v1/experiments/{eid}").status_code == 200
     assert any(
         e["id"] == eid
-        for e in client.get("/api/v1/experiments/", params={"project_id": project_and_parts["project_id"]}).json()
+        for e in client.get("/api/v1/experiments/", params={"project_id": project_and_parts["project_id"]}).json()["items"]
     )
 
     # run on the REAL free model
@@ -281,7 +281,7 @@ def test_reports_generate_list_export(client, project_and_parts, free_model, eva
     assert rep["title"] == "E2E Report"
     rid = rep["id"]
 
-    assert any(r["id"] == rid for r in client.get("/api/v1/reports/", params={"project_id": pid}).json())
+    assert any(r["id"] == rid for r in client.get("/api/v1/reports/", params={"project_id": pid}).json()["items"])
     assert client.get(f"/api/v1/reports/{rid}").status_code == 200
     exp = client.get(f"/api/v1/reports/{rid}/export")
     assert "text/markdown" in exp.headers.get("content-type", "")

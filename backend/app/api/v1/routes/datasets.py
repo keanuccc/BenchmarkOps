@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from app.core.config import settings
 from app.core.exceptions import ValidationError
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.models.dataset import Dataset, DatasetRow
 from app.schemas.dataset import DatasetRead, DatasetRowRead, DatasetUpdate
 from app.services.dataset_parser import parse_dataset
@@ -90,14 +91,16 @@ async def upload_dataset(
     )
 
 
-@router.get("/", response_model=list[DatasetRead])
+@router.get("/", response_model=ListResponse[DatasetRead])
 async def list_datasets(
     project_id: str | None = Query(None),
     offset: int = Query(0),
     limit: int = Query(100),
     service: DatasetService = Depends(get_dataset_service),
-) -> Sequence[Dataset]:
-    return await service.list(project_id=project_id, offset=offset, limit=limit)
+) -> ListResponse[DatasetRead]:
+    items = await service.list(project_id=project_id, offset=offset, limit=limit)
+    total = await service.count(project_id=project_id)
+    return ListResponse[DatasetRead](items=items, total=total)
 
 
 @router.get("/{dataset_id}", response_model=DatasetRead)

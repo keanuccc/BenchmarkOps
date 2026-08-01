@@ -130,6 +130,9 @@ class DatasetService:
         filters = {"project_id": project_id}
         return await self.datasets.list(offset=offset, limit=limit, filters=filters)
 
+    async def count(self, *, project_id: str | None = None) -> int:
+        return await self.datasets.count(filters={"project_id": project_id})
+
     async def update(self, dataset_id: str, data: DatasetUpdate) -> Dataset:
         dataset = await self.get(dataset_id)
         payload = data.model_dump(exclude_unset=True)

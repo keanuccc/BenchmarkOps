@@ -119,6 +119,9 @@ class ReportService:
             offset=offset, limit=limit, filters={"project_id": project_id}
         )
 
+    async def count(self, project_id: str) -> int:
+        return await self.reports.count(filters={"project_id": project_id})
+
     async def delete(self, report_id: str) -> None:
         report = await self.get(report_id)
         await self.reports.delete(report)

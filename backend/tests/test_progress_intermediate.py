@@ -42,7 +42,7 @@ def patched_slow(monkeypatch):
 
 def _build_experiment(client):
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    models = client.get("/api/v1/models/").json()
+    models = client.get("/api/v1/models/").json()["items"]
     model_pk = models[0]["id"]
     pid = client.post("/api/v1/projects/", json={"name": "NL"}).json()["id"]
     b = client.post(

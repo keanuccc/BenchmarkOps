@@ -37,7 +37,7 @@ def force_prefix_noise_provider(monkeypatch):
 def test_prefix_noise_does_not_break_scoring(client):
     """Even when the mock prepends prefix, the runner must still score 1.0."""
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    models = client.get("/api/v1/models/").json()
+    models = client.get("/api/v1/models/").json()["items"]
     assert models
     model_pk = models[0]["id"]
 

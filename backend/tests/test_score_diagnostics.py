@@ -35,7 +35,7 @@ def noisy_provider(monkeypatch):
 
 def _create_short_answer_experiment(client, answer: str = "亚洲") -> str:
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    model_pk = client.get("/api/v1/models/").json()[0]["id"]
+    model_pk = client.get("/api/v1/models/").json()["items"][0]["id"]
     pid = client.post("/api/v1/projects/", json={"name": "diagnostics"}).json()["id"]
     benchmark = client.post(
         "/api/v1/benchmarks/",

@@ -123,6 +123,16 @@ class ModelService:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def count(
+        self,
+        *,
+        provider: str | None = None,
+        is_active: bool | None = None,
+    ) -> int:
+        return await self.repo.count(
+            filters={"provider": provider, "is_active": is_active}
+        )
+
     async def update(self, model_pk: str, data: ModelUpdate) -> Model:
         obj = await self.get(model_pk)
         payload = data.model_dump(exclude_unset=True)

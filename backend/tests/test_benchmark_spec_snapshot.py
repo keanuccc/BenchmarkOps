@@ -18,7 +18,7 @@ def force_mock_provider(monkeypatch):
 
 def _create_project_model(client) -> tuple[str, str]:
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    model_id = client.get("/api/v1/models/").json()[0]["id"]
+    model_id = client.get("/api/v1/models/").json()["items"][0]["id"]
     project_id = client.post("/api/v1/projects/", json={"name": "BenchmarkSpec"}).json()["id"]
     return project_id, model_id
 

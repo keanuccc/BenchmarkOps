@@ -210,7 +210,7 @@ def test_runner_applies_dataset_answer_policy(client, monkeypatch) -> None:
 
     monkeypatch.setattr("app.evaluation.runner.get_provider", lambda name=None: AliasProvider())
     assert client.post("/api/v1/models/seed").status_code in (200, 201)
-    model_id = client.get("/api/v1/models/").json()[0]["id"]
+    model_id = client.get("/api/v1/models/").json()["items"][0]["id"]
     project_id = client.post("/api/v1/projects/", json={"name": "PolicyRun"}).json()["id"]
     benchmark_id = client.post(
         "/api/v1/benchmarks/",

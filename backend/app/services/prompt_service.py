@@ -58,6 +58,9 @@ class PromptService:
         filters = {"project_id": project_id}
         return await self.prompts.list(offset=offset, limit=limit, filters=filters)
 
+    async def count(self, *, project_id: str | None = None) -> int:
+        return await self.prompts.count(filters={"project_id": project_id})
+
     async def update(self, prompt_id: str, data: PromptUpdate) -> Prompt:
         prompt = await self.get(prompt_id)
         payload = data.model_dump(exclude_unset=True)

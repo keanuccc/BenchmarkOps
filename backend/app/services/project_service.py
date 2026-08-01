@@ -1,7 +1,7 @@
 """Project service — business logic for the Project module."""
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.database import get_session
 from app.core.exceptions import NotFoundError
@@ -45,6 +45,20 @@ class ProjectService:
         stmt = stmt.offset(offset).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def count(
+        self,
+        *,
+        status: str | None = None,
+        q: str | None = None,
+    ) -> int:
+        stmt = select(func.count()).select_from(Project)
+        if status:
+            stmt = stmt.where(Project.status == status)
+        if q:
+            stmt = stmt.where(Project.name.ilike(f"%{q}%"))
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
 
     async def update(self, project_id: str, data: ProjectUpdate) -> Project:
         obj = await self.get(project_id)

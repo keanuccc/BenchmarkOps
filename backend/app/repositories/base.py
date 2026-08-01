@@ -51,7 +51,7 @@ class BaseRepository(Generic[ModelT]):
         stmt = select(func.count()).select_from(self.model)
         if filters:
             for field, value in filters.items():
-                if value is not None:
+                if value:
                     stmt = stmt.where(getattr(self.model, field) == value)
         result = await self.session.execute(stmt)
         return int(result.scalar_one())

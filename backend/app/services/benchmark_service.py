@@ -118,6 +118,16 @@ class BenchmarkService:
             )
         )
 
+    async def count(
+        self,
+        *,
+        project_id: str | None = None,
+        type: str | None = None,
+    ) -> int:
+        return await self.repo.count(
+            filters={"project_id": project_id, "type": type}
+        )
+
     async def update(self, benchmark_id: str, data: BenchmarkUpdate) -> Benchmark:
         obj = await self.get(benchmark_id)
         payload = data.model_dump(exclude_unset=True)

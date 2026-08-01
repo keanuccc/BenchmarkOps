@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
 from app.core.security import require_auth
+from app.schemas.common import ListResponse
 from app.schemas.prompt import PromptCreate, PromptRead, PromptUpdate
 from app.services.prompt_service import PromptService, get_prompt_service
 
@@ -28,14 +29,16 @@ async def create_prompt(
     )
 
 
-@router.get("/", response_model=list[PromptRead])
+@router.get("/", response_model=ListResponse[PromptRead])
 async def list_prompts(
     project_id: str | None = Query(None),
     offset: int = Query(0),
     limit: int = Query(100),
     service: PromptService = Depends(get_prompt_service),
-) -> Sequence[Prompt]:
-    return await service.list(project_id=project_id, offset=offset, limit=limit)
+) -> ListResponse[PromptRead]:
+    items = await service.list(project_id=project_id, offset=offset, limit=limit)
+    total = await service.count(project_id=project_id)
+    return ListResponse[PromptRead](items=items, total=total)
 
 
 @router.get("/{prompt_id}", response_model=PromptRead)
