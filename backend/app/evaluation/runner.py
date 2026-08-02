@@ -331,6 +331,76 @@ def _render_prompt(template: str, variables: list[str], row_input: dict) -> str:
         return f"{template}\n\n{joined}"
 
 
+_CHAT_ROLES = ("system", "user", "assistant")
+_EXPECTED_ANSWER_KEYS = ("answer", "expected", "label", "output", "target", "ground_truth")
+_STRUCTURED_KEYS = ("messages", "examples")
+
+
+def _render_examples(examples: list) -> str:
+    """Render few-shot examples as Q/A blocks (strings pass through verbatim)."""
+    blocks: list[str] = []
+    for item in examples:
+        if isinstance(item, str):
+            blocks.append(item)
+        elif isinstance(item, dict) and item:
+            answer_keys = [key for key in _EXPECTED_ANSWER_KEYS if key in item]
+            if answer_keys:
+                answer_key = answer_keys[0]
+                question_lines = [f"Q: {item[k]}" for k in item if k != answer_key]
+                blocks.append("\n".join(question_lines + [f"A: {item[answer_key]}"]))
+            else:
+                blocks.append("\n".join(f"Q: {v}" for v in item.values()))
+        else:
+            raise ValueError(f"invalid example: {item!r}")
+    return "\n\n".join(blocks)
+
+
+def _build_messages(
+    template: str,
+    variables: list[str],
+    row_input: dict,
+    *,
+    structured_chat: bool,
+) -> list[ChatMessage]:
+    """Assemble the chat message chain for one dataset row.
+
+    With structured chat enabled, ``messages`` becomes the conversation history
+    and ``examples`` is rendered into the final user turn. Without it the row is
+    rendered exactly as before (single user message).
+    """
+    if not structured_chat:
+        return [ChatMessage(role="user", content=_render_prompt(template, variables, row_input))]
+
+    history: list[ChatMessage] = []
+    messages = row_input.get("messages")
+    if messages is not None:
+        if not isinstance(messages, list):
+            raise ValueError("'messages' must be a list of {role, content} objects")
+        for i, item in enumerate(messages):
+            valid = (
+                isinstance(item, dict)
+                and item.get("role") in _CHAT_ROLES
+                and isinstance(item.get("content"), str)
+            )
+            if not valid:
+                raise ValueError(
+                    f"messages[{i}] must be {{role: system|user|assistant, content: str}}"
+                )
+            history.append(ChatMessage(role=item["role"], content=item["content"]))
+
+    ctx = {k: v for k, v in row_input.items() if k not in _STRUCTURED_KEYS}
+    few_shot = ""
+    examples = row_input.get("examples")
+    if examples is not None:
+        if not isinstance(examples, list):
+            raise ValueError("'examples' must be a list")
+        few_shot = _render_examples(examples)
+    rendered = _render_prompt(template, variables, ctx)
+    final_text = f"{few_shot}\n\n{rendered}".strip() if few_shot else rendered
+    history.append(ChatMessage(role="user", content=final_text))
+    return history
+
+
 def _cost(pricing: dict, prompt_tokens: int, completion_tokens: int) -> float:
     """Compute cost from per-1k pricing. Returns 0.0 when no pricing info is available."""
     try:
@@ -493,10 +563,12 @@ async def _run_experiment(experiment_id: str) -> None:
         dsnap = experiment.dataset_snapshot
         if dsnap:
             answer_policy = dsnap.get("answer_policy", {}) or {}
+            structured_chat = bool(dsnap.get("structured_chat", False))
         else:
             dataset = await load_session.get(Dataset, experiment.dataset_id)
             contract = dataset.contract if dataset is not None else {}
             answer_policy = (contract or {}).get("answer_policy", {}) or {}
+            structured_chat = bool((contract or {}).get("structured_chat", False))
 
         msnap = experiment.model_snapshot
         if msnap:
@@ -559,9 +631,24 @@ async def _run_experiment(experiment_id: str) -> None:
         result object. Returns (ExperimentResult, is_rate_limited). Pure per-row work;
         callers merge the returned object into shared accumulators after gather so the
         concurrent phase never touches shared state across an await point."""
-        rendered = _render_prompt(template, variables, row.input)
+        try:
+            messages = _build_messages(
+                template, variables, row.input, structured_chat=structured_chat
+            )
+        except (TypeError, ValueError) as exc:
+            res = ExperimentResult(
+                experiment_id=experiment_id,
+                row_idx=row.idx,
+                input=row.input,
+                expected=row.expected,
+                output="",
+                score=0.0,
+                error=f"invalid_chat_structure: {exc}"[:500],
+            )
+            return res, False, {}, "provider"
         if context_length is not None:
-            estimated = _estimate_tokens(rendered) + int(max_tokens or 0)
+            estimated_prompt = "\n".join(m.content for m in messages)
+            estimated = _estimate_tokens(estimated_prompt) + int(max_tokens or 0)
             if estimated > context_length:
                 res = ExperimentResult(
                     experiment_id=experiment_id,
@@ -578,7 +665,7 @@ async def _run_experiment(experiment_id: str) -> None:
                 return res, False, {}, "provider"
         req = CompletionRequest(
             model_id=model_ref,
-            messages=[ChatMessage(role="user", content=rendered)],
+            messages=messages,
             temperature=temperature,
             max_tokens=max_tokens,
             is_free=model_is_free,

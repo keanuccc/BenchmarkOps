@@ -15,6 +15,7 @@ class DatasetContract(BaseModel):
     field_types: dict = Field(default_factory=dict)
     answer_policy: dict = Field(default_factory=dict)
     sensitive_fields: list[str] = Field(default_factory=list)
+    structured_chat: bool = False
     schema_version: int = 1
 
 

@@ -54,6 +54,7 @@ async def upload_dataset(
     answer_policy: str | None = Form(None),
     contract: str | None = Form(None),
     sensitive_fields: str | None = Form(None),
+    structured_chat: str | None = Form(None),
     file: UploadFile = File(...),
     service: DatasetService = Depends(get_dataset_service),
     _: None = Depends(require_auth),
@@ -104,6 +105,7 @@ async def upload_dataset(
         answer_policy=answer_policy,
         contract=contract,
         sensitive_fields=sensitive_fields,
+        structured_chat=structured_chat,
         source_filename=file.filename,
     )
 
@@ -123,6 +125,7 @@ async def import_dataset(
     answer_policy: str | None = Form(None),
     contract: str | None = Form(None),
     sensitive_fields: str | None = Form(None),
+    structured_chat: str | None = Form(None),
     file: UploadFile = File(...),
     _: None = Depends(require_auth),
 ) -> ImportJobRead:
@@ -166,6 +169,7 @@ async def import_dataset(
         answer_policy=answer_policy,
         contract=contract,
         sensitive_fields=sensitive_fields,
+        structured_chat=structured_chat,
     )
 
 
@@ -380,6 +384,7 @@ async def upload_dataset_version(
     answer_policy: str | None = Form(None),
     contract: str | None = Form(None),
     sensitive_fields: str | None = Form(None),
+    structured_chat: str | None = Form(None),
     service: DatasetService = Depends(get_dataset_service),
     _: None = Depends(require_auth),
 ) -> DatasetVersion:
@@ -421,6 +426,7 @@ async def upload_dataset_version(
         answer_policy=answer_policy,
         contract=contract,
         sensitive_fields=sensitive_fields,
+        structured_chat=structured_chat,
         source_filename=file.filename,
     )
 

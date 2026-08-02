@@ -63,6 +63,7 @@ async def create_import_job(
     answer_policy: Any = None,
     contract: Any = None,
     sensitive_fields: Any = None,
+    structured_chat: Any = None,
 ) -> ImportJob:
     """Create a queued import job (committed) or return an existing idempotent one."""
     import hashlib
@@ -104,6 +105,7 @@ async def create_import_job(
             answer_policy=answer_policy,
             contract=contract,
             sensitive_fields=sensitive_fields,
+            structured_chat=structured_chat,
         )
     )
     return job

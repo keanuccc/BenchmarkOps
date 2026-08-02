@@ -233,6 +233,7 @@ npm run build               # Next.js 生产构建
 - **空行处理**：JSONL 中空行会被跳过；纯空白字符串视为空值（影响必填校验和空值统计）。
 - **必填字段校验**：可通过 `required_fields` 配置哪些列不能为空；`field_types` 可声明字段类型（string / number / integer / boolean / array / object / json），导入时逐行校验，行级错误会返回（异步任务记录在 `error_rows`）。
 - **嵌套字段**：提示词模板变量支持路径寻址，如 `{user.address.city}`、`{items.0}`；dict/list 值会以 JSON 序列化渲染。
+- **多轮对话与少样本（few-shot）**：上传时勾选/声明 `structured_chat=true` 后，行内的 `messages` 字段（`[{role, content}]` 对话历史）会成为消息链，`examples` 字段（对象或字符串数组）会渲染为 `Q/A` 示例拼进最终问题；未开启时这两个字段按普通输入列处理，旧数据零影响。
 - **版本管理**：数据集不可原地修改，可通过 `POST /datasets/{id}/versions` 创建替换/追加版本，`POST /datasets/{id}/versions/{v}/activate` 回滚激活；实验创建时快照数据集版本，保证结果可复现。
 - **敏感字段**：上传时可声明 `sensitive_fields`（如 `["email"]`），预览接口会以 `[REDACTED]` 脱敏显示；实验详情的结果接口支持 `?mask_sensitive=true` 按数据集声明脱敏（前端有"脱敏显示"开关）。
 - **审计**：数据集的创建、版本、激活、归档、删除、导入均记录审计事件，可通过 `GET /datasets/{id}/audit` 查询。

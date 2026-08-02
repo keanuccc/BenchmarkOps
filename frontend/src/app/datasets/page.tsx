@@ -74,6 +74,7 @@ export default function DatasetsPage() {
   const [versionSubmitting, setVersionSubmitting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importJob, setImportJob] = useState<ImportJob | null>(null);
+  const [structuredChat, setStructuredChat] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -107,6 +108,7 @@ export default function DatasetsPage() {
     setProjectId(projects[0]?.id ?? "");
     setImportError(null);
     setImportJob(null);
+    setStructuredChat(false);
     setUploadOpen(true);
   }
 
@@ -120,6 +122,7 @@ export default function DatasetsPage() {
       form.append("file", file);
       form.append("project_id", projectId);
       if (name) form.append("name", name);
+      if (structuredChat) form.append("structured_chat", "true");
       const job = await importDataset(form);
       setImportJob(job);
       const finished = await waitForImport(job.id, { onProgress: setImportJob });
@@ -404,6 +407,15 @@ export default function DatasetsPage() {
               rows={3}
             />
           </Field>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ocd-text)]">
+            <input
+              type="checkbox"
+              checked={structuredChat}
+              onChange={(e) => setStructuredChat(e.target.checked)}
+            />
+            结构化对话（启用 messages 对话历史与 examples 少样本示例）
+          </label>
 
           {importJob &&
             (importJob.status === "queued" || importJob.status === "running") && (

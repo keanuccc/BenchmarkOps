@@ -95,6 +95,7 @@ class ExperimentService:
             "schema_version": dataset.schema_version,
             "dataset_version": dataset.version,
             "sensitive_fields": (contract.get("sensitive_fields", []) or []),
+            "structured_chat": bool(contract.get("structured_chat", False)),
             "answer_policy": contract.get("answer_policy", {}) or {},
         }
 

@@ -1,0 +1,3 @@
+{"question":"把这句话翻译成英文：你好","answer":"Hello","messages":[{"role":"user","content":"接下来我会给你一些翻译任务"},{"role":"assistant","content":"好的，请发给我"}],"examples":[{"question":"把这句话翻译成英文：谢谢","answer":"Thank you"},{"question":"把这句话翻译成英文：再见","answer":"Goodbye"}]}
+{"question":"把这句话翻译成英文：早上好","answer":"Good morning","messages":[{"role":"user","content":"继续翻译任务"},{"role":"assistant","content":"好的"}]}
+{"question":"2+2?","answer":"4"}

@@ -119,6 +119,7 @@ class DatasetService:
         answer_policy: Any = None,
         contract: Any = None,
         sensitive_fields: Any = None,
+        structured_chat: Any = None,
         source_filename: str | None = None,
         on_progress: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> Dataset:
@@ -138,6 +139,7 @@ class DatasetService:
             answer_policy=answer_policy,
             contract=contract,
             sensitive_fields=sensitive_fields,
+            structured_chat=structured_chat,
         )
         import_errors = collect_import_errors(raw_rows, dataset_contract)
         if import_errors:
@@ -224,9 +226,14 @@ class DatasetService:
         answer_policy: Any = None,
         contract: Any = None,
         sensitive_fields: Any = None,
+        structured_chat: Any = None,
         source_filename: str | None = None,
     ) -> DatasetVersion:
         dataset = await self.get(dataset_id)
+        if structured_chat is None:
+            structured_chat = bool(
+                (dataset.contract or {}).get("structured_chat", False)
+            )
         if mode not in ("replace", "append"):
             raise ValidationError(f"Unsupported version mode: {mode!r}")
         raw_rows = parse_dataset(raw_bytes, fmt)
@@ -243,6 +250,7 @@ class DatasetService:
             answer_policy=answer_policy,
             contract=contract,
             sensitive_fields=sensitive_fields,
+            structured_chat=structured_chat,
         )
         import_errors = collect_import_errors(raw_rows, dataset_contract)
         if import_errors:

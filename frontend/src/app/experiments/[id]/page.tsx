@@ -27,6 +27,14 @@ import {
 } from "@/components/ui";
 import { Play, RefreshCw, Copy, Trash2, ArrowLeft, Square } from "lucide-react";
 
+function formatResultInput(input: Record<string, unknown>): string {
+  const { messages, ...rest } = input;
+  const parts: string[] = [];
+  if (Array.isArray(messages)) parts.push(`messages: ${messages.length} 条`);
+  if (Object.keys(rest).length > 0) parts.push(JSON.stringify(rest));
+  return parts.length ? parts.join(" · ") : "{}";
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-4">
@@ -365,7 +373,9 @@ export default function ExperimentDetailPage() {
                   >
                     <td className="px-3 py-2 text-[var(--ocd-text-muted)]">{r.row_idx}</td>
                     <td className="px-3 py-2 font-mono text-[var(--ocd-text)]">
-                      {JSON.stringify(r.input)}
+                      <span title={JSON.stringify(r.input)}>
+                        {formatResultInput(r.input)}
+                      </span>
                     </td>
                     <td className="px-3 py-2 font-mono text-[var(--ocd-text-muted)]">
                       {r.expected ? JSON.stringify(r.expected) : "—"}

@@ -79,6 +79,7 @@ export function DatasetsTab({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [importProgress, setImportProgress] = useState<string | null>(null);
+  const [structuredChat, setStructuredChat] = useState(false);
   const [uploadPreview, setUploadPreview] = useState<DatasetRow[] | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [serverPreview, setServerPreview] = useState<DatasetPreviewRaw | null>(null);
@@ -121,6 +122,7 @@ export function DatasetsTab({
     form.set("name", name);
     form.set("format", format);
     form.set("file", file);
+    if (structuredChat) form.set("structured_chat", "true");
     try {
       const job = await importDataset(form);
       const finished = await waitForImport(job.id, {
@@ -283,6 +285,14 @@ export function DatasetsTab({
               className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             />
           </div>
+          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={structuredChat}
+              onChange={(e) => setStructuredChat(e.target.checked)}
+            />
+            多轮/少样本 (messages, examples)
+          </label>
           <div>
             <label className="block text-xs font-medium text-slate-500">格式</label>
             <select

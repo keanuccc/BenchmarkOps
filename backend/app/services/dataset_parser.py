@@ -10,6 +10,7 @@ from app.core.exceptions import ValidationError
 
 _EXPECTED_KEYS = ("expected", "answer", "label", "output", "target", "ground_truth")
 _SUPPORTED = ("csv", "tsv", "json", "jsonl", "xlsx")
+_CHAT_ROLES = ("system", "user", "assistant")
 
 _TYPE_ALIASES = {
     "string": "string",
@@ -218,6 +219,7 @@ def build_dataset_contract(
     answer_policy: Any = None,
     contract: Any = None,
     sensitive_fields: Any = None,
+    structured_chat: Any = None,
 ) -> dict:
     """Build a lightweight dataset contract for import and validation."""
     payload = _json_object(contract, "contract")
@@ -246,6 +248,18 @@ def build_dataset_contract(
         if sensitive_fields is not None
         else payload.get("sensitive_fields")
     )
+    if structured_chat is not None:
+        if isinstance(structured_chat, str):
+            normalized_chat = structured_chat.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            normalized_chat = bool(structured_chat)
+    else:
+        raw_chat = payload.get("structured_chat", False)
+        normalized_chat = (
+            raw_chat.strip().lower() in ("1", "true", "yes", "on")
+            if isinstance(raw_chat, str)
+            else bool(raw_chat)
+        )
 
     if not mapped_expected:
         for key in _EXPECTED_KEYS:
@@ -299,6 +313,7 @@ def build_dataset_contract(
             "answer_policy",
         ),
         "sensitive_fields": mapped_sensitive,
+        "structured_chat": normalized_chat,
     }
     normalized["field_mapping"] = {
         "input_fields": normalized["input_fields"],
@@ -430,10 +445,71 @@ def collect_field_type_errors(rows: list[dict], contract: dict) -> list[dict]:
     return errors
 
 
+def collect_chat_structure_errors(rows: list[dict], contract: dict) -> list[dict]:
+    """Validate multi-turn messages / few-shot examples when structured chat is on."""
+    if not contract.get("structured_chat"):
+        return []
+    errors: list[dict] = []
+    for i, row in enumerate(rows):
+        messages = row.get("messages")
+        if messages is not None:
+            if not isinstance(messages, list):
+                errors.append(
+                    {
+                        "row": i,
+                        "field": "messages",
+                        "message": f"Row {i}: 'messages' must be a list",
+                    }
+                )
+            else:
+                for j, item in enumerate(messages):
+                    valid = (
+                        isinstance(item, dict)
+                        and item.get("role") in _CHAT_ROLES
+                        and isinstance(item.get("content"), str)
+                    )
+                    if not valid:
+                        errors.append(
+                            {
+                                "row": i,
+                                "field": "messages",
+                                "message": (
+                                    f"Row {i}: messages[{j}] must be "
+                                    "{role: system|user|assistant, content: str}"
+                                ),
+                            }
+                        )
+        examples = row.get("examples")
+        if examples is not None:
+            if not isinstance(examples, list):
+                errors.append(
+                    {
+                        "row": i,
+                        "field": "examples",
+                        "message": f"Row {i}: 'examples' must be a list",
+                    }
+                )
+            else:
+                for j, item in enumerate(examples):
+                    if not isinstance(item, (str, dict)):
+                        errors.append(
+                            {
+                                "row": i,
+                                "field": "examples",
+                                "message": (
+                                    f"Row {i}: examples[{j}] must be a string or object"
+                                ),
+                            }
+                        )
+    return errors
+
+
 def collect_import_errors(rows: list[dict], contract: dict) -> list[dict]:
     """All row-level import errors: required fields first, then type mismatches."""
-    return collect_required_field_errors(rows, contract) + collect_field_type_errors(
-        rows, contract
+    return (
+        collect_required_field_errors(rows, contract)
+        + collect_field_type_errors(rows, contract)
+        + collect_chat_structure_errors(rows, contract)
     )
 
 
