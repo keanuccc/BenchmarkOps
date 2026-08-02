@@ -255,7 +255,13 @@ export default function ModelsPage() {
       setSelectedIds(new Set());
       setConfirm(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      const message = err instanceof Error ? err.message : "删除失败";
+      const match = message.match(/referenced by (\d+) experiment/);
+      setError(
+        match
+          ? `该模型被 ${match[1]} 个实验引用，无法删除。请先删除引用它的实验，再回来删除模型。`
+          : message,
+      );
     } finally {
       setDeleting(false);
     }

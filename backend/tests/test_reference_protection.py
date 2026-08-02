@@ -57,6 +57,14 @@ def test_referenced_model_cannot_be_deleted(client):
     r = client.delete(f"/api/v1/models/{c['model_id']}")
     assert r.status_code == 409
     assert "referenced" in r.json()["error"]["message"]
+    assert "Model '" in r.json()["error"]["message"]
+
+
+def test_bulk_delete_referenced_model_reports_name(client):
+    c = _build_components(client)
+    r = client.request("DELETE", "/api/v1/models/bulk", json={"ids": [c["model_id"]]})
+    assert r.status_code == 409
+    assert "Model '" in r.json()["error"]["message"]
 
 
 def test_referenced_dataset_cannot_be_deleted(client):

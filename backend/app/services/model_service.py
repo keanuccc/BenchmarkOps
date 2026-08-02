@@ -178,7 +178,7 @@ class ModelService:
         )
         if references:
             raise ConflictError(
-                f"Model is referenced by {references} experiment(s); "
+                f"Model '{obj.name}' is referenced by {references} experiment(s); "
                 "delete those experiments first"
             )
         await self.repo.delete(obj)
@@ -195,8 +195,10 @@ class ModelService:
                 model_id=model_pk
             )
             if references:
+                model = await self.repo.get(model_pk)
+                label = model.name if model is not None else model_pk
                 raise ConflictError(
-                    f"Model {model_pk} is referenced by {references} experiment(s); "
+                    f"Model '{label}' is referenced by {references} experiment(s); "
                     "delete those experiments first"
                 )
         return await self.repo.delete_many(ids)
