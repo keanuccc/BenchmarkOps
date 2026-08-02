@@ -1,3 +1,9 @@
+<div align="right">
+
+[English](README.en.md) | **简体中文**
+
+</div>
+
 # BenchmarkOps
 
 <div align="center">
