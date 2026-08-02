@@ -27,6 +27,7 @@ class Experiment(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(200))
 
     dataset_id: Mapped[str] = mapped_column(String(36), index=True)
+    dataset_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     benchmark_id: Mapped[str] = mapped_column(String(36), index=True)
     prompt_id: Mapped[str] = mapped_column(String(36), index=True)
     model_id: Mapped[str] = mapped_column(String(36), index=True)  # DB id of Model row

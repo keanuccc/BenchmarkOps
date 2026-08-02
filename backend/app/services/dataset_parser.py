@@ -9,32 +9,87 @@ from typing import Any
 from app.core.exceptions import ValidationError
 
 _EXPECTED_KEYS = ("expected", "answer", "label", "output", "target", "ground_truth")
-_SUPPORTED = ("csv", "json", "jsonl")
+_SUPPORTED = ("csv", "tsv", "json", "jsonl", "xlsx")
+
+_TYPE_ALIASES = {
+    "string": "string",
+    "text": "string",
+    "str": "string",
+    "number": "number",
+    "numeric": "number",
+    "float": "number",
+    "integer": "integer",
+    "int": "integer",
+    "boolean": "boolean",
+    "bool": "boolean",
+    "json": "json",
+    "array": "array",
+    "list": "array",
+    "object": "object",
+    "dict": "object",
+}
 
 
 def _decode_bytes(raw_bytes: bytes) -> str:
-    """Decode raw file bytes to text, trying UTF-8 first then falling back to GBK."""
-    try:
-        return raw_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        # Fallback for Windows-exported CSVs (GBK/GB2312 encoding).
-        return raw_bytes.decode("gbk")
+    """Decode raw text bytes: UTF-8 (BOM-safe), then GBK, then UTF-16 (BOM-only)."""
+    for encoding in ("utf-8-sig", "gbk"):
+        try:
+            return raw_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    if raw_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
+        try:
+            return raw_bytes.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
+    raise ValidationError(
+        "Cannot decode file: expected UTF-8, GBK/GB2312 or UTF-16 encoding"
+    )
+
+
+def infer_format(filename: str | None, fmt: str | None) -> str:
+    """Resolve the upload format: explicit value wins, else extension inference."""
+    fmt = (fmt or "").strip().lower()
+    if fmt:
+        return fmt
+    if filename:
+        ext = filename.rsplit(".", 1)[-1].lower()
+        fmt = {"jsonl": "jsonl", "json": "json", "csv": "csv", "tsv": "tsv", "xlsx": "xlsx"}.get(ext, "")
+    return fmt or "json"
+
+
+def _validate_magic(raw_bytes: bytes, fmt: str) -> None:
+    """Reject files whose declared format does not match their content signature."""
+    if fmt == "xlsx":
+        if not raw_bytes.startswith(b"PK"):
+            raise ValidationError("File is not a valid XLSX (missing zip signature)")
+        return
+    if fmt in ("json", "jsonl"):
+        text = _decode_bytes(raw_bytes)
+        stripped = text.lstrip("\ufeff \t\r\n")
+        if not stripped:
+            return
+        if fmt == "json" and stripped[0] not in "[{":
+            raise ValidationError("JSON must start with '[' or '{'")
+        if fmt == "jsonl" and stripped[0] != "{":
+            raise ValidationError("JSONL must start with '{' on the first line")
 
 
 def parse_dataset(raw_bytes: bytes, fmt: str) -> list[dict]:
     fmt = (fmt or "").strip().lower()
     if fmt not in _SUPPORTED:
         raise ValidationError(f"Unsupported format: {fmt!r}")
+    _validate_magic(raw_bytes, fmt)
 
-    text = _decode_bytes(raw_bytes)
-    rows: list[dict]
-
-    if fmt == "csv":
-        reader = csv.DictReader(io.StringIO(text))
+    if fmt in ("csv", "tsv"):
+        text = _decode_bytes(raw_bytes)
+        delimiter = "\t" if fmt == "tsv" else ","
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
         if reader.fieldnames is None:
-            raise ValidationError("CSV has no header row")
+            raise ValidationError(f"{fmt.upper()} has no header row")
         rows = [dict(r) for r in reader]
     elif fmt == "json":
+        text = _decode_bytes(raw_bytes)
         try:
             data = json.loads(text)
         except json.JSONDecodeError as exc:
@@ -47,7 +102,8 @@ def parse_dataset(raw_bytes: bytes, fmt: str) -> list[dict]:
         if not isinstance(data, list):
             raise ValidationError("JSON must be a list of objects")
         rows = data
-    else:  # jsonl
+    elif fmt == "jsonl":
+        text = _decode_bytes(raw_bytes)
         rows = []
         for line in text.splitlines():
             line = line.strip()
@@ -57,10 +113,40 @@ def parse_dataset(raw_bytes: bytes, fmt: str) -> list[dict]:
                 rows.append(json.loads(line))
             except json.JSONDecodeError as exc:
                 raise ValidationError(f"Invalid JSONL line: {exc}") from exc
+    else:  # xlsx
+        rows = _parse_xlsx(raw_bytes)
 
     for i, row in enumerate(rows):
         if not isinstance(row, dict):
             raise ValidationError(f"Row {i} is not a JSON object")
+    return rows
+
+
+def _parse_xlsx(raw_bytes: bytes) -> list[dict]:
+    try:
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(io.BytesIO(raw_bytes), read_only=True, data_only=True)
+    except Exception as exc:  # noqa: BLE001 - any openpyxl failure means a bad file
+        raise ValidationError(f"Invalid XLSX file: {exc}") from exc
+    sheet = workbook.worksheets[0] if workbook.worksheets else None
+    if sheet is None:
+        raise ValidationError("XLSX has no sheets")
+    values_iter = sheet.iter_rows(values_only=True)
+    try:
+        headers = next(values_iter)
+    except StopIteration:
+        headers = None
+    if not headers:
+        raise ValidationError("XLSX has no header row")
+    rows: list[dict] = []
+    for values in values_iter:
+        row = {
+            str(header): value
+            for header, value in zip(headers, values)
+            if header is not None
+        }
+        rows.append(row)
     return rows
 
 
@@ -78,7 +164,7 @@ def compute_stats(rows: list[dict]) -> dict:
     null_counts = {col: 0 for col in columns}
     for row in rows:
         for col in columns:
-            if col not in row or row[col] in (None, ""):
+            if col not in row or _is_blank(row.get(col)):
                 null_counts[col] += 1
     return {
         "row_count": len(rows),
@@ -131,6 +217,7 @@ def build_dataset_contract(
     field_types: Any = None,
     answer_policy: Any = None,
     contract: Any = None,
+    sensitive_fields: Any = None,
 ) -> dict:
     """Build a lightweight dataset contract for import and validation."""
     payload = _json_object(contract, "contract")
@@ -154,9 +241,19 @@ def build_dataset_contract(
         if metadata_fields is not None
         else payload.get("metadata_fields", nested_mapping.get("metadata_fields"))
     )
+    mapped_sensitive = _field_list(
+        sensitive_fields
+        if sensitive_fields is not None
+        else payload.get("sensitive_fields")
+    )
 
     if not mapped_expected:
-        mapped_expected = [col for col in columns if col in _EXPECTED_KEYS]
+        for key in _EXPECTED_KEYS:
+            variants = [col for col in columns if col.lower() == key]
+            if not variants:
+                continue
+            exact = [col for col in variants if col == key]
+            mapped_expected.append(exact[0] if exact else variants[0])
     if not mapped_input:
         excluded = set(mapped_expected) | set(mapped_metadata)
         mapped_input = [col for col in columns if col not in excluded]
@@ -201,6 +298,7 @@ def build_dataset_contract(
             answer_policy if answer_policy is not None else payload.get("answer_policy"),
             "answer_policy",
         ),
+        "sensitive_fields": mapped_sensitive,
     }
     normalized["field_mapping"] = {
         "input_fields": normalized["input_fields"],
@@ -211,10 +309,19 @@ def build_dataset_contract(
 
 
 def _source_has_field(row: dict, field: str) -> bool:
-    if field in row and row[field] not in (None, ""):
+    if field in row and not _is_blank(row[field]):
         return True
     expected = row.get("expected")
-    return isinstance(expected, dict) and expected.get(field) not in (None, "")
+    return isinstance(expected, dict) and not _is_blank(expected.get(field))
+
+
+def _is_blank(value: Any) -> bool:
+    """Empty or whitespace-only values count as blank."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return False
 
 
 def validate_required_fields(row: dict, contract: dict, row_idx: int) -> list[str]:
@@ -223,6 +330,111 @@ def validate_required_fields(row: dict, contract: dict, row_idx: int) -> list[st
         if not _source_has_field(row, field):
             issues.append(f"Row {row_idx} missing required field: {field}")
     return issues
+
+
+def collect_required_field_errors(rows: list[dict], contract: dict) -> list[dict]:
+    """Structured row-level required-field errors for import reports."""
+    errors: list[dict] = []
+    for i, row in enumerate(rows):
+        for field in contract.get("required_fields", []) or []:
+            if not _source_has_field(row, field):
+                errors.append(
+                    {
+                        "row": i,
+                        "field": field,
+                        "message": f"Row {i} missing required field: {field}",
+                    }
+                )
+    return errors
+
+
+def _field_value(row: dict, field: str) -> Any:
+    if field in row:
+        return row[field]
+    expected = row.get("expected")
+    if isinstance(expected, dict):
+        return expected.get(field)
+    return None
+
+
+def _value_matches_type(value: Any, type_name: str) -> bool:
+    if value is None or _is_blank(value):
+        return True  # blankness is handled by required-field checks
+    if type_name == "string":
+        return isinstance(value, str)
+    if type_name == "number":
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, (int, float)):
+            return True
+        if isinstance(value, str):
+            try:
+                float(value)
+                return True
+            except ValueError:
+                return False
+        return False
+    if type_name == "integer":
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, int):
+            return True
+        if isinstance(value, str):
+            try:
+                return float(value).is_integer()
+            except ValueError:
+                return False
+        return False
+    if type_name == "boolean":
+        if isinstance(value, bool):
+            return True
+        if isinstance(value, str):
+            return value.strip().lower() in ("true", "false", "1", "0")
+        return False
+    if type_name == "array":
+        return isinstance(value, list)
+    if type_name == "object":
+        return isinstance(value, dict)
+    if type_name == "json":
+        return True
+    return True
+
+
+def collect_field_type_errors(rows: list[dict], contract: dict) -> list[dict]:
+    """Validate declared ``field_types`` against every row's values."""
+    errors: list[dict] = []
+    field_types = contract.get("field_types", {}) or {}
+    for field, declared in field_types.items():
+        type_name = _TYPE_ALIASES.get(str(declared).strip().lower())
+        if type_name is None:
+            errors.append(
+                {
+                    "row": None,
+                    "field": field,
+                    "message": f"Unsupported field type '{declared}' for field '{field}'",
+                }
+            )
+            continue
+        for i, row in enumerate(rows):
+            value = _field_value(row, field)
+            if value is None:
+                continue
+            if not _value_matches_type(value, type_name):
+                errors.append(
+                    {
+                        "row": i,
+                        "field": field,
+                        "message": f"Row {i}: field '{field}' is not {declared}",
+                    }
+                )
+    return errors
+
+
+def collect_import_errors(rows: list[dict], contract: dict) -> list[dict]:
+    """All row-level import errors: required fields first, then type mismatches."""
+    return collect_required_field_errors(rows, contract) + collect_field_type_errors(
+        rows, contract
+    )
 
 
 def split_input_expected(row: dict, contract: dict | None = None) -> tuple[dict, dict | None]:
@@ -284,9 +496,10 @@ def split_input_expected(row: dict, contract: dict | None = None) -> tuple[dict,
 
     # Step 2: Look for known answer keys and collect them.
     expected_keys = set()
+    lower_to_original = {key.lower(): key for key in source}
     for key in source:
-        if key in _EXPECTED_KEYS:
-            expected_keys.add(key)
+        if key.lower() in _EXPECTED_KEYS:
+            expected_keys.add(lower_to_original[key.lower()])
 
     if expected_keys:
         expected = {}

@@ -129,7 +129,7 @@ uv run python -m app.seed
 
 ### 步骤 3：上传数据集
 - 进入 **Datasets（数据集）** 页面 → 点「上传数据集」。
-- 选择所属项目、选择文件（支持 **JSONL / JSON / CSV**，扩展名自动识别格式）、填写名称与描述。
+- 选择所属项目、选择文件（支持 **JSONL / JSON / CSV / TSV / XLSX**，扩展名自动识别格式）、填写名称与描述。大文件会在**后台异步导入**并轮询进度，失败时展示行级错误。
 - **格式**：每行一个 JSON 对象，至少含输入与期望输出字段，例如：
   ```json
   {"question": "Compute 2 + 2.", "answer": "4"}
@@ -313,7 +313,7 @@ uv run pytest
 - **鉴权为单 token 简化**：`api_token` 是全局共享密钥，非用户/租户系统；读取接口默认开放。生产部署需补充完整身份与多租户方案。
 - **无多租户 / 无组织隔离**：所有项目共享同一数据库与同一 token 空间。
 - **评测为进程内执行**：`EVAL_MAX_WORKERS` 当前**并未用于并发控制**；同一进程内的线程队列串行/有限并行执行，进程重启会中断进行中的运行。
-- **数据集存储**：上传文件内容以原始字节存入数据库（非对象存储），受 `MAX_UPLOAD_BYTES` / `MAX_DATASET_ROWS` 保护。
+- **数据集存储**：上传内容解析后逐行存入数据库（非对象存储，仅保留 SHA-256 `content_hash` 作为内容指纹），受 `MAX_UPLOAD_BYTES` / `MAX_DATASET_ROWS` 保护；数据集支持多版本快照与回滚。
 - **报告导出**：仅 Markdown（`.md`）下载，无 PDF / HTML 等格式。
 
 ### 预留 / 后续迭代（README 中 "Reserved for later iterations"）

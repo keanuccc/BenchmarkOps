@@ -314,6 +314,9 @@ export interface Dataset {
   format: string;
   is_archived?: boolean;
   version: number;
+  current_version_id?: string | null;
+  field_mapping?: Record<string, unknown>;
+  contract?: Record<string, unknown>;
   row_count: number;
   tags: string[];
   stats: Record<string, unknown>;
@@ -332,6 +335,43 @@ export interface DatasetPreviewRaw {
   total_rows: number;
   columns: string[];
   sample_count: number;
+}
+export interface DatasetVersion {
+  id: string;
+  dataset_id: string;
+  version: number;
+  row_count: number;
+  stats: Record<string, unknown>;
+  column_schema: string[];
+  task_type: string;
+  field_mapping: Record<string, unknown>;
+  contract: Record<string, unknown>;
+  source_filename: string | null;
+  content_hash: string | null;
+  import_status: string;
+  import_errors: string[];
+  schema_version: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface ImportJob {
+  id: string;
+  project_id: string;
+  name: string;
+  dataset_id: string | null;
+  format: string;
+  mode: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  idempotency_key: string | null;
+  content_hash: string | null;
+  source_filename: string | null;
+  total_rows: number;
+  progress: number;
+  error: string | null;
+  error_rows: { row: number | null; field: string; message: string }[];
+  created_at: string;
+  updated_at: string;
+  finished_at: string | null;
 }
 export interface DatasetValidationResult {
   valid: boolean;
@@ -358,6 +398,34 @@ export const validateDatasetQuick = (id: string) =>
   api.post<DatasetValidationResult>(`/datasets/${id}/validate/quick`);
 export const uploadDataset = (form: FormData) =>
   api.upload<Dataset>("/datasets/upload", form);
+export const importDataset = (form: FormData) =>
+  api.upload<ImportJob>("/datasets/import", form);
+export const getImportJob = (id: string) =>
+  api.get<ImportJob>(`/datasets/imports/${id}`);
+export const listImportJobs = (projectId: string) =>
+  api.get<PageResult<ImportJob>>(
+    `/datasets/imports?project_id=${encodeURIComponent(projectId)}`,
+  );
+export async function waitForImport(
+  jobId: string,
+  { intervalMs = 800, timeoutMs = 120000 } = {},
+): Promise<ImportJob> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const job = await getImportJob(jobId);
+    if (job.status === "succeeded" || job.status === "failed" || job.status === "cancelled") {
+      return job;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new ApiRequestError(408, "timeout", "导入超时，请稍后刷新页面查看结果");
+}
+export const createDatasetVersion = (datasetId: string, form: FormData) =>
+  api.upload<DatasetVersion>(`/datasets/${datasetId}/versions`, form);
+export const listDatasetVersions = (datasetId: string) =>
+  api.get<DatasetVersion[]>(`/datasets/${datasetId}/versions`);
+export const activateDatasetVersion = (datasetId: string, version: number) =>
+  api.post<Dataset>(`/datasets/${datasetId}/versions/${version}/activate`);
 export const deleteDataset = (id: string) => api.del<void>(`/datasets/${id}`);
 export const archiveDataset = (id: string) =>
   api.post<Dataset>(`/datasets/${id}/archive`);

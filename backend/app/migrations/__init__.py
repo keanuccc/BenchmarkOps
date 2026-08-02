@@ -560,6 +560,282 @@ async def _upgrade_integrity_constraints(conn) -> None:  # type: ignore[no-untyp
 MIGRATIONS[16] = _upgrade_integrity_constraints
 
 
+async def _upgrade_dataset_versioning(conn) -> None:  # type: ignore[no-untyped-def]
+    """Add dataset versioning: version snapshots, per-version rows, experiment binding.
+
+    1. Create `dataset_versions` (immutable per-version metadata).
+    2. Add `dataset_rows.version` (defaults to 1 for legacy rows).
+    3. Add `datasets.current_version_id` and `experiments.dataset_version`.
+    4. Backfill version 1 metadata for every existing dataset and bind
+       experiments to the dataset's current version.
+    5. Replace the old per-dataset row uniqueness with per-version uniqueness.
+    """
+    dialect = conn.dialect.name
+
+    if not await _table_exists(conn, "dataset_versions"):
+        await conn.execute(
+            sa.text(
+                """
+                CREATE TABLE dataset_versions (
+                    id VARCHAR(36) PRIMARY KEY,
+                    dataset_id VARCHAR(36) NOT NULL,
+                    version INTEGER NOT NULL,
+                    row_count INTEGER NOT NULL DEFAULT 0,
+                    stats JSON NOT NULL DEFAULT '{}',
+                    column_schema JSON NOT NULL DEFAULT '[]',
+                    task_type VARCHAR(50) NOT NULL DEFAULT 'qa',
+                    field_mapping JSON NOT NULL DEFAULT '{}',
+                    contract JSON NOT NULL DEFAULT '{}',
+                    source_filename TEXT,
+                    content_hash VARCHAR(64),
+                    import_status VARCHAR(20) NOT NULL DEFAULT 'ready',
+                    import_errors JSON NOT NULL DEFAULT '[]',
+                    schema_version INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL
+                )
+                """
+            )
+        )
+    if not await _index_exists(conn, "uq_dataset_versions_dataset_version"):
+        await conn.execute(
+            sa.text(
+                "CREATE UNIQUE INDEX uq_dataset_versions_dataset_version "
+                "ON dataset_versions (dataset_id, version)"
+            )
+        )
+    if not await _index_exists(conn, "ix_dataset_versions_dataset_id"):
+        await conn.execute(
+            sa.text(
+                "CREATE INDEX ix_dataset_versions_dataset_id "
+                "ON dataset_versions (dataset_id)"
+            )
+        )
+
+    await _ensure_column(
+        conn, "dataset_rows", "version",
+        "INTEGER NOT NULL DEFAULT 1", "INTEGER NOT NULL DEFAULT 1",
+    )
+    await _ensure_column(
+        conn, "datasets", "current_version_id",
+        "VARCHAR(36)", "VARCHAR(36)",
+    )
+    await _ensure_column(
+        conn, "experiments", "dataset_version",
+        "INTEGER", "INTEGER",
+    )
+
+    # Backfill one version row per dataset that has none yet.
+    if await _table_exists(conn, "datasets"):
+        rows = (
+            await conn.execute(
+                sa.text(
+                    """
+                    SELECT d.id, d.row_count, d.stats, d.column_schema,
+                           d.task_type, d.field_mapping, d.contract,
+                           d.source_filename, d.content_hash, d.import_status,
+                           d.import_errors, d.schema_version,
+                           d.created_at, d.updated_at
+                    FROM datasets d
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM dataset_versions v
+                        WHERE v.dataset_id = d.id
+                    )
+                    """
+                )
+            )
+        ).fetchall()
+        import json as _json
+        import uuid as _uuid
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        for row in rows:
+            (
+                dataset_id, row_count, stats, column_schema, task_type,
+                field_mapping, contract, source_filename, content_hash,
+                import_status, import_errors, schema_version,
+                created_at, updated_at,
+            ) = row
+            version_id = str(_uuid.uuid4())
+            created = created_at or now
+            updated = updated_at or now
+            if dialect == "sqlite":
+                if hasattr(created, "tzinfo") and created.tzinfo is not None:
+                    created = created.replace(tzinfo=None)
+                if hasattr(updated, "tzinfo") and updated.tzinfo is not None:
+                    updated = updated.replace(tzinfo=None)
+            await conn.execute(
+                sa.text(
+                    """
+                    INSERT INTO dataset_versions (
+                        id, dataset_id, version, row_count, stats,
+                        column_schema, task_type, field_mapping, contract,
+                        source_filename, content_hash, import_status,
+                        import_errors, schema_version, created_at, updated_at
+                    ) VALUES (
+                        :id, :dataset_id, 1, :row_count, :stats,
+                        :column_schema, :task_type, :field_mapping, :contract,
+                        :source_filename, :content_hash, :import_status,
+                        :import_errors, :schema_version, :created_at, :updated_at
+                    )
+                    """
+                ),
+                {
+                    "id": version_id,
+                    "dataset_id": dataset_id,
+                    "row_count": row_count or 0,
+                    "stats": _json.dumps(stats or {}),
+                    "column_schema": _json.dumps(column_schema or []),
+                    "task_type": task_type or "qa",
+                    "field_mapping": _json.dumps(field_mapping or {}),
+                    "contract": _json.dumps(contract or {}),
+                    "source_filename": source_filename,
+                    "content_hash": content_hash,
+                    "import_status": import_status or "ready",
+                    "import_errors": _json.dumps(import_errors or []),
+                    "schema_version": schema_version or 1,
+                    "created_at": created,
+                    "updated_at": updated,
+                },
+            )
+            await conn.execute(
+                sa.text(
+                    "UPDATE datasets SET current_version_id = :vid WHERE id = :did"
+                ),
+                {"vid": version_id, "did": dataset_id},
+            )
+
+    # Existing experiments snapshot the dataset's current version.
+    if await _table_exists(conn, "experiments"):
+        await conn.execute(
+            sa.text(
+                """
+                UPDATE experiments
+                SET dataset_version = (
+                    SELECT d.version FROM datasets d WHERE d.id = experiments.dataset_id
+                )
+                WHERE dataset_version IS NULL
+                  AND EXISTS (
+                      SELECT 1 FROM datasets d WHERE d.id = experiments.dataset_id
+                  )
+                """
+            )
+        )
+
+    # Per-version row uniqueness replaces the old per-dataset uniqueness.
+    if await _table_exists(conn, "dataset_rows"):
+        if await _index_exists(conn, "uq_dataset_rows_dataset_idx"):
+            await conn.execute(sa.text("DROP INDEX uq_dataset_rows_dataset_idx"))
+        if not await _index_exists(conn, "uq_dataset_rows_dataset_version_idx"):
+            await conn.execute(
+                sa.text(
+                    "CREATE UNIQUE INDEX uq_dataset_rows_dataset_version_idx "
+                    "ON dataset_rows (dataset_id, version, idx)"
+                )
+            )
+
+
+MIGRATIONS[17] = _upgrade_dataset_versioning
+
+
+async def _upgrade_import_jobs_and_audit(conn) -> None:  # type: ignore[no-untyped-def]
+    """Create background import jobs and dataset audit event tables."""
+    dialect = conn.dialect.name
+    await conn.execute(
+        sa.text(
+            """
+            CREATE TABLE IF NOT EXISTS import_jobs (
+                id VARCHAR(36) PRIMARY KEY,
+                project_id VARCHAR(36) NOT NULL,
+                name VARCHAR(200) NOT NULL,
+                dataset_id VARCHAR(36),
+                format VARCHAR(10) NOT NULL,
+                mode VARCHAR(20) NOT NULL DEFAULT 'create',
+                status VARCHAR(20) NOT NULL DEFAULT 'queued',
+                idempotency_key VARCHAR(128),
+                content_hash VARCHAR(64),
+                source_filename TEXT,
+                total_rows INTEGER NOT NULL DEFAULT 0,
+                progress INTEGER NOT NULL DEFAULT 0,
+                error TEXT,
+                error_rows JSON NOT NULL DEFAULT '[]',
+                finished_at DATETIME,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )
+            """
+        )
+    )
+    if not await _index_exists(conn, "ix_import_jobs_project_id"):
+        await conn.execute(
+            sa.text("CREATE INDEX ix_import_jobs_project_id ON import_jobs (project_id)")
+        )
+    if not await _index_exists(conn, "ix_import_jobs_status"):
+        await conn.execute(
+            sa.text("CREATE INDEX ix_import_jobs_status ON import_jobs (status)")
+        )
+    if not await _index_exists(conn, "ix_import_jobs_idempotency_key"):
+        await conn.execute(
+            sa.text(
+                "CREATE INDEX ix_import_jobs_idempotency_key "
+                "ON import_jobs (idempotency_key)"
+            )
+        )
+    await conn.execute(
+        sa.text(
+            """
+            CREATE TABLE IF NOT EXISTS audit_events (
+                id VARCHAR(36) PRIMARY KEY,
+                project_id VARCHAR(36),
+                entity_type VARCHAR(50) NOT NULL,
+                entity_id VARCHAR(36) NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                actor VARCHAR(100),
+                detail JSON NOT NULL DEFAULT '{}',
+                created_at DATETIME NOT NULL
+            )
+            """
+        )
+    )
+    if not await _index_exists(conn, "ix_audit_events_entity"):
+        await conn.execute(
+            sa.text(
+                "CREATE INDEX ix_audit_events_entity "
+                "ON audit_events (entity_type, entity_id)"
+            )
+        )
+    if not await _index_exists(conn, "ix_audit_events_project_id"):
+        await conn.execute(
+            sa.text("CREATE INDEX ix_audit_events_project_id ON audit_events (project_id)")
+        )
+
+    # Extend the dataset format allowlist with tsv/xlsx.
+    if await _table_exists(conn, "datasets"):
+        format_check = "format IN ('csv', 'tsv', 'json', 'jsonl', 'xlsx')"
+        if dialect == "sqlite":
+            table_sql = (
+                await conn.execute(
+                    sa.text(
+                        "SELECT sql FROM sqlite_master "
+                        "WHERE type='table' AND name='datasets'"
+                    )
+                )
+            ).fetchone()
+            if table_sql and "tsv" not in (table_sql[0] or ""):
+                await _rebuild_sqlite_table_with_checks(
+                    conn, "datasets", [("ck_datasets_format", format_check)]
+                )
+        else:
+            await conn.execute(
+                sa.text("ALTER TABLE datasets DROP CONSTRAINT IF EXISTS ck_datasets_format")
+            )
+            await _add_pg_check(conn, "datasets", "ck_datasets_format", format_check)
+
+
+MIGRATIONS[18] = _upgrade_import_jobs_and_audit
+
+
 async def _ensure_version_table(conn: sa.ext.asyncio.AsyncConnection) -> None:
     """Create `schema_migrations`; migrate and drop the legacy table."""
     has_legacy = await _table_exists(conn, "schema_version")

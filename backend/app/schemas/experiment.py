@@ -44,6 +44,7 @@ class ExperimentCreate(BaseModel):
     project_id: str
     name: str
     dataset_id: str
+    dataset_version: int | None = None
     benchmark_id: str
     prompt_id: str
     model_id: str  # DB id of a Model row
@@ -67,6 +68,7 @@ class ExperimentRead(BaseModel):
     project_id: str
     name: str
     dataset_id: str
+    dataset_version: int | None = None
     benchmark_id: str
     prompt_id: str
     model_id: str

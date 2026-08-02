@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import {
   listDatasets,
   listProjects,
-  uploadDataset,
+  importDataset,
+  waitForImport,
+  listDatasetVersions,
+  createDatasetVersion,
+  activateDatasetVersion,
   deleteDataset,
   archiveDataset,
   unarchiveDataset,
@@ -12,6 +16,8 @@ import {
   previewDataset,
   type Dataset,
   type DatasetRow,
+  type DatasetVersion,
+  type ImportJob,
   type Project,
 } from "@/lib/api";
 import { useToast } from "@/components/notifications";
@@ -33,6 +39,7 @@ import {
   Eye,
   Archive,
   ArchiveRestore,
+  History,
 } from "lucide-react";
 
 export default function DatasetsPage() {
@@ -57,6 +64,15 @@ export default function DatasetsPage() {
   const [previewRows, setPreviewRows] = useState<DatasetRow[] | null>(null);
   const [previewName, setPreviewName] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [versions, setVersions] = useState<DatasetVersion[]>([]);
+  const [versionsDataset, setVersionsDataset] = useState<Dataset | null>(null);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionMode, setVersionMode] = useState<"replace" | "append">("replace");
+  const [versionFile, setVersionFile] = useState<File | null>(null);
+  const [versionSubmitting, setVersionSubmitting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -94,19 +110,76 @@ export default function DatasetsPage() {
   async function submit() {
     if (!file || !projectId) return;
     setSubmitting(true);
+    setImportError(null);
     try {
       const form = new FormData();
       form.append("file", file);
       form.append("project_id", projectId);
       if (name) form.append("name", name);
-      await uploadDataset(form);
+      const job = await importDataset(form);
+      const finished = await waitForImport(job.id);
+      if (finished.status !== "succeeded") {
+        const rows = finished.error_rows ?? [];
+        const detail = rows.length
+          ? `\n${rows
+              .slice(0, 5)
+              .map((r) => `第${r.row === null ? "?" : r.row + 1}行: ${r.message}`)
+              .join("\n")}`
+          : "";
+        setImportError(`${finished.error ?? "导入失败"}${detail}`);
+        return;
+      }
       setUploadOpen(false);
       await refresh();
       addToast("success", "数据集上传成功");
     } catch (err) {
-      addToast("error", apiErrorMessage(err, "上传数据集失败"));
+      setImportError(apiErrorMessage(err, "上传数据集失败"));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function openVersions(d: Dataset) {
+    setVersionsDataset(d);
+    setVersionsOpen(true);
+    setVersionFile(null);
+    setVersionMode("replace");
+    setVersionsLoading(true);
+    try {
+      setVersions(await listDatasetVersions(d.id));
+    } finally {
+      setVersionsLoading(false);
+    }
+  }
+
+  async function submitVersion() {
+    if (!versionsDataset || !versionFile) return;
+    setVersionSubmitting(true);
+    try {
+      const form = new FormData();
+      form.append("file", versionFile);
+      form.append("mode", versionMode);
+      await createDatasetVersion(versionsDataset.id, form);
+      setVersions(await listDatasetVersions(versionsDataset.id));
+      await refresh();
+      addToast("success", versionMode === "replace" ? "已创建替换版本" : "已追加数据");
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "创建版本失败"));
+    } finally {
+      setVersionSubmitting(false);
+    }
+  }
+
+  async function activateVersion(version: number) {
+    if (!versionsDataset) return;
+    try {
+      const updated = await activateDatasetVersion(versionsDataset.id, version);
+      setVersionsDataset(updated);
+      setVersions(await listDatasetVersions(versionsDataset.id));
+      await refresh();
+      addToast("success", `已激活版本 ${version}`);
+    } catch (err) {
+      addToast("error", apiErrorMessage(err, "激活版本失败"));
     }
   }
 
@@ -232,6 +305,9 @@ export default function DatasetsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      <Button variant="ghost" onClick={() => openVersions(d)}>
+                        <History size={14} /> 版本
+                      </Button>
                       <Button variant="ghost" onClick={() => openPreview(d)}>
                         <Eye size={14} /> 预览
                       </Button>
@@ -292,11 +368,15 @@ export default function DatasetsPage() {
           <Field label="文件">
             <input
               type="file"
+              accept=".jsonl,.json,.csv,.tsv,.xlsx"
               className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
               style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               required
             />
+            <p className="mt-1 text-xs text-[var(--ocd-text-muted)]">
+              支持 JSONL / JSON / CSV / TSV / XLSX，单文件 ≤ 50 MB，≤ 100,000 行；大文件在后台导入。
+            </p>
           </Field>
 
           <Field label="名称">
@@ -320,6 +400,15 @@ export default function DatasetsPage() {
             />
           </Field>
 
+          {importError && (
+            <div
+              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              style={{ whiteSpace: "pre-wrap" }}
+            >
+              {importError}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setUploadOpen(false)} type="button">
               取消
@@ -329,6 +418,84 @@ export default function DatasetsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={versionsOpen}
+        onClose={() => setVersionsOpen(false)}
+        title={versionsDataset ? `版本管理 · ${versionsDataset.name}` : "版本管理"}
+      >
+        <div className="space-y-4">
+          {versionsLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner size={20} />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {versions.length === 0 ? (
+                <p className="py-4 text-center text-sm text-[var(--ocd-text-muted)]">
+                  暂无版本。
+                </p>
+              ) : (
+                versions.map((v) => {
+                  const current = versionsDataset?.version === v.version;
+                  return (
+                    <div
+                      key={v.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                      style={{ borderColor: "var(--ocd-border-soft)" }}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          v{v.version}
+                          {current && (
+                            <Badge status="active">当前</Badge>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--ocd-text-muted)]">
+                          {v.row_count.toLocaleString()} 行 · {v.source_filename ?? "—"} ·{" "}
+                          {new Date(v.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                      {!current && (
+                        <Button
+                          variant="secondary"
+                          onClick={() => activateVersion(v.version)}
+                        >
+                          激活
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          <div className="rounded-lg border p-3" style={{ borderColor: "var(--ocd-border-soft)" }}>
+            <p className="mb-2 text-sm font-medium">新建版本</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <select
+                className="rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                value={versionMode}
+                onChange={(e) => setVersionMode(e.target.value as "replace" | "append")}
+              >
+                <option value="replace">替换 (新版本)</option>
+                <option value="append">追加到当前版本之上</option>
+              </select>
+              <input
+                type="file"
+                accept=".jsonl,.json,.csv,.tsv,.xlsx"
+                className="text-sm"
+                onChange={(e) => setVersionFile(e.target.files?.[0] ?? null)}
+              />
+              <Button onClick={submitVersion} disabled={versionSubmitting || !versionFile}>
+                {versionSubmitting ? <Spinner size={14} /> : "上传新版本"}
+              </Button>
+            </div>
+          </div>
+        </div>
       </Modal>
 
       <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title={`Preview · ${previewName}`}>

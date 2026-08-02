@@ -470,7 +470,7 @@ async def test_unique_and_composite_indexes_exist(client) -> None:
         rows = await session.execute(
             sa.text(
                 "SELECT name FROM sqlite_master WHERE type='index' "
-                "AND name IN ('uq_dataset_rows_dataset_idx', "
+                "AND name IN ('uq_dataset_rows_dataset_version_idx', "
                 "'uq_experiment_results_experiment_row', "
                 "'uq_models_provider_model_id', "
                 "'uq_datasets_project_name')"
@@ -478,7 +478,7 @@ async def test_unique_and_composite_indexes_exist(client) -> None:
         )
         names = {r[0] for r in rows.fetchall()}
     assert names == {
-        "uq_dataset_rows_dataset_idx",
+        "uq_dataset_rows_dataset_version_idx",
         "uq_experiment_results_experiment_row",
         "uq_models_provider_model_id",
         "uq_datasets_project_name",

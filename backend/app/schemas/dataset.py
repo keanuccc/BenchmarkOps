@@ -14,6 +14,7 @@ class DatasetContract(BaseModel):
     required_fields: list[str] = Field(default_factory=list)
     field_types: dict = Field(default_factory=dict)
     answer_policy: dict = Field(default_factory=dict)
+    sensitive_fields: list[str] = Field(default_factory=list)
     schema_version: int = 1
 
 
@@ -48,6 +49,7 @@ class DatasetRead(BaseModel):
     contract: dict = Field(default_factory=dict)
     source_filename: str | None = None
     content_hash: str | None = None
+    current_version_id: str | None = None
     import_status: str = "ready"
     import_errors: list = Field(default_factory=list)
     schema_version: int = 1
@@ -63,3 +65,59 @@ class DatasetRowRead(BaseModel):
     idx: int
     input: dict
     expected: dict | None
+
+
+class DatasetVersionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    dataset_id: str
+    version: int
+    row_count: int
+    stats: dict
+    column_schema: list
+    task_type: str = "qa"
+    field_mapping: dict = Field(default_factory=dict)
+    contract: dict = Field(default_factory=dict)
+    source_filename: str | None = None
+    content_hash: str | None = None
+    import_status: str = "ready"
+    import_errors: list = Field(default_factory=list)
+    schema_version: int = 1
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImportJobRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    project_id: str
+    name: str
+    dataset_id: str | None = None
+    format: str
+    mode: str = "create"
+    status: str
+    idempotency_key: str | None = None
+    content_hash: str | None = None
+    source_filename: str | None = None
+    total_rows: int = 0
+    progress: int = 0
+    error: str | None = None
+    error_rows: list = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+    finished_at: datetime | None = None
+
+
+class AuditEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    project_id: str | None = None
+    entity_type: str
+    entity_id: str
+    action: str
+    actor: str | None = None
+    detail: dict = Field(default_factory=dict)
+    created_at: datetime

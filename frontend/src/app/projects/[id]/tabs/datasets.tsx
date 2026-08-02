@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   listDatasets,
-  uploadDataset,
+  importDataset,
+  waitForImport,
   deleteDataset,
   archiveDataset,
   unarchiveDataset,
@@ -103,8 +104,8 @@ export function DatasetsTab({
       return;
     }
 
-    // If user has not previewed yet, do a quick auto-preview
-    if (!uploadPreview) {
+    // If user has not previewed yet, do a quick auto-preview (text formats only)
+    if (!uploadPreview && format !== "tsv" && format !== "xlsx") {
       try {
         setUploadPreview(await parsePreviewFile(file, format));
       } catch (err) {
@@ -119,7 +120,19 @@ export function DatasetsTab({
     form.set("format", format);
     form.set("file", file);
     try {
-      await uploadDataset(form);
+      const job = await importDataset(form);
+      const finished = await waitForImport(job.id);
+      if (finished.status !== "succeeded") {
+        const rows = finished.error_rows ?? [];
+        const detail = rows.length
+          ? `\n${rows
+              .slice(0, 5)
+              .map((r) => `第${r.row === null ? "?" : r.row + 1}行: ${r.message}`)
+              .join("\n")}`
+          : "";
+        setError(`${finished.error ?? "导入失败"}${detail}`);
+        return;
+      }
       setName("");
       if (fileRef.current) fileRef.current.value = "";
       refresh();
@@ -159,6 +172,12 @@ export function DatasetsTab({
     // Reset prior results when a new file is selected
     setValidationResult(null);
 
+    if (format === "tsv" || format === "xlsx") {
+      setUploadPreview(null);
+      setError("TSV/XLSX 由服务端解析，上传完成后可在列表中预览");
+      return;
+    }
+
     try {
       setPreviewLoading(true);
       setError(null);
@@ -179,6 +198,10 @@ export function DatasetsTab({
 
   async function handleValidate() {
     if (!selectedFile) return;
+    if (format === "tsv" || format === "xlsx") {
+      setError("TSV/XLSX 由服务端解析，上传后可在列表中预览与校验");
+      return;
+    }
     setValidating(true);
     setError(null);
     try {
@@ -259,6 +282,8 @@ export function DatasetsTab({
               <option value="jsonl">JSONL</option>
               <option value="json">JSON</option>
               <option value="csv">CSV</option>
+              <option value="tsv">TSV</option>
+              <option value="xlsx">XLSX</option>
             </select>
           </div>
           <div>
@@ -266,7 +291,7 @@ export function DatasetsTab({
             <input
               ref={fileRef}
               type="file"
-              accept=".csv,.json,.jsonl"
+              accept=".csv,.json,.jsonl,.tsv,.xlsx"
               className="mt-1 text-sm"
               onChange={handlePreviewFile}
             />

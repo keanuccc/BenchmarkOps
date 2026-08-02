@@ -216,20 +216,26 @@ npm run build               # Next.js 生产构建
 
 ### 数据集上传注意事项
 
-- **支持格式**：JSONL（推荐）、JSON、CSV。扩展名自动识别，也可手动指定 `format`。
+- **支持格式**：JSONL（推荐）、JSON、CSV、TSV、XLSX。扩展名自动识别，也可手动指定 `format`。
 - **大小限制**：单文件 ≤ 50 MB（`MAX_UPLOAD_BYTES`），行数 ≤ 100,000 行（`MAX_DATASET_ROWS`）。超出将在上传阶段被拒绝。
-- **字段约定**：每行至少包含输入字段和期望输出字段。期望输出的常见键名：`answer` / `expected` / `label` / `output` / `target` / `ground_truth`。系统会自动检测这些键。
+- **异步导入**：大文件推荐使用 `POST /datasets/import` 异步导入（返回导入任务，前端轮询进度）；`POST /datasets/upload` 同步接口仍可用。导入任务支持 `idempotency_key`，同一 key 重试不会产生重复数据集。
+- **字段约定**：每行至少包含输入字段和期望输出字段。期望输出的常见键名：`answer` / `expected` / `label` / `output` / `target` / `ground_truth`，自动检测时大小写不敏感（`Answer` / `Expected` 等也会识别）。
 - **JSONL 格式示例**：
   ```jsonl
   {"question": "Compute 2 + 2.", "answer": "4"}
   {"question": "Translate to French: hello", "answer": "bonjour"}
   ```
-- **CSV 格式要求**：必须包含表头行，否则解析失败。
+- **CSV/TSV 格式要求**：必须包含表头行，否则解析失败。
 - **JSON 格式**：根节点必须是数组，或包含 `data` / `rows` 键的数组。
-- **编码**：优先 UTF-8；Windows 导出的 CSV 如为 GBK/GB2312 编码会自动回退解码。
-- **空行处理**：JSONL 中空行会被跳过；CSV 中空行会报错。
-- **必填字段校验**：可通过 `required_fields` 配置哪些列不能为空。校验接口 `POST /datasets/{id}/validate` 可检查数据完整性。
-- **数据存储在数据库中**：上传内容以原始字节存入 SQLite，非对象存储。大文件会影响数据库体积和备份时间。生产环境建议控制文件大小或使用后续迭代的 MinIO 方案。
+- **编码**：UTF-8（含 BOM）、GBK/GB2312、UTF-16（带 BOM）均支持；无法解码会给出明确错误。
+- **内容校验**：`json/jsonl/xlsx` 会校验文件魔数（如 xlsx 必须是 zip 容器），误标格式会在上传阶段拒绝。
+- **空行处理**：JSONL 中空行会被跳过；纯空白字符串视为空值（影响必填校验和空值统计）。
+- **必填字段校验**：可通过 `required_fields` 配置哪些列不能为空；`field_types` 可声明字段类型（string / number / integer / boolean / array / object / json），导入时逐行校验，行级错误会返回（异步任务记录在 `error_rows`）。
+- **嵌套字段**：提示词模板变量支持路径寻址，如 `{user.address.city}`、`{items.0}`；dict/list 值会以 JSON 序列化渲染。
+- **版本管理**：数据集不可原地修改，可通过 `POST /datasets/{id}/versions` 创建替换/追加版本，`POST /datasets/{id}/versions/{v}/activate` 回滚激活；实验创建时快照数据集版本，保证结果可复现。
+- **敏感字段**：上传时可声明 `sensitive_fields`（如 `["email"]`），预览接口会以 `[REDACTED]` 脱敏显示。
+- **审计**：数据集的创建、版本、激活、归档、删除、导入均记录审计事件，可通过 `GET /datasets/{id}/audit` 查询。
+- **数据存储在数据库中**：上传内容解析后逐行存入 SQLite（保留 SHA-256 `content_hash`），非对象存储。大文件会影响数据库体积和备份时间。生产环境建议控制文件大小或使用后续迭代的 MinIO 方案。
 - **字段角色冲突**：同一列不能同时映射到 input / expected / metadata 多个角色，否则上传失败。
 
 ### 前端 SSR

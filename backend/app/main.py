@@ -26,7 +26,20 @@ async def lifespan(app: FastAPI):  # type: ignore[override]
     await _log_integrity_summary()
     # Recover any experiments stuck in "running" or "queued" from a previous crash.
     await _recover_stale_experiments()
+    await _recover_stale_import_jobs()
     yield
+
+
+async def _recover_stale_import_jobs() -> None:
+    """Mark background imports interrupted by a restart as failed."""
+    try:
+        from app.services.import_service import recover_stale_import_jobs
+
+        recovered = await recover_stale_import_jobs()
+        if recovered:
+            logger.info("recovered %d stale import job(s)", recovered)
+    except Exception:  # noqa: BLE001
+        logger.exception("import job recovery failed")
 
 
 async def _log_integrity_summary() -> None:

@@ -28,6 +28,7 @@ from app.models.prompt import Prompt
 from app.providers.base import ChatMessage, CompletionRequest, ProviderRateLimitedError
 from app.providers.registry import get_provider
 from app.repositories.dataset import DatasetRowRepository
+from app.services.prompt_variables import render_template
 from app.repositories.experiment import (
     ExperimentRepository,
     ExperimentResultRepository,
@@ -47,12 +48,14 @@ _ANSWER_PREFIX_RE = re.compile(
 
 
 async def _load_dataset_rows(
-    dataset_id: str, offset: int, limit: int
+    dataset_id: str, offset: int, limit: int, version: int | None = None
 ):
     """Fetch one page of dataset rows on a fresh session (bounded memory)."""
     async with AsyncSessionLocal() as session:
         repo = DatasetRowRepository(session)
-        return await repo.list_by_dataset(dataset_id, offset=offset, limit=limit)
+        return await repo.list_by_dataset(
+            dataset_id, offset=offset, limit=limit, version=version
+        )
 
 
 async def _flush_results(
@@ -322,7 +325,7 @@ def _render_prompt(template: str, variables: list[str], row_input: dict) -> str:
     for var in variables:
         ctx.setdefault(var, "")
     try:
-        return template.format(**ctx)
+        return render_template(template, ctx)
     except (KeyError, IndexError):
         joined = "\n".join(f"{k}: {v}" for k, v in row_input.items())
         return f"{template}\n\n{joined}"
@@ -748,7 +751,10 @@ async def _run_experiment(experiment_id: str) -> None:
             offset = 0
             while True:
                 db_batch = await _load_dataset_rows(
-                    experiment.dataset_id, offset=offset, limit=_BATCH_SIZE
+                    experiment.dataset_id,
+                    offset=offset,
+                    limit=_BATCH_SIZE,
+                    version=experiment.dataset_version,
                 )
                 if not db_batch:
                     break
@@ -789,7 +795,10 @@ async def _run_experiment(experiment_id: str) -> None:
             offset = 0
             while True:
                 db_batch = await _load_dataset_rows(
-                    experiment.dataset_id, offset=offset, limit=_BATCH_SIZE
+                    experiment.dataset_id,
+                    offset=offset,
+                    limit=_BATCH_SIZE,
+                    version=experiment.dataset_version,
                 )
                 if not db_batch:
                     break

@@ -1,7 +1,6 @@
 """Business logic for the Prompt Library module."""
 from __future__ import annotations
 
-import re
 from collections.abc import AsyncGenerator
 from typing import Sequence
 
@@ -15,16 +14,11 @@ from app.models.prompt import Prompt
 from app.repositories.experiment import ExperimentRepository
 from app.repositories.prompt import PromptRepository
 from app.schemas.prompt import PromptUpdate
-
-_VAR_RE = re.compile(r"\{(\w+)\}")
-
-
-def extract_variables(template: str) -> list[str]:
-    seen: list[str] = []
-    for match in _VAR_RE.findall(template):
-        if match not in seen:
-            seen.append(match)
-    return seen
+from app.services.prompt_variables import (
+    extract_variables,
+    render_template,
+    variable_root,
+)
 
 
 class PromptService:
@@ -120,10 +114,11 @@ class PromptService:
     async def render(self, prompt_id: str, variables: dict) -> str:
         prompt = await self.get(prompt_id)
         template_vars = set(extract_variables(prompt.template))
-        missing = template_vars - set(variables.keys())
+        required_roots = {variable_root(var) for var in template_vars}
+        missing = required_roots - set(variables.keys())
         if missing:
             raise ValidationError(f"Missing variables: {sorted(missing)}")
-        return prompt.template.format(**variables)
+        return render_template(prompt.template, variables)
 
 
 async def get_prompt_service(

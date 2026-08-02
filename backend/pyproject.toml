@@ -18,6 +18,7 @@ dependencies = [
     "weasyprint>=61",  # HTML → PDF conversion for report exports
     "arq>=0.28.0",
     "redis>=5.3.1",
+    "openpyxl>=3.1.5",
 ]
 
 [project.optional-dependencies]

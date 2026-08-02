@@ -93,6 +93,7 @@ class ExperimentService:
         dataset_snapshot = {
             "task_type": dataset.task_type,
             "schema_version": dataset.schema_version,
+            "dataset_version": dataset.version,
             "answer_policy": contract.get("answer_policy", {}) or {},
         }
 
@@ -100,6 +101,7 @@ class ExperimentService:
             project_id=data.project_id,
             name=data.name,
             dataset_id=data.dataset_id,
+            dataset_version=dataset.version,
             benchmark_id=data.benchmark_id,
             prompt_id=data.prompt_id,
             model_id=data.model_id,
@@ -345,6 +347,7 @@ class ExperimentService:
             project_id=src.project_id,
             name=name or f"{src.name} (copy)",
             dataset_id=src.dataset_id,
+            dataset_version=src.dataset_version,
             benchmark_id=src.benchmark_id,
             prompt_id=src.prompt_id,
             model_id=src.model_id,
