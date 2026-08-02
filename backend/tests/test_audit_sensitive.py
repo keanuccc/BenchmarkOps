@@ -101,3 +101,72 @@ def test_sensitive_redaction_follows_version_contract(client) -> None:
     assert current_raw["rows"][0]["email"] == "[REDACTED]"
     old_raw = client.get(f"/api/v1/datasets/{ds['id']}/preview/raw?version=1").json()
     assert old_raw["rows"][0]["email"] == "a@b.com"
+
+
+def test_experiment_results_mask_sensitive_fields(client) -> None:
+    from app.services.redaction import redact_values
+
+    assert redact_values(
+        {"email": "a@b.com", "question": "q", "_metadata": {"phone": "123"}},
+        {"email", "phone"},
+    ) == {
+        "email": "[REDACTED]",
+        "question": "q",
+        "_metadata": {"phone": "[REDACTED]"},
+    }
+
+    pid = _project(client, "ExpMask")
+    ds = _upload(
+        client,
+        pid,
+        "priv",
+        b'{"question":"q","email":"a@b.com","answer":"a"}\n',
+        extra={"sensitive_fields": '["email"]'},
+    )
+    bench = client.post(
+        "/api/v1/benchmarks/",
+        json={"project_id": pid, "name": "QA", "type": "qa", "metric": "exact_match_ci"},
+    ).json()
+    prompt = client.post(
+        "/api/v1/prompts/",
+        json={"project_id": pid, "name": "P", "template": "{question}"},
+    ).json()
+    model = client.post(
+        "/api/v1/models/",
+        json={
+            "name": "mock-mask",
+            "provider": "mock",
+            "model_id": "mock-mask",
+            "is_active": True,
+        },
+    ).json()
+    model_id = model["id"]
+    exp = client.post(
+        "/api/v1/experiments/",
+        json={
+            "project_id": pid,
+            "name": "E",
+            "dataset_id": ds["id"],
+            "benchmark_id": bench["id"],
+            "prompt_id": prompt["id"],
+            "model_id": model_id,
+        },
+    ).json()
+
+    client.post(f"/api/v1/experiments/{exp['id']}/run")
+    final = None
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        final = client.get(f"/api/v1/experiments/{exp['id']}").json()
+        if final["status"] in ("completed", "failed"):
+            break
+        time.sleep(0.1)
+    assert final is not None and final["status"] == "completed", final
+
+    raw = client.get(f"/api/v1/experiments/{exp['id']}/results").json()
+    assert raw[0]["input"]["email"] == "a@b.com"
+    masked = client.get(
+        f"/api/v1/experiments/{exp['id']}/results?mask_sensitive=true"
+    ).json()
+    assert masked[0]["input"]["email"] == "[REDACTED]"
+    assert masked[0]["input"]["question"] == "q"

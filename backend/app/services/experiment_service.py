@@ -94,6 +94,7 @@ class ExperimentService:
             "task_type": dataset.task_type,
             "schema_version": dataset.schema_version,
             "dataset_version": dataset.version,
+            "sensitive_fields": (contract.get("sensitive_fields", []) or []),
             "answer_policy": contract.get("answer_policy", {}) or {},
         }
 
@@ -169,6 +170,25 @@ class ExperimentService:
         return await self.results.list_by_experiment(
             experiment_id, offset=offset, limit=limit
         )
+
+    async def get_sensitive_fields(self, experiment_id: str) -> set[str]:
+        """Sensitive fields declared by the dataset bound to this experiment."""
+        experiment = await self.get(experiment_id)
+        snapshot_fields = (experiment.dataset_snapshot or {}).get("sensitive_fields")
+        if snapshot_fields:
+            return set(snapshot_fields)
+        from app.repositories.dataset import DatasetVersionRepository
+
+        version = experiment.dataset_version or 1
+        meta = await DatasetVersionRepository(self.session).get_by_version(
+            experiment.dataset_id, version
+        )
+        if meta is not None:
+            return set((meta.contract or {}).get("sensitive_fields", []) or [])
+        dataset = await self.session.get(Dataset, experiment.dataset_id)
+        if dataset is not None:
+            return set((dataset.contract or {}).get("sensitive_fields", []) or [])
+        return set()
 
     async def recompute_scores(self, experiment_id: str, *, diff_limit: int = 100) -> dict:
         """Re-score stored outputs without calling the evaluated model again."""

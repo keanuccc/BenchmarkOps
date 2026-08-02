@@ -139,6 +139,9 @@ async def _process_import_job(
                 fmt=fmt,
                 raw_bytes=raw_bytes,
                 source_filename=job.source_filename,
+                on_progress=lambda done, total: _report_import_progress(
+                    job_id, done, total
+                ),
                 **contract_params,
             )
             await record_event(
@@ -159,6 +162,24 @@ async def _process_import_job(
     except Exception:  # noqa: BLE001
         logger.exception("import job %s crashed", job_id)
         await _mark_failed(job_id, "Import failed (details in server logs)")
+
+
+async def _report_import_progress(job_id: str, done: int, total: int) -> None:
+    """Persist live row-level progress on an isolated session."""
+
+    async def _write() -> None:
+        async with AsyncSessionLocal() as session:
+            job = await session.get(ImportJob, job_id)
+            if job is None:
+                return
+            job.total_rows = total
+            job.progress = done
+            await session.commit()
+
+    try:
+        await with_retry_on_lock(_write)
+    except Exception:  # noqa: BLE001 - progress is best-effort, never fails the import
+        logger.warning("import job %s progress write failed", job_id)
 
 
 async def _mark_succeeded(job_id: str, *, dataset_id: str, total_rows: int) -> None:

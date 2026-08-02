@@ -22,6 +22,7 @@ from app.schemas.dataset import (
 from app.services.dataset_parser import infer_format, parse_dataset
 from app.services.dataset_service import DatasetService, get_dataset_service
 from app.services.audit_service import list_events as list_audit_events
+from app.services.redaction import redact_values
 from app.services.import_service import (
     create_import_job as start_import_job,
     get_import_job as fetch_import_job,
@@ -35,21 +36,6 @@ _CHUNK_SIZE = 1 << 20  # 1 MiB; never hold the whole file in memory at once
 
 def _sensitive_fields(dataset: Dataset) -> set[str]:
     return set((dataset.contract or {}).get("sensitive_fields", []) or [])
-
-
-def _redact(value: dict, sensitive: set[str]) -> dict:
-    """Mask declared sensitive fields (top-level and inside _metadata)."""
-    out: dict = {}
-    for key, item in value.items():
-        if key in sensitive:
-            out[key] = "[REDACTED]"
-        elif key == "_metadata" and isinstance(item, dict):
-            out[key] = {
-                k: ("[REDACTED]" if k in sensitive else v) for k, v in item.items()
-            }
-        else:
-            out[key] = item
-    return out
 
 
 @router.post("/upload", response_model=DatasetRead)
@@ -245,7 +231,7 @@ async def preview_dataset_raw(
         "rows": [
             {
                 k: str(v)
-                for k, v in _redact(
+                for k, v in redact_values(
                     {**r.input, **(r.expected or {})}, sensitive
                 ).items()
             }
@@ -346,8 +332,8 @@ async def preview_dataset(
         DatasetRowRead(
             id=row.id,
             idx=row.idx,
-            input=_redact(row.input, sensitive),
-            expected=_redact(row.expected, sensitive) if row.expected else None,
+            input=redact_values(row.input, sensitive),
+            expected=redact_values(row.expected, sensitive) if row.expected else None,
         )
         for row in rows
     ]

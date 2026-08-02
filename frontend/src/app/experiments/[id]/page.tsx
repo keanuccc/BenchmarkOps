@@ -65,6 +65,7 @@ export default function ExperimentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [maskSensitive, setMaskSensitive] = useState(false);
   const PAGE_SIZE = 50;
 
   // Ref to hold the SSE cleanup function so we can close it on unmount
@@ -75,7 +76,11 @@ export default function ExperimentDetailPage() {
     setExp(e);
     // Paginate results: load first page only
     try {
-      const r = await getExperimentResultsPaginated(experimentId, { offset: 0, limit: PAGE_SIZE });
+      const r = await getExperimentResultsPaginated(experimentId, {
+        offset: 0,
+        limit: PAGE_SIZE,
+        maskSensitive,
+      });
       setResults(r);
     } catch {
       setResults([]);
@@ -89,6 +94,22 @@ export default function ExperimentDetailPage() {
       const r = await getExperimentResultsPaginated(experimentId, {
         offset: (p - 1) * PAGE_SIZE,
         limit: PAGE_SIZE,
+        maskSensitive,
+      });
+      setResults(r);
+    } catch {
+      setResults([]);
+    }
+  }
+
+  async function toggleMask() {
+    const next = !maskSensitive;
+    setMaskSensitive(next);
+    try {
+      const r = await getExperimentResultsPaginated(experimentId, {
+        offset: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
+        maskSensitive: next,
       });
       setResults(r);
     } catch {
@@ -302,9 +323,19 @@ export default function ExperimentDetailPage() {
       </div>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--ocd-text-muted)]">
-          逐行结果 (第 {((page - 1) * PAGE_SIZE + 1)}–{page * PAGE_SIZE} 条)
-        </h2>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--ocd-text-muted)]">
+            逐行结果 (第 {((page - 1) * PAGE_SIZE + 1)}–{page * PAGE_SIZE} 条)
+          </h2>
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--ocd-text-muted)]">
+            <input
+              type="checkbox"
+              checked={maskSensitive}
+              onChange={toggleMask}
+            />
+            脱敏显示敏感字段
+          </label>
+        </div>
         {results.length === 0 ? (
           <EmptyState message="暂无结果。请先运行实验。" />
         ) : (

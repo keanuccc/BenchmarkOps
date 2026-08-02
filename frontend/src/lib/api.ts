@@ -408,11 +408,16 @@ export const listImportJobs = (projectId: string) =>
   );
 export async function waitForImport(
   jobId: string,
-  { intervalMs = 800, timeoutMs = 120000 } = {},
+  { intervalMs = 800, timeoutMs = 120000, onProgress }: {
+    intervalMs?: number;
+    timeoutMs?: number;
+    onProgress?: (job: ImportJob) => void;
+  } = {},
 ): Promise<ImportJob> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const job = await getImportJob(jobId);
+    onProgress?.(job);
     if (job.status === "succeeded" || job.status === "failed" || job.status === "cancelled") {
       return job;
     }
@@ -601,11 +606,12 @@ export const getExperimentResults = (id: string) =>
 
 export async function getExperimentResultsPaginated(
   id: string,
-  params: { offset: number; limit: number },
+  params: { offset: number; limit: number; maskSensitive?: boolean },
 ): Promise<ExperimentResult[]> {
   const qs = new URLSearchParams();
   qs.set("offset", String(params.offset));
   qs.set("limit", String(params.limit));
+  if (params.maskSensitive) qs.set("mask_sensitive", "true");
   return api.get<ExperimentResult[]>(`/experiments/${id}/results?${qs.toString()}`);
 }
 

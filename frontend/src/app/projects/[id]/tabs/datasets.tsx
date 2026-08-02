@@ -78,6 +78,7 @@ export function DatasetsTab({
   const [preview, setPreview] = useState<{ id: string; rows: DatasetRow[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [importProgress, setImportProgress] = useState<string | null>(null);
   const [uploadPreview, setUploadPreview] = useState<DatasetRow[] | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [serverPreview, setServerPreview] = useState<DatasetPreviewRaw | null>(null);
@@ -97,6 +98,7 @@ export function DatasetsTab({
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setImportProgress(null);
     setUploadPreview(null);
     const file = fileRef.current?.files?.[0];
     if (!file || !name.trim()) {
@@ -121,7 +123,14 @@ export function DatasetsTab({
     form.set("file", file);
     try {
       const job = await importDataset(form);
-      const finished = await waitForImport(job.id);
+      const finished = await waitForImport(job.id, {
+        onProgress: (j) =>
+          setImportProgress(
+            j.total_rows
+              ? `${j.progress.toLocaleString()} / ${j.total_rows.toLocaleString()} 行`
+              : null,
+          ),
+      });
       if (finished.status !== "succeeded") {
         const rows = finished.error_rows ?? [];
         const detail = rows.length
@@ -135,9 +144,11 @@ export function DatasetsTab({
       }
       setName("");
       if (fileRef.current) fileRef.current.value = "";
+      setImportProgress(null);
       refresh();
       onChange();
     } catch (err) {
+      setImportProgress(null);
       setError(err instanceof Error ? err.message : "Upload failed");
     }
   }
@@ -300,6 +311,11 @@ export function DatasetsTab({
             {busy ? <Spinner size={14} /> : uploadPreview ? "确认上传" : "导入"}
           </Button>
         </form>
+        {importProgress && (
+          <p className="mt-2 text-xs text-[var(--ocd-text-muted)]">
+            正在后台导入：{importProgress}
+          </p>
+        )}
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
         {/* File selection + preview */}

@@ -125,3 +125,35 @@ def test_import_job_reports_type_error_rows(client) -> None:
     assert job["error_rows"]
     assert job["error_rows"][0]["row"] == 0
     assert "score" in job["error_rows"][0]["message"]
+
+
+def test_upload_rejects_empty_dataset(client) -> None:
+    pid = _project(client, "EmptyReject")
+    r = _upload(client, pid, "empty", b"")
+    assert r.status_code == 422
+    assert "empty" in r.json()["error"]["message"].lower()
+
+
+def test_version_replace_rejects_empty_file(client) -> None:
+    pid = _project(client, "EmptyVersion")
+    ds = _upload(client, pid, "base", b'{"question":"q","answer":"a"}\n').json()
+    r = client.post(
+        f"/api/v1/datasets/{ds['id']}/versions",
+        data={"mode": "replace"},
+        files={"file": ("empty.jsonl", b"", "application/x-ndjson")},
+    )
+    assert r.status_code == 422
+    assert "empty" in r.json()["error"]["message"].lower()
+
+
+def test_import_job_fails_on_empty_dataset(client) -> None:
+    pid = _project(client, "EmptyImport")
+    r = client.post(
+        "/api/v1/datasets/import",
+        data={"project_id": pid, "name": "empty", "format": "jsonl"},
+        files={"file": ("empty.jsonl", b"", "application/x-ndjson")},
+    )
+    assert r.status_code == 202
+    job = _wait_job(client, r.json()["id"])
+    assert job["status"] == "failed"
+    assert "empty" in (job["error"] or "").lower()

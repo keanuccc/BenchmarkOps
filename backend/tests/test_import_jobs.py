@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 
 def _wait_job(client, job_id: str, timeout: float = 10.0) -> dict:
     deadline = time.monotonic() + timeout
@@ -109,3 +111,33 @@ def test_import_duplicate_name_fails_job(client) -> None:
 
 def test_import_job_missing_returns_404(client) -> None:
     assert client.get("/api/v1/datasets/imports/does-not-exist").status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_from_upload_reports_row_progress() -> None:
+    from app.core.database import AsyncSessionLocal
+    from app.services.dataset_service import DatasetService
+
+    calls: list[tuple[int, int]] = []
+
+    async def on_progress(done: int, total: int) -> None:
+        calls.append((done, total))
+
+    async with AsyncSessionLocal() as session:
+        service = DatasetService(session)
+        dataset = await service.create_from_upload(
+            project_id="progress-p",
+            name="progress",
+            description=None,
+            tags=None,
+            fmt="jsonl",
+            raw_bytes=b'{"question":"q1","answer":"a1"}\n{"question":"q2","answer":"a2"}\n',
+            on_progress=on_progress,
+        )
+        await service.delete(dataset.id)
+        await session.commit()
+
+    assert calls, "progress callback must be invoked"
+    assert calls[0] == (0, 2)
+    assert calls[-1] == (2, 2)
+    assert [done for done, _ in calls] == sorted(done for done, _ in calls)

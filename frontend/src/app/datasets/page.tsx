@@ -73,6 +73,7 @@ export default function DatasetsPage() {
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [versionSubmitting, setVersionSubmitting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importJob, setImportJob] = useState<ImportJob | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -104,6 +105,8 @@ export default function DatasetsPage() {
     setName("");
     setDescription("");
     setProjectId(projects[0]?.id ?? "");
+    setImportError(null);
+    setImportJob(null);
     setUploadOpen(true);
   }
 
@@ -111,13 +114,15 @@ export default function DatasetsPage() {
     if (!file || !projectId) return;
     setSubmitting(true);
     setImportError(null);
+    setImportJob(null);
     try {
       const form = new FormData();
       form.append("file", file);
       form.append("project_id", projectId);
       if (name) form.append("name", name);
       const job = await importDataset(form);
-      const finished = await waitForImport(job.id);
+      setImportJob(job);
+      const finished = await waitForImport(job.id, { onProgress: setImportJob });
       if (finished.status !== "succeeded") {
         const rows = finished.error_rows ?? [];
         const detail = rows.length
@@ -399,6 +404,19 @@ export default function DatasetsPage() {
               rows={3}
             />
           </Field>
+
+          {importJob &&
+            (importJob.status === "queued" || importJob.status === "running") && (
+              <div
+                className="rounded-lg border p-3 text-sm"
+                style={{ borderColor: "var(--ocd-border)" }}
+              >
+                正在后台导入
+                {importJob.total_rows
+                  ? `：${importJob.progress.toLocaleString()} / ${importJob.total_rows.toLocaleString()} 行`
+                  : "…"}
+              </div>
+            )}
 
           {importError && (
             <div

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
 
 from app.core.exceptions import ConflictError
@@ -23,6 +23,7 @@ from app.services.experiment_service import (
     ExperimentService,
     get_experiment_service,
 )
+from app.services.redaction import redact_values
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +102,21 @@ async def get_results(
     experiment_id: str,
     offset: int = 0,
     limit: int = 1000,
+    mask_sensitive: bool = Query(False),
     service: ExperimentService = Depends(get_experiment_service),
 ):
-    return await service.list_results(experiment_id, offset=offset, limit=limit)
+    results = await service.list_results(experiment_id, offset=offset, limit=limit)
+    if not mask_sensitive:
+        return results
+    sensitive = await service.get_sensitive_fields(experiment_id)
+    masked = []
+    for result in results:
+        read = ExperimentResultRead.model_validate(result)
+        read.input = redact_values(read.input, sensitive)
+        if read.expected is not None:
+            read.expected = redact_values(read.expected, sensitive)
+        masked.append(read)
+    return masked
 
 
 @router.post("/{experiment_id}/recompute-scores", response_model=ExperimentRecomputeReport)

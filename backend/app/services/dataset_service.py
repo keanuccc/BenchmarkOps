@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any, Sequence
 
 from fastapi import Depends
@@ -120,8 +120,13 @@ class DatasetService:
         contract: Any = None,
         sensitive_fields: Any = None,
         source_filename: str | None = None,
+        on_progress: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> Dataset:
         raw_rows = parse_dataset(raw_bytes, fmt)
+        if not raw_rows:
+            raise ValidationError("Dataset is empty: file contains 0 rows")
+        if on_progress is not None:
+            await on_progress(0, len(raw_rows))
         dataset_contract = build_dataset_contract(
             raw_rows,
             task_type=task_type,
@@ -141,7 +146,16 @@ class DatasetService:
                 details=import_errors[:_ERROR_ROWS_CAP],
             )
 
-        parsed = [split_input_expected(r, dataset_contract) for r in raw_rows]
+        # Progress is reported while rows are being split (CPU-only phase) so the
+        # background import worker never opens a second SQLite write while the
+        # import transaction below holds the writer lock.
+        parsed: list[tuple[dict, dict | None]] = []
+        for i, row in enumerate(raw_rows):
+            parsed.append(split_input_expected(row, dataset_contract))
+            if on_progress is not None and (
+                i == len(raw_rows) - 1 or (i + 1) % 1000 == 0
+            ):
+                await on_progress(i + 1, len(raw_rows))
 
         dataset = Dataset(
             project_id=project_id,
@@ -216,6 +230,8 @@ class DatasetService:
         if mode not in ("replace", "append"):
             raise ValidationError(f"Unsupported version mode: {mode!r}")
         raw_rows = parse_dataset(raw_bytes, fmt)
+        if not raw_rows:
+            raise ValidationError("Dataset is empty: file contains 0 rows")
         dataset_contract = build_dataset_contract(
             raw_rows,
             task_type=task_type,
