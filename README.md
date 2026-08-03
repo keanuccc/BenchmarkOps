@@ -291,6 +291,7 @@ npm run build              # Next.js 生产构建
 | 文档 | 内容 |
 |------|------|
 | [USAGE.md](USAGE.md) | 用户使用说明：完整工作流、API 示例 |
+| [docs/DATA_PREPARATION_GUIDE.md](docs/DATA_PREPARATION_GUIDE.md) | 数据准备与评测任务指南：原始数据 → 评测数据 → 任务前准备 |
 | [TESTING_GUIDE.md](TESTING_GUIDE.md) | 测试指南 |
 | [docs/docker-deployment.md](docs/docker-deployment.md) | 生产 Docker 部署 |
 | [docs/postgres-migration-guide.md](docs/postgres-migration-guide.md) | SQLite → PostgreSQL 迁移指南 |
