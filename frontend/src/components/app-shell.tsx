@@ -25,6 +25,7 @@ import {
   Sparkles,
   Sun,
   Target,
+  Wand2,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -47,6 +48,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/", label: "总览", icon: LayoutDashboard, exact: true },
       { href: "/projects", label: "项目", icon: Boxes },
+      { href: "/prep", label: "评测准备", icon: Wand2 },
       { href: "/experiments", label: "实验运行", icon: FlaskConical },
     ],
   },

@@ -15,6 +15,7 @@ from app.api.v1.routes import (
     experiments,
     health,
     models,
+    prep,
     projects,
     prompts,
     reports,
@@ -29,6 +30,7 @@ api_router.include_router(settings.router)
 api_router.include_router(projects.router)
 api_router.include_router(models.router)
 api_router.include_router(datasets.router)
+api_router.include_router(prep.router)
 api_router.include_router(prompts.router)
 api_router.include_router(benchmarks.router)
 api_router.include_router(experiments.router)

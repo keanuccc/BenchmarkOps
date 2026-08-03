@@ -400,6 +400,74 @@ export const uploadDataset = (form: FormData) =>
   api.upload<Dataset>("/datasets/upload", form);
 export const importDataset = (form: FormData) =>
   api.upload<ImportJob>("/datasets/import", form);
+
+// --- Evaluation preparation workbench ---------------------------------------
+
+export interface PrepSuggestion {
+  answer_candidates: string[];
+  sensitive_candidates: string[];
+  structured_chat: boolean;
+  task_type: string;
+  multi_answer: boolean;
+}
+
+export interface PrepAnalysis {
+  filename: string | null;
+  format: string;
+  row_count: number;
+  columns: string[];
+  column_count: number;
+  stats: {
+    row_count: number;
+    column_count: number;
+    columns: string[];
+    null_counts: Record<string, number>;
+  };
+  samples: Record<string, unknown>[];
+  suggestions: PrepSuggestion;
+}
+
+export interface PrepTransformResult {
+  total_rows: number;
+  preview: { input: Record<string, unknown>; expected: Record<string, unknown> | null }[];
+  raw_preview: Record<string, unknown>[];
+  contract: Record<string, unknown>;
+  import_errors: { row: number; field: string; message: string }[];
+}
+
+export interface DryRunRow {
+  row_idx: number;
+  input: Record<string, unknown>;
+  expected: Record<string, unknown> | null;
+  output: string;
+  cleaned_prediction: string;
+  expected_canonical: string;
+  score: number;
+  score_reason: string;
+  error: string | null;
+  signals: string[];
+}
+
+export interface DryRunResult {
+  results: DryRunRow[];
+  summary: {
+    rows_total: number;
+    rows_run: number;
+    rows_scored: number;
+    avg_score: number;
+    full_score: number;
+    zero_score: number;
+    row_errors: number;
+  };
+  signals: { code: string; label: string; count: number; rows: number[] }[];
+}
+
+export const analyzeRawFile = (form: FormData) =>
+  api.upload<PrepAnalysis>("/prep/analyze", form);
+export const transformRawFile = (form: FormData) =>
+  api.upload<PrepTransformResult>("/prep/transform", form);
+export const dryRunRows = (body: unknown) =>
+  api.post<DryRunResult>("/prep/dry-run", body);
 export const getImportJob = (id: string) =>
   api.get<ImportJob>(`/datasets/imports/${id}`);
 export const listImportJobs = (projectId: string) =>
