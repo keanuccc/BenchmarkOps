@@ -680,9 +680,16 @@ async def _run_experiment(experiment_id: str) -> None:
             # prediction may carry prompt-enforced prefixes like 「答案：」.
             cleaned_expected = expected_str.strip()
             multi_answer = answer_policy.get("multi_answer")
+            # Comma-splitting is only safe for exact-match short answers; for
+            # generation/contains metrics it would truncate long-form predictions
+            # (e.g. summaries) at the first comma and deflate the score.
+            split_commas = (
+                metric_name in {"exact_match", "exact_match_ci", "numeric_match"}
+                and multi_answer not in ("all", "set")
+            )
             cleaned_prediction = _extract_answer(
                 completion.text,
-                split_commas=multi_answer not in ("all", "set"),
+                split_commas=split_commas,
                 normalize_whitespace=False,
                 strip_units=answer_policy.get("strip_units", True),
             ).strip()
