@@ -89,3 +89,77 @@ def get_judge_prompt(benchmark_type: str | None) -> str:
     Falls back to the ``qa`` template when the type is unknown or missing.
     """
     return JUDGE_PROMPTS.get(benchmark_type or "qa", JUDGE_PROMPTS["qa"])
+
+
+# Default rubric dimensions per benchmark type. Each entry is
+# {"name", "description"}; weights default to 1.0.
+RUBRIC_DEFAULT_DIMENSIONS: dict[str, list[dict]] = {
+    "qa": [
+        {"name": "correctness", "description": "Whether the answer is factually correct"},
+        {"name": "completeness", "description": "Whether all key points of the expected answer are covered"},
+    ],
+    "classification": [
+        {"name": "correctness", "description": "Whether the predicted class/label matches the expected one"},
+    ],
+    "coding": [
+        {"name": "correctness", "description": "Whether the code logic is correct and produces the expected result"},
+        {"name": "completeness", "description": "Whether all requested features and edge cases are handled"},
+        {"name": "quality", "description": "Code clarity, readability, and robustness"},
+    ],
+    "generation": [
+        {"name": "correctness", "description": "Whether the content is accurate and consistent with the expected answer"},
+        {"name": "completeness", "description": "Whether the key information in the expected answer is covered"},
+        {"name": "coherence", "description": "Whether the text is fluent, well-structured, and easy to follow"},
+    ],
+    "agent": [
+        {"name": "outcome", "description": "Whether the expected outcome is achieved"},
+        {"name": "completeness", "description": "Whether all requirements of the expected outcome are satisfied"},
+    ],
+}
+
+
+def build_rubric_judge_prompt(
+    prediction: str,
+    expected: str,
+    dimensions: list[dict],
+    *,
+    scale: int,
+    rationale: bool,
+) -> str:
+    """Build a judge prompt that scores each dimension from 1 to ``scale``.
+
+    ``dimensions`` entries carry ``key`` (JSON-safe), ``name`` (display),
+    ``description`` and ``weight``; the judge returns JSON of the shape
+    ``{"scores": {"<key>": <1..scale>, ...}}``.
+    """
+    dim_lines = "\n".join(
+        f"- {d['name']} ({d['key']}, 1-{scale}): {d['description'] or d['name']}"
+        for d in dimensions
+    )
+    shape = '{"scores": {"correctness": 5, "completeness": 4}}'
+    extra = ""
+    if rationale:
+        shape = (
+            '{"scores": {"correctness": 5, "completeness": 4}, '
+            '"rationale": "brief reason"}'
+        )
+        extra = "\n- Include a brief one-sentence rationale for the scores."
+    return (
+        "You are an impartial evaluator. Score the prediction against the "
+        f"expected answer on each dimension from 1 to {scale} (higher is better).\n\n"
+        "Expected answer:\n"
+        f"{expected}\n\n"
+        "Prediction:\n"
+        f"{prediction}\n\n"
+        "Dimensions:\n"
+        f"{dim_lines}\n\n"
+        "Rules:\n"
+        "- Base scores strictly on evidence in the prediction.\n"
+        f"- A fully correct answer must receive {scale} on every dimension.\n"
+        "- Be strict but fair; assign intermediate scores when the prediction "
+        "is partially correct."
+        f"{extra}\n"
+        "- Return ONLY valid JSON in this exact shape, with no other text:\n"
+        f"{shape}\n\n"
+        "Output:"
+    )

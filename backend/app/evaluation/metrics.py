@@ -22,6 +22,7 @@ Register new metrics with the ``register`` decorator:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import re
@@ -317,6 +318,11 @@ def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict 
             _normalize_match_text(v, answer_policy=answer_policy)
             for v in _split_answer_values(prediction, answer_policy=answer_policy)
         }
+        if not required:
+            return 0.0
+        matched = len(required & parts)
+        if (answer_policy or {}).get("partial_credit"):
+            return matched / len(required)
         return 1.0 if (parts == required if mode == "set" else required <= parts) else 0.0
     if pred_n in candidates:
         return 1.0
@@ -368,7 +374,10 @@ def contains(prediction: str, expected: str | None, *, expected_raw: dict | list
         return candidate_text.casefold() in prediction_text.casefold()
 
     if mode in ("all", "set") and len(required) > 1:
-        return 1.0 if all(_matches(value) for value in required) else 0.0
+        matched = sum(1 for value in required if _matches(value))
+        if (answer_policy or {}).get("partial_credit"):
+            return matched / len(required)
+        return 1.0 if matched == len(required) else 0.0
     return 1.0 if any(_matches(candidate) for candidate in candidates) else 0.0
 
 
@@ -447,13 +456,19 @@ def numeric_match(prediction: str, expected: str | None, *, expected_raw: dict |
     tolerance = float(kwargs.get("tolerance", 1e-6))
     if not math.isfinite(tolerance) or tolerance < 0:
         raise ValidationError("tolerance must be finite and non-negative")
-    expected_values = [value for candidate in candidates for value in _to_floats(candidate)]
+    expected_values = list(
+        dict.fromkeys(
+            value for candidate in candidates for value in _to_floats(candidate)
+        )
+    )
     mode = (kwargs.get("answer_policy") or {}).get("multi_answer")
     if mode in ("all", "set") and len(expected_values) > 1:
         matched = sum(
             any(abs(actual - target) <= tolerance for actual in predicted)
             for target in expected_values
         )
+        if (kwargs.get("answer_policy") or {}).get("partial_credit"):
+            return matched / len(expected_values)
         return 1.0 if matched == len(expected_values) else 0.0
     return 1.0 if any(
         abs(actual - target) <= tolerance
@@ -609,6 +624,275 @@ def _llm_judge_cache_key(
         )
     )
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+# --- Rubric (Dimension-Based) Judge Metric -----------------------------------
+
+
+def _normalize_rubric_dimensions(
+    raw: object, benchmark_type: str | None = None
+) -> list[dict]:
+    """Validate and normalize rubric dimension config.
+
+    Accepts a list of ``{"name", "description"?, "weight"?}`` objects; when
+    ``raw`` is empty/None, falls back to the default dimensions for the
+    benchmark type (``qa`` if unknown). Each entry gets a JSON-safe ``key``.
+    """
+    from app.evaluation.judge_prompts import RUBRIC_DEFAULT_DIMENSIONS
+
+    if isinstance(raw, list) and raw:
+        source = raw
+    else:
+        source = RUBRIC_DEFAULT_DIMENSIONS.get(
+            benchmark_type or "qa", RUBRIC_DEFAULT_DIMENSIONS["qa"]
+        )
+
+    normalized: list[dict] = []
+    seen_keys: set[str] = set()
+    for item in source:
+        if not isinstance(item, dict):
+            raise ValidationError("rubric dimensions must be objects")
+        name = item.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise ValidationError("rubric dimension requires a non-empty name")
+        key = re.sub(r"[^0-9a-z_]+", "_", name.strip().lower()).strip("_")
+        if not key:
+            raise ValidationError(f"rubric dimension name {name!r} has no usable key")
+        if key in seen_keys:
+            raise ValidationError(f"rubric dimension key {key!r} is duplicated")
+        seen_keys.add(key)
+        try:
+            weight = float(item.get("weight", 1.0))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(f"invalid weight for rubric dimension {name!r}") from exc
+        if not math.isfinite(weight) or weight < 0:
+            raise ValidationError(f"invalid weight for rubric dimension {name!r}")
+        description = item.get("description")
+        normalized.append(
+            {
+                "key": key,
+                "name": name.strip(),
+                "description": "" if description is None else str(description),
+                "weight": weight,
+            }
+        )
+    if not normalized or sum(entry["weight"] for entry in normalized) <= 0:
+        raise ValidationError("rubric dimensions require a positive total weight")
+    return normalized
+
+
+def _parse_rubric_scores(
+    text: str, keys: list[str], scale: int
+) -> dict[str, float] | None:
+    """Parse judge JSON/line output into per-dimension scores in [0, 1].
+
+    Accepts ``{"scores": {...}}``, a flat ``{key: n}`` object, or
+    ``key: n`` lines. Missing/unparseable dimensions score 0.0; returns None
+    when no dimension could be parsed at all.
+    """
+    if not text:
+        return None
+    cleaned = re.sub(r"```(?:json)?", "", text, flags=re.IGNORECASE).strip()
+    scores: dict = {}
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end > start:
+        try:
+            data = json.loads(cleaned[start : end + 1])
+            if isinstance(data, dict):
+                inner = data.get("scores")
+                scores = inner if isinstance(inner, dict) else data
+        except json.JSONDecodeError:
+            scores = {}
+
+    out: dict[str, float] = {}
+    parsed_any = False
+    for key in keys:
+        value = scores.get(key) if isinstance(scores, dict) else None
+        if value is None:
+            match = re.search(rf"{re.escape(key)}\s*[:：=]\s*(\d+(?:\.\d+)?)", text)
+            if match:
+                value = match.group(1)
+        if value is None:
+            out[key] = 0.0
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            out[key] = 0.0
+            continue
+        if not math.isfinite(number):
+            out[key] = 0.0
+            continue
+        parsed_any = True
+        out[key] = max(0.0, min(1.0, number / float(scale)))
+    return out if parsed_any else None
+
+
+def _llm_judge_rubric_cache_key(
+    prediction: str,
+    expected: str,
+    *,
+    model_id: str = "",
+    provider: str = "",
+    benchmark_type: str | None = None,
+    config_sig: str = "",
+) -> str:
+    """Deterministic cache key including the rubric config signature."""
+    import hashlib
+
+    raw = "|||".join(
+        (
+            prediction.strip(),
+            expected.strip(),
+            model_id,
+            provider,
+            benchmark_type or "qa",
+            config_sig,
+        )
+    )
+    return hashlib.sha256(raw.encode()).hexdigest()[:32]
+
+
+@register("llm_judge_rubric")
+async def llm_judge_rubric(
+    prediction: str,
+    expected: str | None,
+    *,
+    expected_raw: dict | list | None = None,
+    judge_model: str | None = None,
+    judge_provider: str | None = None,
+    benchmark_type: str | None = None,
+    **kwargs,
+) -> float:
+    """Dimension-based LLM-as-Judge metric (rubric scoring).
+
+    Instead of a binary MATCH/NO_MATCH, the judge scores the prediction on
+    several dimensions (e.g. correctness, completeness, coherence) and the
+    result is a weighted average normalized to [0, 1].
+
+    Config keys passed via ``metric_config``:
+
+      - ``dimensions``: list of ``{"name", "description"?, "weight"?}``.
+        Defaults to the benchmark type's built-in dimensions.
+      - ``scale``: integer >= 2 (default 5). Judge scores each dimension
+        from 1 to ``scale``.
+      - ``rationale``: bool (default False). Ask the judge for a one-sentence
+        rationale alongside the scores.
+      - ``judge_model`` / ``judge_provider``: defaults to the primary
+        evaluation model/provider like ``llm_judge``.
+
+    Returns 0.0 conservatively on any failure (invalid config, provider error,
+    unparseable response). Missing dimensions in the response score 0.0.
+    """
+    from app.evaluation.judge_prompts import build_rubric_judge_prompt
+    from app.providers.base import ChatMessage, CompletionRequest, ProviderRateLimitedError
+    from app.providers.registry import get_provider
+
+    if not expected or not expected.strip():
+        return 0.0
+
+    raise_on_error = bool(kwargs.get("raise_on_error", False))
+    try:
+        dimensions = _normalize_rubric_dimensions(
+            kwargs.get("dimensions"), benchmark_type
+        )
+        scale = int(kwargs.get("scale", 5))
+        if scale < 2:
+            raise ValidationError("rubric scale must be >= 2")
+        rationale = bool(kwargs.get("rationale", False))
+    except (TypeError, ValueError, ValidationError) as exc:
+        if raise_on_error:
+            raise MetricEvaluationError(str(exc), kind="metric") from exc
+        return 0.0
+
+    model_id = judge_model or kwargs.get("model_id", "")
+    provider_name = judge_provider or kwargs.get("provider", "mock")
+    cache_enabled = bool(
+        judge_model or judge_provider or model_id or provider_name
+    )
+    config_sig = json.dumps(
+        {
+            "dimensions": [
+                {"key": d["key"], "weight": d["weight"]} for d in dimensions
+            ],
+            "scale": scale,
+            "rationale": rationale,
+        },
+        sort_keys=True,
+    )
+    cache_key = _llm_judge_rubric_cache_key(
+        prediction,
+        expected,
+        model_id=model_id,
+        provider=provider_name,
+        benchmark_type=benchmark_type,
+        config_sig=config_sig,
+    )
+    if cache_enabled and cache_key in _llm_judge_cache:
+        return _llm_judge_cache[cache_key]
+
+    try:
+        provider = get_provider(provider_name)
+    except Exception as exc:
+        logger.warning("llm_judge_rubric: provider %r unavailable, skipping", provider_name)
+        if raise_on_error:
+            raise MetricEvaluationError(
+                f"llm judge rubric provider unavailable: {exc}", kind="provider"
+            ) from exc
+        return 0.0
+
+    prompt_text = build_rubric_judge_prompt(
+        (prediction or "")[:2000],
+        expected,
+        dimensions,
+        scale=scale,
+        rationale=rationale,
+    )
+    messages = [ChatMessage(role="user", content=prompt_text)]
+    try:
+        completion = await asyncio.wait_for(
+            provider.complete(
+                CompletionRequest(
+                    model_id=model_id,
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=256,
+                )
+            ),
+            timeout=60,
+        )
+    except ProviderRateLimitedError:
+        raise
+    except Exception as exc:
+        logger.warning("llm_judge_rubric: judge call failed: %s", exc)
+        if raise_on_error:
+            raise MetricEvaluationError(
+                f"llm judge rubric provider call failed: {exc}", kind="provider"
+            ) from exc
+        return 0.0
+
+    parsed = _parse_rubric_scores(
+        completion.text or "", [d["key"] for d in dimensions], scale
+    )
+    if parsed is None:
+        if raise_on_error:
+            raise MetricEvaluationError(
+                "llm judge rubric returned an invalid response", kind="metric"
+            )
+        return 0.0
+    total_weight = sum(d["weight"] for d in dimensions)
+    score = (
+        sum(parsed.get(d["key"], 0.0) * d["weight"] for d in dimensions)
+        / total_weight
+    )
+    score = max(0.0, min(1.0, score))
+
+    if cache_enabled:
+        _llm_judge_cache[cache_key] = score
+        if len(_llm_judge_cache) > _MAX_CACHE_SIZE:
+            _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
+    return score
 
 
 # --- Fuzzy Match Metric -------------------------------------------------------

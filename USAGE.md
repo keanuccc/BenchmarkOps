@@ -142,7 +142,9 @@ uv run python -m app.seed
 - 进入 **Benchmarks（基准）** 页面 → 点「新建基准」。
 - 选择所属项目、填写名称、**类型** 与 **指标**：
   - 类型：`qa` / `coding` / `agent` / `classification` / `generation`
-  - 指标（部分默认映射）：`exact_match`、`exact_match_ci`、`contains`、`f1_token`、`numeric_match`；各类型默认指标为 qa→`exact_match_ci`、classification→`exact_match_ci`、coding→`contains`、generation→`f1_token`、agent→`contains`。
+  - 指标（部分默认映射）：`exact_match`、`exact_match_ci`、`contains`、`f1_token`、`numeric_match`、`fuzzy_match`、`fuzzy_match_ci`、`llm_judge`、`llm_judge_rubric`；各类型默认指标为 qa→`exact_match_ci`、classification→`exact_match_ci`、coding→`contains`、generation→`f1_token`、agent→`contains`。
+  - `llm_judge_rubric` 支持在 `metric_config` 中配置 `dimensions`（name / description / weight）、`scale`（1~N 量程，默认 5）与 `rationale`，按维度打分后加权合成 0~1 连续分。
+  - 多答案任务（`answer_policy.multi_answer` 为 all/set）可开启 `partial_credit: true` 按命中比例给部分分；默认关闭，保持全有或全无。
 - 可在基准页「指标」下拉中看到后端 `GET /benchmarks/metrics/available` 返回的全部可用指标。
 
 ### 步骤 5：写提示词
