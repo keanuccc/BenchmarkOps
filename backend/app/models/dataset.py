@@ -18,6 +18,9 @@ class Dataset(Base, UUIDMixin, TimestampMixin):
     )
 
     project_id: Mapped[str] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
     format: Mapped[str] = mapped_column(String(10))  # csv | json | jsonl

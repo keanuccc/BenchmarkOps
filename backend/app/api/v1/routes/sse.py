@@ -12,7 +12,9 @@ from fastapi.responses import StreamingResponse
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.exceptions import UnauthorizedError
+from app.models.experiment import Experiment
 from app.repositories.experiment import ExperimentRepository
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +33,9 @@ async def experiment_stream(
     EventSource cannot set Authorization headers, so the frontend passes the
     token as a query parameter; when auth is enabled it is validated here.
     """
-    if settings.auth_enabled and (
-        token is None or not hmac.compare_digest(token, settings.api_token)
-    ):
-        raise UnauthorizedError("Missing or invalid API token")
+    org_id = await _resolve_sse_auth(token)
     return StreamingResponse(
-        _event_generator(experiment_id),
+        _event_generator(experiment_id, org_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -46,7 +45,24 @@ async def experiment_stream(
     )
 
 
-async def _event_generator(experiment_id: str):
+async def _resolve_sse_auth(token: str | None) -> str | None:
+    """Resolve SSE credentials; returns the organization id (or None for
+    legacy-global/demo mode). Raises 401 for invalid credentials."""
+    if not token:
+        if settings.auth_enabled:
+            raise UnauthorizedError("Missing or invalid API token")
+        return None
+    if settings.api_token and hmac.compare_digest(token, settings.api_token):
+        return None
+    from app.core.security import _resolve_org_key
+
+    key = await _resolve_org_key(token)
+    if key is None or not key.is_active:
+        raise UnauthorizedError("Invalid API key")
+    return key.organization_id
+
+
+async def _event_generator(experiment_id: str, org_id: str | None):
     """Async generator that yields SSE events for an experiment."""
     last_status: str | None = None
     last_progress: float = -1.0
@@ -58,7 +74,16 @@ async def _event_generator(experiment_id: str):
         try:
             async with AsyncSessionLocal() as session:
                 repo = ExperimentRepository(session)
-                exp = await repo.get(experiment_id)
+                if org_id is not None:
+                    result = await session.execute(
+                        select(Experiment).where(
+                            Experiment.id == experiment_id,
+                            Experiment.organization_id == org_id,
+                        )
+                    )
+                    exp = result.scalar_one_or_none()
+                else:
+                    exp = await repo.get(experiment_id)
                 if exp is None:
                     yield f"id: {event_id}\nevent: error\ndata: {{\"error\":\"experiment not found\"}}\n\n"
                     return

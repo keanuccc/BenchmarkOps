@@ -78,6 +78,10 @@ class BenchmarkService:
             raise ValidationError(f"Invalid metric {metric!r}: {exc.message}")
 
     async def create(self, data: BenchmarkCreate) -> Benchmark:
+        from app.repositories.project import ProjectRepository
+
+        if await ProjectRepository(self.session).get(data.project_id) is None:
+            raise ValidationError(f"Project '{data.project_id}' does not exist")
         suite = (data.metric_config or {}).get("metric_suite")
         if data.metric is None and isinstance(suite, list) and suite:
             metric = suite[0].get("name")

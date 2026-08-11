@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import Base
+from app.core.tenant import get_tenant
 
 ModelT = TypeVar("ModelT", bound=Base)
 
@@ -23,7 +24,25 @@ class BaseRepository(Generic[ModelT]):
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    def _scope(self) -> str | None:
+        """Return the active organization id when this model is tenant-scoped."""
+        tenant = get_tenant()
+        if tenant is None or not hasattr(self.model, "organization_id"):
+            return None
+        return tenant.organization_id
+
     async def get(self, id: str) -> ModelT | None:
+        org_id = self._scope()
+        if org_id is not None:
+            stmt = (
+                select(self.model)
+                .where(
+                    self.model.id == id,
+                    self.model.organization_id == org_id,
+                )
+            )
+            result = await self.session.execute(stmt)
+            return result.scalar_one_or_none()
         return await self.session.get(self.model, id)
 
     async def list(
@@ -36,6 +55,9 @@ class BaseRepository(Generic[ModelT]):
         search: str | None = None,
     ) -> Sequence[ModelT]:
         stmt = select(self.model)
+        org_id = self._scope()
+        if org_id is not None:
+            stmt = stmt.where(self.model.organization_id == org_id)
         if filters:
             for field, value in filters.items():
                 # Treat an empty string like None: callers that send
@@ -59,6 +81,9 @@ class BaseRepository(Generic[ModelT]):
         search: str | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(self.model)
+        org_id = self._scope()
+        if org_id is not None:
+            stmt = stmt.where(self.model.organization_id == org_id)
         if filters:
             for field, value in filters.items():
                 if value:
@@ -69,6 +94,9 @@ class BaseRepository(Generic[ModelT]):
         return int(result.scalar_one())
 
     async def create(self, obj: ModelT) -> ModelT:
+        org_id = self._scope()
+        if org_id is not None and hasattr(obj, "organization_id"):
+            obj.organization_id = org_id
         self.session.add(obj)
         await self.session.flush()
         await self.session.refresh(obj)

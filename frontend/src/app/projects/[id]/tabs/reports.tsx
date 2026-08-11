@@ -6,11 +6,14 @@ import {
   generateReport,
   listExperiments,
   exportReport,
+  exportReportHtml,
   exportReportPdf,
   type Report,
   type Experiment,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
+import { ScheduledReportsPanel } from "@/components/scheduled-reports-panel";
+import { WebhooksPanel } from "@/components/webhooks-panel";
 
 export function ReportsTab({
   projectId,
@@ -45,6 +48,15 @@ export function ReportsTab({
     setPdfExporting(r.id);
     try {
       await exportReportPdf(r.id, r.title);
+    } finally {
+      setPdfExporting(null);
+    }
+  }
+
+  async function handleExportHtml(r: Report) {
+    setPdfExporting(r.id);
+    try {
+      await exportReportHtml(r.id, r.title);
     } finally {
       setPdfExporting(null);
     }
@@ -167,6 +179,13 @@ export function ReportsTab({
                   >
                     {pdfExporting === r.id ? "导出中…" : "导出 .pdf"}
                   </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleExportHtml(r)}
+                    disabled={pdfExporting === r.id}
+                  >
+                    {pdfExporting === r.id ? "导出中…" : "导出 .html"}
+                  </Button>
                 </div>
                 {exportErr && (
                   <p className="mt-2 text-xs text-red-600">{exportErr}</p>
@@ -181,6 +200,8 @@ export function ReportsTab({
           ))}
         </div>
       )}
+      <ScheduledReportsPanel projectId={projectId} experiments={experiments} />
+      <WebhooksPanel projectId={projectId} />
     </div>
   );
 }

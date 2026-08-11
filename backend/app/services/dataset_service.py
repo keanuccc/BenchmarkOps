@@ -18,6 +18,7 @@ from app.repositories.dataset import (
     DatasetRowRepository,
     DatasetVersionRepository,
 )
+from app.repositories.project import ProjectRepository
 from app.repositories.experiment import ExperimentRepository
 from app.services.audit_service import record_event
 from app.schemas.dataset import DatasetUpdate
@@ -123,6 +124,8 @@ class DatasetService:
         source_filename: str | None = None,
         on_progress: Callable[[int, int], Awaitable[None]] | None = None,
     ) -> Dataset:
+        if await ProjectRepository(self.session).get(project_id) is None:
+            raise ValidationError(f"Project '{project_id}' does not exist")
         raw_rows = parse_dataset(raw_bytes, fmt)
         if not raw_rows:
             raise ValidationError("Dataset is empty: file contains 0 rows")

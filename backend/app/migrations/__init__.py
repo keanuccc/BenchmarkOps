@@ -836,6 +836,175 @@ async def _upgrade_import_jobs_and_audit(conn) -> None:  # type: ignore[no-untyp
 MIGRATIONS[18] = _upgrade_import_jobs_and_audit
 
 
+async def _upgrade_multitenancy(conn) -> None:  # type: ignore[no-untyped-def]
+    """Add organization tenant columns and the organization / api_key tables.
+
+    All resource tables gain a nullable ``organization_id`` column so existing
+    rows (NULL) remain visible in the legacy no-token demo mode. Idempotent:
+    each guard skips work that has already been applied.
+    """
+    if not await _table_exists(conn, "organizations"):
+        await conn.execute(
+            sa.text(
+                """
+                CREATE TABLE organizations (
+                    id VARCHAR(36) PRIMARY KEY,
+                    name VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    status VARCHAR(20) NOT NULL DEFAULT 'active',
+                    monthly_budget_usd FLOAT,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+        )
+        await conn.execute(
+            sa.text(
+                "CREATE INDEX ix_organizations_name ON organizations (name)"
+            )
+        )
+        await conn.execute(
+            sa.text(
+                """
+                CREATE TABLE api_keys (
+                    id VARCHAR(36) PRIMARY KEY,
+                    organization_id VARCHAR(36) NOT NULL,
+                    name VARCHAR(200) NOT NULL,
+                    key_hash VARCHAR(64) NOT NULL UNIQUE,
+                    key_prefix VARCHAR(8) NOT NULL,
+                    role VARCHAR(20) NOT NULL DEFAULT 'member',
+                    is_active BOOLEAN NOT NULL DEFAULT 1,
+                    last_used_at TIMESTAMP,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+        )
+        await conn.execute(
+            sa.text(
+                "CREATE INDEX ix_api_keys_organization_id ON api_keys (organization_id)"
+            )
+        )
+        await conn.execute(
+            sa.text("CREATE INDEX ix_api_keys_key_hash ON api_keys (key_hash)")
+        )
+
+    for table in (
+        "projects",
+        "datasets",
+        "benchmarks",
+        "prompts",
+        "experiments",
+        "reports",
+        "import_jobs",
+        "audit_events",
+    ):
+        existing = await _table_columns(conn, table)
+        if "organization_id" not in existing:
+            await conn.execute(
+                sa.text(
+                    f"ALTER TABLE {table} ADD COLUMN organization_id VARCHAR(36)"
+                )
+            )
+        if f"ix_{table}_organization_id" not in {
+            idx["name"]
+            for idx in await conn.run_sync(
+                lambda sync_conn: sa.inspect(sync_conn).get_indexes(table)
+            )
+        }:
+            await conn.execute(
+                sa.text(
+                    f"CREATE INDEX ix_{table}_organization_id ON {table} (organization_id)"
+                )
+            )
+
+
+MIGRATIONS[19] = _upgrade_multitenancy
+
+
+async def _upgrade_scheduled_reports(conn) -> None:  # type: ignore[no-untyped-def]
+    """Create the scheduled_reports table (idempotent)."""
+    if await _table_exists(conn, "scheduled_reports"):
+        return
+    await conn.execute(
+        sa.text(
+            """
+            CREATE TABLE scheduled_reports (
+                id VARCHAR(36) PRIMARY KEY,
+                organization_id VARCHAR(36),
+                project_id VARCHAR(36) NOT NULL,
+                name VARCHAR(200) NOT NULL,
+                experiment_ids TEXT NOT NULL,
+                schedule VARCHAR(20) NOT NULL DEFAULT 'daily',
+                format VARCHAR(10) NOT NULL DEFAULT 'md',
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                next_run_at TIMESTAMP,
+                last_run_at TIMESTAMP,
+                last_status VARCHAR(30),
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX ix_scheduled_reports_organization_id "
+            "ON scheduled_reports (organization_id)"
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX ix_scheduled_reports_project_id "
+            "ON scheduled_reports (project_id)"
+        )
+    )
+
+
+MIGRATIONS[20] = _upgrade_scheduled_reports
+
+
+async def _upgrade_webhooks(conn) -> None:  # type: ignore[no-untyped-def]
+    """Create the webhook_subscriptions table (idempotent)."""
+    if await _table_exists(conn, "webhook_subscriptions"):
+        return
+    await conn.execute(
+        sa.text(
+            """
+            CREATE TABLE webhook_subscriptions (
+                id VARCHAR(36) PRIMARY KEY,
+                organization_id VARCHAR(36),
+                project_id VARCHAR(36) NOT NULL,
+                name VARCHAR(200) NOT NULL,
+                url VARCHAR(500) NOT NULL,
+                secret VARCHAR(200),
+                events TEXT NOT NULL,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+            """
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX ix_webhook_subscriptions_organization_id "
+            "ON webhook_subscriptions (organization_id)"
+        )
+    )
+    await conn.execute(
+        sa.text(
+            "CREATE INDEX ix_webhook_subscriptions_project_id "
+            "ON webhook_subscriptions (project_id)"
+        )
+    )
+
+
+MIGRATIONS[21] = _upgrade_webhooks
+
+
 async def _ensure_version_table(conn: sa.ext.asyncio.AsyncConnection) -> None:
     """Create `schema_migrations`; migrate and drop the legacy table."""
     has_legacy = await _table_exists(conn, "schema_version")

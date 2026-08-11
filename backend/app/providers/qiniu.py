@@ -11,6 +11,9 @@ Differences / robustness:
     exhausted* signal (e.g. `FailedOperation.FreeQuotaExhausted` / code `429001`),
     which raises ProviderQuotaExhaustedError so the runner stops instead of spinning.
   * Missing `usage` / missing `choices` fall back to safe defaults instead of crashing.
+  * Reasoning models (e.g. DeepSeek) may spend the whole output budget on
+    chain-of-thought and return an empty `content`; in that case we fall back to
+    `reasoning_content` so the run scores something instead of silently zero.
   * All network calls are wrapped in the configured eval_request_timeout.
 """
 from __future__ import annotations
@@ -133,7 +136,6 @@ class QiniuProvider(LLMProvider):
         }
 
         started = time.perf_counter()
-        last_exc: Exception | None = None
         # Instant-retry counter for transient non-rate-limit failures (5xx/timeout).
         transient_attempts = 0
         # Per-call 429 retry cap. A single row must not retry 429 forever.
@@ -162,11 +164,6 @@ class QiniuProvider(LLMProvider):
                             raise ProviderRateLimitedError(
                                 "Qiniu rate limited (429) persistently; aborting run"
                             )
-                        last_exc = httpx.HTTPStatusError(
-                            "upstream returned 429",
-                            request=resp.request,
-                            response=resp,
-                        )
                         await self._backoff(resp, self._consecutive_429)
                         continue
                     if resp.status_code >= 500:
@@ -177,11 +174,6 @@ class QiniuProvider(LLMProvider):
                             raise ProviderRateLimitedError(
                                 f"Qiniu returned {resp.status_code} persistently; aborting run"
                             )
-                        last_exc = httpx.HTTPStatusError(
-                            f"upstream returned {resp.status_code}",
-                            request=resp.request,
-                            response=resp,
-                        )
                         await self._backoff(resp, transient_attempts)
                         continue
                     if resp.status_code == 403:
@@ -199,11 +191,6 @@ class QiniuProvider(LLMProvider):
                             raise ProviderRateLimitedError(
                                 f"Qiniu returned 403: {detail}"
                             )
-                        last_exc = httpx.HTTPStatusError(
-                            f"upstream returned 403",
-                            request=resp.request,
-                            response=resp,
-                        )
                         await self._backoff(resp, transient_attempts)
                         continue
                     if resp.status_code >= 400:
@@ -222,11 +209,10 @@ class QiniuProvider(LLMProvider):
                     # Any successful response resets the throttle counter.
                     self._consecutive_429 = 0
                     break
-                except (httpx.TimeoutException, asyncio.TimeoutError) as exc:
+                except (httpx.TimeoutException, asyncio.TimeoutError):
                     # The configured eval_request_timeout elapsed; retry if attempts
                     # remain, else surface the failure to the runner.
                     transient_attempts += 1
-                    last_exc = exc
                     if transient_attempts >= _RETRY_COUNT:
                         raise
                     await self._backoff(None, transient_attempts)
@@ -242,13 +228,24 @@ class QiniuProvider(LLMProvider):
         first = choices[0] or {}
         message = first.get("message") or {}
         text = message.get("content") or ""
+        content_source = "content"
+        if not text:
+            reasoning = message.get("reasoning_content") or ""
+            if reasoning:
+                text = reasoning
+                content_source = "reasoning_content"
         usage = data.get("usage", {}) or {}
         return CompletionResult(
             text=text,
             prompt_tokens=int(usage.get("prompt_tokens", 0)),
             completion_tokens=int(usage.get("completion_tokens", 0)),
             latency_ms=latency_ms,
-            raw={"provider": "qiniu", "id": data.get("id")},
+            raw={
+                "provider": "qiniu",
+                "id": data.get("id"),
+                "content_source": content_source,
+                "finish_reason": first.get("finish_reason"),
+            },
         )
 
     @staticmethod

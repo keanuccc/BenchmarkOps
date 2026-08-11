@@ -14,6 +14,9 @@ class Prompt(Base, UUIDMixin, TimestampMixin):
     )
 
     project_id: Mapped[str] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     template: Mapped[str] = mapped_column(Text)
     variables: Mapped[list] = mapped_column(JSONType, default=list)

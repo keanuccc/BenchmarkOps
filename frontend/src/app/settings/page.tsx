@@ -5,6 +5,7 @@ import { API_BASE_URL, getHealth, getApiTokenStatus, updateApiToken, getDbConfig
 import { setApiToken as setLocalToken } from "@/lib/api";
 import { Card, Badge, EmptyState, Spinner, SectionTitle, Button } from "@/components/ui";
 import { useToast } from "@/components/notifications";
+import { OrganizationManager } from "@/components/organization-manager";
 import { Settings, Server, KeyRound, Shield, Eye, EyeOff, CheckCircle, XCircle, Database, HardDrive, GitBranch, Download, Trash2 } from "lucide-react";
 
 // Backup endpoints live under /db (outside the /api/v1 prefix). Derive the
@@ -252,6 +253,9 @@ export default function SettingsPage() {
           <p className="text-sm text-[var(--ocd-text-faint)]">暂无 Token 状态信息。</p>
         )}
       </Card>
+
+      {/* --- Organizations (multi-tenant) --- */}
+      <OrganizationManager />
 
       {/* --- Backend Connection --- */}
       <Card className="p-5">

@@ -195,10 +195,15 @@ async def test_validate_reports_prompt_variable_missing_from_stored_rows() -> No
 @pytest.mark.asyncio
 async def test_upload_rejects_rows_missing_explicit_required_fields() -> None:
     async with AsyncSessionLocal() as session:
+        from app.models.project import Project
+
+        project = Project(name="required-fields")
+        session.add(project)
+        await session.flush()
         service = DatasetService(session)
         with pytest.raises(ValidationError, match="Row 0 missing required field: question"):
             await service.create_from_upload(
-                project_id="p1",
+                project_id=project.id,
                 name="missing-required",
                 description=None,
                 tags=None,

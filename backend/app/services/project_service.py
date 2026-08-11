@@ -5,6 +5,7 @@ from sqlalchemy import delete, func, select
 
 from app.core.database import get_session
 from app.core.exceptions import NotFoundError
+from app.core.tenant import get_tenant
 from app.models.benchmark import Benchmark
 from app.models.dataset import Dataset, DatasetRow
 from app.models.experiment import Experiment, ExperimentResult
@@ -23,6 +24,10 @@ class ProjectService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repo = ProjectRepository(session)
+
+    def _org_id(self) -> str | None:
+        tenant = get_tenant()
+        return tenant.organization_id if tenant is not None else None
 
     async def create(self, data: ProjectCreate) -> Project:
         obj = Project(name=data.name, description=data.description)
@@ -43,6 +48,9 @@ class ProjectService:
         limit: int = 100,
     ) -> list[Project]:
         stmt = select(Project)
+        org_id = self._org_id()
+        if org_id is not None:
+            stmt = stmt.where(Project.organization_id == org_id)
         if status is not None:
             stmt = stmt.where(Project.status == status)
         if q:
@@ -59,6 +67,9 @@ class ProjectService:
         q: str | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(Project)
+        org_id = self._org_id()
+        if org_id is not None:
+            stmt = stmt.where(Project.organization_id == org_id)
         if status:
             stmt = stmt.where(Project.status == status)
         if q:

@@ -98,7 +98,70 @@ async def test_ok_parses_result(monkeypatch):
     assert result.prompt_tokens == 3
     assert result.completion_tokens == 2
     assert result.raw["provider"] == "qiniu"
+    assert result.raw["content_source"] == "content"
     assert provider._consecutive_429 == 0
+
+
+async def test_ok_empty_content_falls_back_to_reasoning_content(monkeypatch):
+    """Reasoning models can exhaust the token budget before `content` is set;
+    the provider must fall back to `reasoning_content` instead of scoring 0."""
+    _patch_client(
+        monkeypatch,
+        [
+            httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": "",
+                                "reasoning_content": "让我先想想……答案：4",
+                            },
+                            "finish_reason": "length",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 3, "completion_tokens": 60},
+                    "id": "chatcmpl-1",
+                },
+                request=httpx.Request("POST", "http://x"),
+            )
+        ],
+    )
+    provider = _provider()
+    result = await provider.complete(CompletionRequest(model_id="m", messages=[]))
+    assert result.text == "让我先想想……答案：4"
+    assert result.raw["content_source"] == "reasoning_content"
+    assert result.raw["finish_reason"] == "length"
+
+
+async def test_ok_content_takes_precedence_over_reasoning(monkeypatch):
+    """When both fields are present, `content` is the final answer and wins."""
+    _patch_client(
+        monkeypatch,
+        [
+            httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": "4",
+                                "reasoning_content": "内部思考过程",
+                            },
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 3, "completion_tokens": 2},
+                    "id": "chatcmpl-1",
+                },
+                request=httpx.Request("POST", "http://x"),
+            )
+        ],
+    )
+    provider = _provider()
+    result = await provider.complete(CompletionRequest(model_id="m", messages=[]))
+    assert result.text == "4"
+    assert result.raw["content_source"] == "content"
 
 
 async def test_ok_missing_usage_defaults(monkeypatch):

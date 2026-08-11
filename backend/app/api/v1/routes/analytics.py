@@ -5,9 +5,12 @@ from fastapi import APIRouter, Depends
 
 from app.schemas.analytics import (
     ComparisonResponse,
+    CompareFailuresResponse,
     FailureCase,
     LeaderboardEntry,
+    ModelRoutingEntry,
     ProjectAnalyticsSummary,
+    SubgroupResponse,
     TrendPoint,
 )
 from app.core.security import require_auth
@@ -68,3 +71,39 @@ async def get_project_summary(
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     return await service.project_summary(project_id)
+
+
+@router.get(
+    "/experiments/{experiment_id}/subgroups",
+    response_model=SubgroupResponse,
+)
+async def get_subgroups(
+    experiment_id: str,
+    group_field: str,
+    service: AnalyticsService = Depends(get_analytics_service),
+):
+    return await service.subgroups(experiment_id, group_field)
+
+
+@router.get(
+    "/compare/failures",
+    response_model=CompareFailuresResponse,
+)
+async def compare_failures(
+    experiment_a: str,
+    experiment_b: str,
+    service: AnalyticsService = Depends(get_analytics_service),
+):
+    return await service.compare_failures(experiment_a, experiment_b)
+
+
+@router.get("/model-routing", response_model=list[ModelRoutingEntry])
+async def get_model_routing(
+    project_id: str,
+    min_accuracy: float = 0.8,
+    limit: int = 10,
+    service: AnalyticsService = Depends(get_analytics_service),
+):
+    return await service.model_routing(
+        project_id, min_accuracy=min_accuracy, limit=limit
+    )

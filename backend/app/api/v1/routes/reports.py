@@ -1,17 +1,21 @@
-"""AI Report API — generate, list, fetch, export (md/pdf), and delete reports."""
+"""AI Report API: generate, list, fetch, export (md/html/pdf), and delete."""
 from __future__ import annotations
 
+import logging
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 
 from app.core.security import require_auth
+from app.report.exporter import markdown_to_html, markdown_to_pdf
 from app.schemas.common import ListResponse
 from app.schemas.report import ReportGenerateRequest, ReportRead
 from app.services.report_service import ReportService, get_report_service
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.post("/generate", response_model=ReportRead, status_code=status.HTTP_201_CREATED)
@@ -47,12 +51,19 @@ async def get_report(
 @router.get("/{report_id}/export")
 async def export_report(
     report_id: str,
+    format: str = "md",
     service: ReportService = Depends(get_report_service),
 ):
+    """Export a report as Markdown (default), styled HTML, or PDF."""
     report = await service.get(report_id)
     raw = report.title or str(report.id)
-    ascii_name = re.sub(r"[^A-Za-z0-9_.-]", "_", raw) + ".md"
-    headers = {"Content-Disposition": f'attachment; filename="{ascii_name}"'}
+    base = re.sub(r"[^A-Za-z0-9_.-]", "_", raw)
+    if format == "html":
+        return HTMLResponse(
+            markdown_to_html(report.content_markdown or "", title=raw),
+            headers={"Content-Disposition": f'attachment; filename="{base}.html"'},
+        )
+    headers = {"Content-Disposition": f'attachment; filename="{base}.md"'}
     return PlainTextResponse(
         report.content_markdown or "", media_type="text/markdown", headers=headers
     )
@@ -63,56 +74,18 @@ async def export_report_pdf(
     report_id: str,
     service: ReportService = Depends(get_report_service),
 ):
-    """Export report as PDF via weasyprint. Falls back to 501 if unavailable."""
-    try:
-        from weasyprint import HTML
-    except ImportError:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="PDF export requires weasyprint",
-        )
-
+    """Export report as PDF via reportlab (pure Python, no native deps)."""
     report = await service.get(report_id)
-    content = report.content_markdown or ""
     title = report.title or str(report.id)
-    pdf_filename = title.replace(" ", "_") + ".pdf"
-
-    # Markdown → HTML using Python markdown library
+    pdf_filename = re.sub(r"[^A-Za-z0-9_.-]", "_", title) + ".pdf"
     try:
-        import markdown
-        html_body = markdown.markdown(
-            content,
-            extensions=["tables", "fenced_code", "codehilite", "toc"],
-        )
-    except ImportError:
-        # Fallback: basic HTML wrapping
-        html_body = "<p>" + content.replace("\n\n", "</p><p>").replace("\n", "<br/>") + "</p>"
-
-    full_html = f"""
-    <html>
-    <head>
-        <meta charset="utf-8"/>
-        <style>
-            body {{ font-family: sans-serif; padding: 2em; line-height: 1.6; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 1em 0; }}
-            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-            th {{ background-color: #f5f5f5; }}
-            pre {{ background: #f5f5f5; padding: 1em; overflow-x: auto; }}
-            code {{ background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }}
-        </style>
-    </head>
-    <body>{html_body}</body>
-    </html>
-    """
-
-    try:
-        pdf_bytes = HTML(string=full_html).write_pdf()
+        pdf_bytes = markdown_to_pdf(report.content_markdown or "", title=title)
     except Exception:
+        logger.exception("PDF export failed for report %s", report_id)
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="PDF export requires weasyprint",
+            detail="PDF export failed",
         )
-
     headers = {"Content-Disposition": f'attachment; filename="{pdf_filename}"'}
     return StreamingResponse(
         iter([pdf_bytes]),

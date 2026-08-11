@@ -12,6 +12,8 @@ import {
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
 import { BarChart } from "@/components/charts";
+import { FailureDiffPanel } from "@/components/failure-diff-panel";
+import { ModelRoutingCard } from "@/components/model-routing-card";
 import { useQuery } from "@tanstack/react-query";
 
 const SERIES_COLORS = [
@@ -174,6 +176,21 @@ function CompareInner() {
           ))}
         </div>
       )}
+
+      {selected.size === 2 &&
+        (() => {
+          const pair = [...selected];
+          const a = experiments.find((e) => e.id === pair[0]);
+          const b = experiments.find((e) => e.id === pair[1]);
+          return a && b ? (
+            <FailureDiffPanel
+              experimentA={{ id: a.id, name: a.name }}
+              experimentB={{ id: b.id, name: b.name }}
+            />
+          ) : null;
+        })()}
+
+      {projectId && <ModelRoutingCard projectId={projectId} />}
 
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-[var(--ocd-text-muted)]">

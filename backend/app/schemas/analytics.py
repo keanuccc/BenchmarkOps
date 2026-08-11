@@ -55,3 +55,48 @@ class ProjectAnalyticsSummary(BaseModel):
     best_accuracy: float
     coverage: float
     failure_rate: float
+
+
+class SubgroupEntry(BaseModel):
+    group: str
+    row_count: int
+    avg_score: float
+    pass_count: int
+    fail_count: int
+    error_count: int
+
+
+class SubgroupResponse(BaseModel):
+    experiment_id: str
+    group_field: str
+    total_rows: int
+    groups: list[SubgroupEntry]
+
+
+class CompareFailureCase(BaseModel):
+    row_idx: int
+    input: dict
+    expected: dict | None
+    a_output: str
+    a_score: float
+    b_output: str
+    b_score: float
+
+
+class CompareFailuresResponse(BaseModel):
+    experiment_a: str
+    experiment_b: str
+    a_only_wrong: list[CompareFailureCase]
+    b_only_wrong: list[CompareFailureCase]
+    both_wrong: list[CompareFailureCase]
+
+
+class ModelRoutingEntry(BaseModel):
+    model_id: str
+    model_name: str
+    experiment_id: str
+    accuracy: float
+    avg_latency_ms: float
+    total_cost: float
+    total_tokens: int
+    recommended: bool = False

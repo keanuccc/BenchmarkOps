@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
+from app.core.tenant import get_tenant
 from app.evaluation.metrics import (
     MetricEvaluationError,
     _call_metric,
@@ -25,12 +26,15 @@ from app.models.benchmark import Benchmark
 from app.models.dataset import Dataset
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.model import Model
-from app.models.prompt import Prompt
-from app.models.project import Project
 from app.repositories.experiment import (
     ExperimentRepository,
     ExperimentResultRepository,
 )
+from app.repositories.dataset import DatasetRepository
+from app.repositories.benchmark import BenchmarkRepository
+from app.repositories.prompt import PromptRepository
+from app.repositories.project import ProjectRepository
+from app.repositories.model import ModelRepository
 from app.repositories.task import TaskRepository
 from app.schemas.experiment import ExperimentCreate, ExperimentUpdate
 from app.services.benchmark_service import build_benchmark_snapshot
@@ -46,17 +50,17 @@ class ExperimentService:
 
     async def _validate_components(self, data: ExperimentCreate) -> None:
         """Ensure all referenced aggregates exist before creating an experiment."""
-        if await self.session.get(Project, data.project_id) is None:
+        if await ProjectRepository(self.session).get(data.project_id) is None:
             raise ValidationError(f"Referenced project '{data.project_id}' does not exist")
 
         checks = {
-            "dataset": (Dataset, data.dataset_id),
-            "benchmark": (Benchmark, data.benchmark_id),
-            "prompt": (Prompt, data.prompt_id),
-            "model": (Model, data.model_id),
+            "dataset": (DatasetRepository(self.session), data.dataset_id),
+            "benchmark": (BenchmarkRepository(self.session), data.benchmark_id),
+            "prompt": (PromptRepository(self.session), data.prompt_id),
+            "model": (ModelRepository(self.session), data.model_id),
         }
-        for label, (model_cls, oid) in checks.items():
-            component = await self.session.get(model_cls, oid)
+        for label, (repo, oid) in checks.items():
+            component = await repo.get(oid)
             if component is None:
                 raise ValidationError(f"Referenced {label} '{oid}' does not exist")
             component_project_id = getattr(component, "project_id", None)
@@ -70,10 +74,10 @@ class ExperimentService:
 
         # Snapshot the referenced components' current content so a later edit to a
         # prompt/benchmark/model does not change how this experiment reproduces.
-        prompt = await self.session.get(Prompt, data.prompt_id)
-        benchmark = await self.session.get(Benchmark, data.benchmark_id)
-        model = await self.session.get(Model, data.model_id)
-        dataset = await self.session.get(Dataset, data.dataset_id)
+        prompt = await PromptRepository(self.session).get(data.prompt_id)
+        benchmark = await BenchmarkRepository(self.session).get(data.benchmark_id)
+        model = await ModelRepository(self.session).get(data.model_id)
+        dataset = await DatasetRepository(self.session).get(data.dataset_id)
         prompt_snapshot = {
             "template": prompt.template,
             "variables": prompt.variables,
@@ -332,6 +336,11 @@ class ExperimentService:
     async def run(self, experiment_id: str) -> Experiment:
         """Queue a background evaluation run. Guard against in-flight/dup submissions."""
         exp = await self.get(experiment_id)
+        tenant = get_tenant()
+        if tenant is not None:
+            from app.services.budget_service import check_org_budget
+
+            await check_org_budget(tenant.organization_id, self.session)
         if exp.status in ("running", "queued"):
             raise ConflictError("Experiment is already running")
         # Mark queued immediately so the UI reflects receipt before work begins.

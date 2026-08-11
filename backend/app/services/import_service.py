@@ -68,6 +68,12 @@ async def create_import_job(
     """Create a queued import job (committed) or return an existing idempotent one."""
     import hashlib
 
+    async with AsyncSessionLocal() as session:
+        from app.repositories.project import ProjectRepository
+
+        if await ProjectRepository(session).get(project_id) is None:
+            raise NotFoundError(f"Project '{project_id}' does not exist")
+
     content_hash = hashlib.sha256(raw_bytes).hexdigest()
     async with AsyncSessionLocal() as session:
         repo = ImportJobRepository(session)
@@ -227,6 +233,10 @@ async def get_import_job(job_id: str, session) -> ImportJob:
 
 
 async def list_import_jobs(project_id: str, session) -> list[ImportJob]:
+    from app.repositories.project import ProjectRepository
+
+    if await ProjectRepository(session).get(project_id) is None:
+        return []
     return await ImportJobRepository(session).list_by_project(project_id)
 
 

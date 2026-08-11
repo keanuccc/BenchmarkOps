@@ -15,6 +15,9 @@ class Report(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "reports"
 
     project_id: Mapped[str] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(300))
 
     experiment_ids: Mapped[list] = mapped_column(JSONType, default=list)

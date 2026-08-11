@@ -33,6 +33,10 @@ class PromptService:
         template: str,
         description: str | None,
     ) -> Prompt:
+        from app.repositories.project import ProjectRepository
+
+        if await ProjectRepository(self.session).get(project_id) is None:
+            raise ValidationError(f"Project '{project_id}' does not exist")
         prompt = Prompt(
             project_id=project_id,
             name=name,

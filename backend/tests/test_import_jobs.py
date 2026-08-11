@@ -124,9 +124,14 @@ async def test_create_from_upload_reports_row_progress() -> None:
         calls.append((done, total))
 
     async with AsyncSessionLocal() as session:
+        from app.models.project import Project
+
+        project = Project(name="progress-p")
+        session.add(project)
+        await session.flush()
         service = DatasetService(session)
         dataset = await service.create_from_upload(
-            project_id="progress-p",
+            project_id=project.id,
             name="progress",
             description=None,
             tags=None,

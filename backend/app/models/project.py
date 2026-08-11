@@ -20,3 +20,6 @@ class Project(Base, UUIDMixin, TimestampMixin):
     name: Mapped[str] = mapped_column(String(200), index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
+    organization_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )

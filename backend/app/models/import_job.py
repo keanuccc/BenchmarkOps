@@ -13,6 +13,9 @@ class ImportJob(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "import_jobs"
 
     project_id: Mapped[str] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(200))
     dataset_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     format: Mapped[str] = mapped_column(String(10))

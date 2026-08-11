@@ -1002,3 +1002,9 @@ def fuzzy_match_ci(
             best_score = similarity
 
     return 1.0 if best_score >= threshold else 0.0
+
+
+# Import extended metrics so their @register decorators run at import time.
+# Kept at the bottom of the module to avoid a circular import (the extended
+# module imports ``register`` from here).
+from app.evaluation import metrics_extended  # noqa: E402,F401

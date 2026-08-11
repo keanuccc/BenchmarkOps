@@ -43,6 +43,11 @@ class UnauthorizedError(DomainError):
     code = "unauthorized"
 
 
+class ForbiddenError(DomainError):
+    status_code = 403
+    code = "forbidden"
+
+
 class ProviderError(DomainError):
     """Base class for upstream model-gateway failures.
 

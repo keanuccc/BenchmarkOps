@@ -18,6 +18,9 @@ from app.models.experiment import Experiment, ExperimentResult  # noqa: F401
 from app.models.import_job import ImportJob  # noqa: F401
 from app.models.report import Report  # noqa: F401
 from app.models.task import EvaluationTask  # noqa: F401
+from app.models.organization import ApiKey, Organization  # noqa: F401
+from app.models.scheduled_report import ScheduledReport  # noqa: F401
+from app.models.webhook import WebhookSubscription  # noqa: F401
 
 __all__ = [
     "Base",
@@ -34,4 +37,8 @@ __all__ = [
     "ImportJob",
     "Report",
     "EvaluationTask",
+    "Organization",
+    "ApiKey",
+    "ScheduledReport",
+    "WebhookSubscription",
 ]

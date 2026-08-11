@@ -40,6 +40,35 @@ export function getApiToken(): string | null {
   return _token;
 }
 
+// --- Organization API key storage -------------------------------------------
+// The organization key is kept in localStorage so it survives tab closes, like
+// a session login. It takes precedence over the legacy global token because it
+// carries tenant scope.
+let _orgKey: string | null = null;
+
+try {
+  _orgKey = localStorage.getItem("benchmarkops_org_key");
+} catch {
+  /* localStorage may be unavailable in some browsers */
+}
+
+export function setOrgKey(key: string | null): void {
+  _orgKey = key;
+  try {
+    if (key) {
+      localStorage.setItem("benchmarkops_org_key", key);
+    } else {
+      localStorage.removeItem("benchmarkops_org_key");
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getOrgKey(): string | null {
+  return _orgKey;
+}
+
 export interface ApiError {
   code: string;
   message: string;
@@ -95,9 +124,13 @@ export async function request<T>(path: string, init?: RequestOptions): Promise<T
       headers: {
         "Content-Type": "application/json",
         ...(init?.headers ?? {}),
-        // Attach token if one is configured (the user set it in Settings).
-        // When no token is set, the backend runs in demo mode and ignores auth.
-        ...(_token ? { Authorization: `Bearer ${_token}` } : {}),
+        // Attach the organization key when present; otherwise fall back to the
+        // legacy global token. With neither set, the backend runs in demo mode.
+        ...(_orgKey
+          ? { Authorization: `Bearer ${_orgKey}` }
+          : _token
+            ? { Authorization: `Bearer ${_token}` }
+            : {}),
       },
       cache: "no-store",
       ...init,
@@ -120,7 +153,11 @@ export async function request<T>(path: string, init?: RequestOptions): Promise<T
       // requests don't keep failing. The user will see a network_error on the
       // next attempt and can navigate to Settings to re-enter their token.
       if (res.status === 401) {
-        setApiToken(null);
+        if (_orgKey) {
+          setOrgKey(null);
+        } else {
+          setApiToken(null);
+        }
       }
       throw new ApiRequestError(res.status, code, message);
     }
@@ -816,6 +853,32 @@ export async function exportReportPdf(id: string, title?: string): Promise<void>
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/**
+ * Fetch a report as styled HTML and trigger a same-origin Blob download.
+ */
+export async function exportReportHtml(id: string, title?: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/reports/${id}/export?format=html`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new ApiRequestError(
+      res.status,
+      "html_export_error",
+      `HTML导出失败 (${res.status})`,
+    );
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const safe = (title?.trim() || id).replace(/[^A-Za-z0-9_.-]/g, "_");
+  a.download = `${safe}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // --- Settings / API Token ---
 export interface ApiTokenStatus {
   enabled: boolean;
@@ -895,7 +958,7 @@ export function createExperimentStream(
   onMessage: (event: ExperimentSSEEvent) => void,
   onDone?: () => void,
 ): () => void {
-  const token = getApiToken();
+  const token = getOrgKey() ?? getApiToken();
   const qs = token ? `?token=${encodeURIComponent(token)}` : "";
   const url = `${API_BASE_URL}/experiments/${experimentId}/stream${qs}`;
   const es = new EventSource(url);
@@ -922,3 +985,211 @@ export function createExperimentStream(
     es.close();
   };
 }
+
+// --- Organizations (multi-tenant) -------------------------------------------
+
+export interface OrganizationInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  monthly_budget_usd: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiKeyInfo {
+  id: string;
+  organization_id: string;
+  name: string;
+  key_prefix: string;
+  role: string;
+  is_active: boolean;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface ApiKeyCreated extends ApiKeyInfo {
+  key: string;
+}
+
+export interface OrganizationWithKey {
+  organization: OrganizationInfo;
+  api_key: ApiKeyCreated;
+}
+
+export interface CreateOrganizationInput {
+  name: string;
+  description?: string | null;
+}
+
+export interface CreateApiKeyInput {
+  name: string;
+  role: "admin" | "member" | "viewer";
+}
+
+export interface UpdateOrganizationInput {
+  name?: string;
+  description?: string | null;
+  monthly_budget_usd?: number | null;
+}
+
+export const createOrganization = (input: CreateOrganizationInput) =>
+  api.post<OrganizationWithKey>("/organizations", input);
+
+export const getMyOrganization = () =>
+  api.get<OrganizationInfo>("/organizations/me");
+
+export const updateOrganization = (orgId: string, input: UpdateOrganizationInput) =>
+  api.patch<OrganizationInfo>(`/organizations/${orgId}`, input);
+
+export const listApiKeys = (orgId: string) =>
+  api.get<ApiKeyInfo[]>(`/organizations/${orgId}/api-keys`);
+
+export const createApiKey = (orgId: string, input: CreateApiKeyInput) =>
+  api.post<ApiKeyCreated>(`/organizations/${orgId}/api-keys`, input);
+
+export const revokeApiKey = (orgId: string, keyId: string) =>
+  api.del<void>(`/organizations/${orgId}/api-keys/${keyId}`);
+
+// --- Scheduled reports (continuous evaluation digest) -----------------------
+
+export interface ScheduledReportInfo {
+  id: string;
+  project_id: string;
+  name: string;
+  experiment_ids: string[];
+  schedule: string;
+  format: string;
+  is_active: boolean;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_status: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledReportInput {
+  project_id: string;
+  name: string;
+  experiment_ids: string[];
+  schedule: "daily" | "weekly" | "monthly";
+  format: "md" | "html" | "pdf";
+}
+
+export const listScheduledReports = (projectId: string) =>
+  api.get<ScheduledReportInfo[]>(
+    `/scheduled-reports?project_id=${encodeURIComponent(projectId)}`,
+  );
+
+export const createScheduledReport = (input: ScheduledReportInput) =>
+  api.post<ScheduledReportInfo>("/scheduled-reports", input);
+
+export const updateScheduledReport = (
+  id: string,
+  input: Partial<ScheduledReportInput> & { is_active?: boolean },
+) => api.patch<ScheduledReportInfo>(`/scheduled-reports/${id}`, input);
+
+export const deleteScheduledReport = (id: string) =>
+  api.del<void>(`/scheduled-reports/${id}`);
+
+export const runScheduledReportNow = (id: string) =>
+  api.post<ScheduledReportInfo>(`/scheduled-reports/${id}/run`);
+
+// --- Failure diffing between two experiments --------------------------------
+
+export interface CompareFailureCase {
+  row_idx: number;
+  input: Record<string, unknown>;
+  expected: Record<string, unknown> | null;
+  a_output: string;
+  a_score: number;
+  b_output: string;
+  b_score: number;
+}
+
+export interface CompareFailuresResponse {
+  experiment_a: string;
+  experiment_b: string;
+  a_only_wrong: CompareFailureCase[];
+  b_only_wrong: CompareFailureCase[];
+  both_wrong: CompareFailureCase[];
+}
+
+export const compareFailures = (a: string, b: string) =>
+  api.get<CompareFailuresResponse>(
+    `/analytics/compare/failures?experiment_a=${encodeURIComponent(a)}&experiment_b=${encodeURIComponent(b)}`,
+  );
+
+// --- Subgroup analysis ------------------------------------------------------
+
+export interface SubgroupEntry {
+  group: string;
+  row_count: number;
+  avg_score: number;
+  pass_count: number;
+  fail_count: number;
+  error_count: number;
+}
+
+export interface SubgroupResponse {
+  experiment_id: string;
+  group_field: string;
+  total_rows: number;
+  groups: SubgroupEntry[];
+}
+
+export const getSubgroups = (experimentId: string, groupField: string) =>
+  api.get<SubgroupResponse>(
+    `/analytics/experiments/${experimentId}/subgroups?group_field=${encodeURIComponent(groupField)}`,
+  );
+
+// --- Webhooks (CI/CD callbacks) ---------------------------------------------
+
+export interface WebhookInfo {
+  id: string;
+  project_id: string;
+  name: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WebhookInput {
+  project_id: string;
+  name: string;
+  url: string;
+  secret?: string;
+  events: string[];
+}
+
+export const listWebhooks = (projectId: string) =>
+  api.get<WebhookInfo[]>(`/webhooks?project_id=${encodeURIComponent(projectId)}`);
+
+export const createWebhook = (input: WebhookInput) =>
+  api.post<WebhookInfo>("/webhooks", input);
+
+export const deleteWebhook = (id: string) => api.del<void>(`/webhooks/${id}`);
+
+export const testWebhook = (id: string) =>
+  api.post<{ delivered: boolean }>(`/webhooks/${id}/test`);
+
+// --- Model routing suggestions ----------------------------------------------
+
+export interface ModelRoutingEntry {
+  model_id: string;
+  model_name: string;
+  experiment_id: string;
+  accuracy: number;
+  avg_latency_ms: number;
+  total_cost: number;
+  total_tokens: number;
+  recommended: boolean;
+}
+
+export const getModelRouting = (projectId: string, minAccuracy = 0.8) =>
+  api.get<ModelRoutingEntry[]>(
+    `/analytics/model-routing?project_id=${encodeURIComponent(projectId)}&min_accuracy=${minAccuracy}`,
+  );

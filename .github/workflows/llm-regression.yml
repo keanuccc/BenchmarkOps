@@ -1,0 +1,35 @@
+name: LLM 回归门槛
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment_id:
+        description: "要检查的实验 ID"
+        required: true
+      baseline:
+        description: "基线准确率（0~1）或基线 JSON 文件路径"
+        required: true
+        default: "0.9"
+      threshold:
+        description: "允许的准确率下降幅度"
+        required: false
+        default: "0.05"
+
+jobs:
+  regression-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 运行实验并检查回归
+        env:
+          BENCHMARKOPS_API: ${{ vars.BENCHMARKOPS_API }}
+          BENCHMARKOPS_TOKEN: ${{ secrets.BENCHMARKOPS_TOKEN }}
+        run: |
+          python backend/scripts/bmops.py run "${{ inputs.experiment_id }}" --wait
+          python backend/scripts/bmops.py check-regression \
+            --experiment "${{ inputs.experiment_id }}" \
+            --baseline "${{ inputs.baseline }}" \
+            --threshold "${{ inputs.threshold }}"

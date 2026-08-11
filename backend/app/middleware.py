@@ -60,6 +60,58 @@ class RequestIDMiddleware:
         )
 
 
+class TenantContextMiddleware:
+    """Resolve the organization API key from the Authorization header.
+
+    Installs the tenant context for every request (read and write) so scoped
+    repositories filter correctly even on open read endpoints. Requests without
+    a credential, or with the legacy global token, stay unscoped (demo mode).
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        from app.core.config import settings
+        from app.core.security import _resolve_org_key
+        from app.core.tenant import (
+            TenantContext,
+            reset_tenant,
+            set_tenant,
+        )
+
+        token = None
+        auth_header = None
+        for name, value in scope.get("headers", []):
+            if name == b"authorization":
+                auth_header = value.decode("latin-1")
+                break
+        if auth_header and auth_header.lower().startswith("bearer "):
+            raw = auth_header[7:].strip()
+            if not (settings.api_token and raw == settings.api_token):
+                key = await _resolve_org_key(raw)
+                if key is not None and key.is_active:
+                    token = set_tenant(
+                        TenantContext(
+                            organization_id=key.organization_id,
+                            role=key.role,
+                            key_id=key.id,
+                        )
+                    )
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            if token is not None:
+                try:
+                    reset_tenant(token)
+                except ValueError:
+                    pass
+
+
 def setup_structured_logging() -> None:
     """Configure structured logging with request_id in every record."""
     logging.basicConfig(

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,7 +12,12 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import acquire_writer_lock, init_db
 from app.core.exceptions import register_exception_handlers
-from app.middleware import RequestIDMiddleware, get_metrics_summary, setup_structured_logging
+from app.middleware import (
+    RequestIDMiddleware,
+    TenantContextMiddleware,
+    get_metrics_summary,
+    setup_structured_logging,
+)
 
 # Configure structured logging
 setup_structured_logging()
@@ -27,7 +33,15 @@ async def lifespan(app: FastAPI):  # type: ignore[override]
     # Recover any experiments stuck in "running" or "queued" from a previous crash.
     await _recover_stale_experiments()
     await _recover_stale_import_jobs()
+    from app.services.report_scheduler import scheduler_loop
+
+    scheduler_task = asyncio.create_task(scheduler_loop())
     yield
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
 
 
 async def _recover_stale_import_jobs() -> None:
@@ -129,6 +143,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(TenantContextMiddleware)
     app.add_middleware(RequestIDMiddleware)
 
     @app.get("/metrics")

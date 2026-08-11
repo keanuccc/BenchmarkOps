@@ -1,0 +1,41 @@
+{
+  "name": "金融客服评测包",
+  "description": "面向金融行业客服场景的评测模板：客服问答（qa）、意图分类（classification）、工具调用（agent）。数据格式见 docs/DATA_PREPARATION_GUIDE.md。",
+  "benchmarks": [
+    {
+      "name": "金融客服问答（精确匹配）",
+      "type": "qa",
+      "metric": "exact_match_ci",
+      "description": "信用卡/贷款/账户类客服问答，答案短句精确匹配"
+    },
+    {
+      "name": "金融意图分类",
+      "type": "classification",
+      "metric": "exact_match_ci",
+      "description": "工单/会话意图识别：查余额、转账、挂失、投诉等"
+    },
+    {
+      "name": "金融工具调用判定",
+      "type": "agent",
+      "metric": "tool_call",
+      "description": "验证模型是否正确输出 JSON 工具调用（如 check_balance）及关键参数"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "金融客服回答（简洁）",
+      "template": "你是某银行的客服助手。请用简洁、安全的口吻回答客户问题，涉及账户信息时必须引导客户通过官方渠道核实，不要编造数据。\n\n客户问题：{question}\n\n回答：",
+      "description": "金融客服问答模板，强调安全与不编造"
+    },
+    {
+      "name": "金融意图分类（受限输出）",
+      "template": "将下面的客户消息归类为：查余额 / 转账 / 挂失 / 投诉 / 咨询产品 / 其他。只输出类别名。\n\n消息：{text}\n\n类别：",
+      "description": "金融意图分类模板，限制输出为单一类别"
+    },
+    {
+      "name": "金融工具调用（JSON）",
+      "template": "你是银行 AI 助手。如需查询账户信息，请输出 JSON 工具调用：{\"name\": \"check_balance\", \"arguments\": {\"account_id\": \"...\"}}，不要输出其他内容。\n\n用户：{question}",
+      "description": "Agent 工具调用模板，强制 JSON 输出"
+    }
+  ]
+}

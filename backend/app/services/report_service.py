@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.exceptions import NotFoundError, ValidationError
+from app.core.tenant import get_tenant
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.model import Model
 from app.models.report import Report
@@ -43,6 +44,10 @@ class ReportService:
         self.reports = ReportRepository(session)
         self.experiments = ExperimentRepository(session)
         self.results = ExperimentResultRepository(session)
+
+    def _org_id(self) -> str | None:
+        tenant = get_tenant()
+        return tenant.organization_id if tenant is not None else None
 
     async def generate(self, req: ReportGenerateRequest) -> Report:
         if not req.experiment_ids:
@@ -121,6 +126,9 @@ class ReportService:
         limit: int = 100,
     ) -> Sequence[Report]:
         stmt = select(Report).where(Report.project_id == project_id)
+        org_id = self._org_id()
+        if org_id is not None:
+            stmt = stmt.where(Report.organization_id == org_id)
         if q:
             stmt = stmt.where(Report.title.ilike(f"%{q}%"))
         stmt = stmt.order_by(Report.created_at.desc()).offset(offset).limit(limit)
@@ -133,6 +141,9 @@ class ReportService:
             .select_from(Report)
             .where(Report.project_id == project_id)
         )
+        org_id = self._org_id()
+        if org_id is not None:
+            stmt = stmt.where(Report.organization_id == org_id)
         if q:
             stmt = stmt.where(Report.title.ilike(f"%{q}%"))
         result = await self.session.execute(stmt)

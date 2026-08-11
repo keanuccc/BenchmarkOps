@@ -13,6 +13,9 @@ class AuditEvent(Base, UUIDMixin):
     __tablename__ = "audit_events"
 
     project_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    organization_id: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, index=True
+    )
     entity_type: Mapped[str] = mapped_column(String(50))
     entity_id: Mapped[str] = mapped_column(String(36))
     action: Mapped[str] = mapped_column(String(50))

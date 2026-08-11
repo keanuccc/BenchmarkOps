@@ -1007,6 +1007,17 @@ async def _run_experiment(experiment_id: str) -> None:
             status="succeeded" if status in ("completed", "partial") else "failed",
             error=rate_limited_msg or None,
         )
+        # Fire-and-forget lifecycle webhooks; delivery failures are logged in
+        # the webhook service and never affect the run outcome.
+        try:
+            from app.services.webhook_service import notify_experiment
+
+            asyncio.create_task(
+                notify_experiment(experiment_id, status),
+                name=f"webhook-notify-{experiment_id}",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("webhook notify scheduling failed for %s", experiment_id)
     except Exception as exc:
         logger.exception("experiment %s persist failed", experiment_id)
         # Preserve the original diagnostic; a 'database is locked' failure is the

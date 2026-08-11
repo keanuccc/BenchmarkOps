@@ -21,6 +21,17 @@ os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{_TMP_DB}"
 os.environ.setdefault("REDIS_DSN", "redis://localhost:6379/15")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _init_test_db():
+    """Create tables + run migrations once before any test (async tests rely on it)."""
+    import asyncio
+
+    from app.core.database import init_db
+
+    asyncio.run(init_db())
+    yield
+
+
 @pytest.fixture()
 def client():
     from starlette.testclient import TestClient
