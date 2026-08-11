@@ -15,6 +15,7 @@ from app.core.exceptions import register_exception_handlers
 from app.middleware import (
     RequestIDMiddleware,
     TenantContextMiddleware,
+    ensure_request_id_logging,
     get_metrics_summary,
     setup_structured_logging,
 )
@@ -27,6 +28,7 @@ logger = logging.getLogger("benchmarkops")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[override]
+    ensure_request_id_logging()
     acquire_writer_lock()  # Ensure only one backend process writes to SQLite
     await init_db()
     await _log_integrity_summary()

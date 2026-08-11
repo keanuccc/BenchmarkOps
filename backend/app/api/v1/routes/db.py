@@ -54,6 +54,32 @@ async def create_backup(
     return result
 
 
+@router.get("/backup/list")
+async def list_backups(
+    _: None = Depends(require_auth),
+) -> list[dict]:
+    """List all available backup files with metadata."""
+    from pathlib import Path
+
+    backup_dir = Path("./backups")
+    if not backup_dir.exists():
+        return []
+
+    backups = []
+    for f in sorted(backup_dir.glob("benchmarkops_*.db*"), reverse=True):
+        # Only include main .db files (not -wal/-shm sidecar files)
+        if not f.name.endswith(".db"):
+            continue
+        stat = f.stat()
+        backups.append({
+            "filename": f.name,
+            "size_mb": round(stat.st_size / (1024 * 1024), 2),
+            "created_at": f.strftime("%Y-%m-%d %H:%M:%S") if hasattr(f, 'strftime') else "",
+            "modified": f.stat().st_mtime,
+        })
+    return backups
+
+
 @router.get("/backup/{filename}")
 async def download_backup(
     filename: str,
@@ -84,32 +110,6 @@ async def download_backup(
         filename=filename,
         media_type="application/octet-stream",
     )
-
-
-@router.get("/backup/list")
-async def list_backups(
-    _: None = Depends(require_auth),
-) -> list[dict]:
-    """List all available backup files with metadata."""
-    from pathlib import Path
-
-    backup_dir = Path("./backups")
-    if not backup_dir.exists():
-        return []
-
-    backups = []
-    for f in sorted(backup_dir.glob("benchmarkops_*.db*"), reverse=True):
-        # Only include main .db files (not -wal/-shm sidecar files)
-        if not f.name.endswith(".db"):
-            continue
-        stat = f.stat()
-        backups.append({
-            "filename": f.name,
-            "size_mb": round(stat.st_size / (1024 * 1024), 2),
-            "created_at": f.strftime("%Y-%m-%d %H:%M:%S") if hasattr(f, 'strftime') else "",
-            "modified": f.stat().st_mtime,
-        })
-    return backups
 
 
 @router.delete("/backup/{filename}", status_code=204, response_model=None)

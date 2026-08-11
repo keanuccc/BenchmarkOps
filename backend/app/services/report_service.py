@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.database import get_session
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.tenant import get_tenant
+from app.models.dataset import Dataset
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.model import Model
 from app.models.report import Report
@@ -28,14 +29,23 @@ from app.repositories.experiment import (
 from app.repositories.report import ReportRepository
 from app.schemas.report import ReportGenerateRequest
 
-# Runtime default model slug used ONLY as a provider call argument when no other
-# default is configured. This is a runtime model choice, not application config.
+# Runtime default model slugs used ONLY as a provider call argument when no
+# other default is configured. The slug must be valid on the gateway actually
+# serving the request: OpenRouter exposes openai/gpt-4o-mini, while the Qiniu
+# gateway does not carry that model (it returns 400 "no available channels").
+# Qiniu is verified to serve deepseek/deepseek-v4-flash and deepseek-v3.
 DEFAULT_REPORT_MODEL_ID = "openai/gpt-4o-mini"
+QINIU_REPORT_MODEL_ID = "deepseek/deepseek-v4-flash"
 
 
 def resolve_report_model_id() -> str:
     """Model id used for AI-generated reports (configurable via REPORT_MODEL_ID)."""
-    return settings.report_model_id or DEFAULT_REPORT_MODEL_ID
+    if settings.report_model_id:
+        return settings.report_model_id
+    provider = (settings.report_provider or settings.default_provider).lower()
+    if provider == "qiniu":
+        return QINIU_REPORT_MODEL_ID
+    return DEFAULT_REPORT_MODEL_ID
 
 
 class ReportService:
@@ -68,8 +78,25 @@ class ReportService:
                 await self.results.list_by_experiment(exp.id)
             )
 
+        sensitive_by_exp: dict[str, set[str]] = {}
+        for exp in experiments:
+            result = await self.session.execute(
+                select(Dataset).where(Dataset.id == exp.dataset_id)
+            )
+            dataset = result.scalar_one_or_none()
+            sensitive_by_exp[exp.id] = (
+                set((dataset.contract or {}).get("sensitive_fields", []) or [])
+                if dataset is not None
+                else set()
+            )
+
         model_names = await self._resolve_model_names(experiments)
-        context = build_context(experiments, results_by_exp, model_names)
+        context = build_context(
+            experiments,
+            results_by_exp,
+            model_names,
+            sensitive_by_exp=sensitive_by_exp,
+        )
 
         generated_by = "template"
         try:
@@ -77,7 +104,7 @@ class ReportService:
                 provider = get_provider(settings.report_provider or None)
                 model_id = resolve_report_model_id()
                 content_markdown, sections = await ai_report(context, provider, model_id)
-                generated_by = active_provider_name()
+                generated_by = getattr(provider, "name", None) or active_provider_name()
             else:
                 raise RuntimeError("provider disabled")
         except Exception:

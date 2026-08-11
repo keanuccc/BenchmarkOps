@@ -1,0 +1,10 @@
+{"question": "请输出工具调用：{\"name\": \"check_balance\", \"arguments\": {\"account_id\": \"A1001\"}}", "answer": "check_balance", "arguments": {"account_id": "A1001"}}
+{"question": "请输出工具调用：{\"name\": \"transfer_money\", \"arguments\": {\"from\": \"A1001\", \"to\": \"A1002\", \"amount\": 500}}", "answer": "transfer_money", "arguments": {"from": "A1001", "to": "A1002", "amount": 500}}
+{"question": "请输出工具调用：{\"name\": \"get_weather\", \"arguments\": {\"city\": \"beijing\"}}", "answer": "get_weather", "arguments": {"city": "beijing"}}
+{"question": "请输出工具调用：{\"name\": \"create_order\", \"arguments\": {\"product_id\": \"P88\", \"quantity\": 2}}", "answer": "create_order", "arguments": {"product_id": "P88", "quantity": 2}}
+{"question": "请输出工具调用：{\"name\": \"search_orders\", \"arguments\": {\"order_id\": \"DD2026\"}}", "answer": "search_orders", "arguments": {"order_id": "DD2026"}}
+{"question": "帮我查一下账户 A1001 的余额", "answer": "check_balance", "arguments": {"account_id": "A1001"}}
+{"question": "请把 500 元从 A1001 转到 A1002", "answer": "transfer_money", "arguments": {"from": "A1001", "to": "A1002", "amount": 500}}
+{"question": "北京今天天气怎么样？", "answer": "get_weather", "arguments": {"city": "beijing"}}
+{"question": "帮我下一个 P88 商品数量 2 的订单", "answer": "create_order", "arguments": {"product_id": "P88", "quantity": 2}}
+{"question": "查询订单 DD2026 的状态", "answer": "search_orders", "arguments": {"order_id": "DD2026"}}

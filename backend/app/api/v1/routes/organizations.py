@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.core.security import require_org_admin, require_org_auth
+from app.core.security import require_auth, require_org_admin, require_org_auth
 from app.core.tenant import TenantContext
 from app.schemas.organization import (
     ApiKeyCreate,
@@ -26,6 +26,7 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 async def create_organization(
     data: OrganizationCreate,
     service: OrganizationService = Depends(get_organization_service),
+    _: None = Depends(require_auth),
 ) -> OrganizationWithKey:
     """Create an organization and return its first (owner) API key."""
     return await service.create_organization(data)

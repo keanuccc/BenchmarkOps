@@ -13,12 +13,14 @@ import json
 from app.models.experiment import Experiment, ExperimentResult
 from app.providers.base import ChatMessage, CompletionRequest, LLMProvider
 from app.schemas.experiment import _sanitize_error
+from app.services.redaction import redact_text, redact_values
 
 
 def build_context(
     experiments: list[Experiment],
     results_by_exp: dict[str, list[ExperimentResult]],
     model_names: dict[str, str],
+    sensitive_by_exp: dict[str, set[str]] | None = None,
 ) -> dict:
     """Assemble a compact, JSON-serializable summary of the experiments.
 
@@ -28,6 +30,7 @@ def build_context(
     exp_summaries = []
     for exp in experiments:
         results = results_by_exp.get(exp.id, [])
+        sensitive = (sensitive_by_exp or {}).get(exp.id, set())
         failures = []
         for r in results:
             if len(failures) >= 5:
@@ -36,9 +39,9 @@ def build_context(
                 failures.append(
                     {
                         "row_idx": r.row_idx,
-                        "input": r.input,
-                        "expected": r.expected,
-                        "output": r.output,
+                        "input": redact_values(r.input, sensitive),
+                        "expected": redact_values(r.expected, sensitive) if r.expected else None,
+                        "output": redact_text(r.output or ""),
                         "score": r.score,
                         "error": _sanitize_error(r.error),
                     }

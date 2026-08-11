@@ -164,7 +164,7 @@ def test_model_snapshot_preserves_provider_for_reproducible_routing(client):
         json={
             "name": "OpenRouter model",
             "provider": "openrouter",
-            "model_id": "openai/gpt-4o-mini",
+            "model_id": "openai/gpt-4o-mini-snapshot-test",
             "pricing": {},
         },
     ).json()

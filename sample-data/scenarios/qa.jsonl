@@ -1,0 +1,10 @@
+{"question": "计算 2+2", "answer": "4", "category": "数学"}
+{"question": "计算 3*4", "answer": "12", "category": "数学"}
+{"question": "计算 10-3", "answer": "7", "category": "数学"}
+{"question": "计算 6/2", "answer": "3", "category": "数学"}
+{"question": "计算 7+8", "answer": "15", "category": "数学"}
+{"question": "france 的首都是哪个城市？", "answer": "Paris", "category": "地理"}
+{"question": "退款要多久到账？", "answer": "1-3个工作日", "category": "退款"}
+{"question": "支持货到付款吗？", "answer": "目前暂不支持", "category": "支付"}
+{"question": "发票怎么开？", "answer": "订单完成后在线申请电子发票", "category": "发票"}
+{"question": "会员积分多久到账？", "answer": "确认收货后24小时内", "category": "会员"}

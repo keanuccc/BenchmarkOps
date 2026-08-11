@@ -23,7 +23,7 @@ from app.services.experiment_service import (
     ExperimentService,
     get_experiment_service,
 )
-from app.services.redaction import redact_values
+from app.services.redaction import redact_text, redact_values
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +115,7 @@ async def get_results(
         read.input = redact_values(read.input, sensitive)
         if read.expected is not None:
             read.expected = redact_values(read.expected, sensitive)
+        read.output = redact_text(read.output or "")
         masked.append(read)
     return masked
 
@@ -198,7 +199,12 @@ async def cancel_experiment(
 
     async with AsyncSessionLocal() as session:
         repo = ExperimentRepository(session)
-        await repo.update(exp, {"status": "cancelled"})
+        fresh = await repo.get(experiment_id)
+        if fresh is None:
+            raise ConflictError("Experiment no longer exists")
+        if fresh.status not in ("running", "queued"):
+            raise ConflictError(f"Cannot cancel experiment with status '{fresh.status}'")
+        await repo.update(fresh, {"status": "cancelled"})
         await session.commit()
     await mark_done(experiment_id, status="cancelled")
     # Also signal the background task to stop at the next row boundary

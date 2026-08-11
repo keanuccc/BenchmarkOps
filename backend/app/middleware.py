@@ -57,6 +57,7 @@ class RequestIDMiddleware:
             scope.get("method", "?"),
             scope.get("path", "?"),
             elapsed_ms,
+            extra={"request_id": _request_id_var.get()},
         )
 
 
@@ -121,6 +122,24 @@ def setup_structured_logging() -> None:
     root = logging.getLogger()
     if not any(isinstance(f, RequestIDFilter) for f in root.filters):
         root.addFilter(RequestIDFilter())
+    for handler in root.handlers:
+        if not any(isinstance(f, RequestIDFilter) for f in handler.filters):
+            handler.addFilter(RequestIDFilter())
+
+
+def ensure_request_id_logging() -> None:
+    """Re-attach the RequestIDFilter after uvicorn's logging reconfiguration.
+
+    uvicorn applies ``logging.config.dictConfig`` after app import, which drops
+    logger-level filters. Handler-level filters survive that reset, so re-ensure
+    both at startup (called from the app lifespan).
+    """
+    root = logging.getLogger()
+    if not any(isinstance(f, RequestIDFilter) for f in root.filters):
+        root.addFilter(RequestIDFilter())
+    for handler in root.handlers:
+        if not any(isinstance(f, RequestIDFilter) for f in handler.filters):
+            handler.addFilter(RequestIDFilter())
 
 
 def get_metrics_summary() -> dict[str, Any]:

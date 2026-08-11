@@ -45,3 +45,21 @@ def add(a, b):
     pdf = markdown_to_pdf(md_text, title="报告")
     assert pdf.startswith(b"%PDF")
     assert len(pdf) > 500
+
+
+def test_pdf_chinese_renders_with_cjk_font():
+    """Chinese text must be extractable from the PDF, not black boxes."""
+    from app.report.exporter import _CJK_FONT
+
+    if _CJK_FONT == "Helvetica":
+        return  # no CJK font on this machine; cannot assert rendering
+    md_text = "# AI 评测报告\n\n## 性能分析\n\n- 准确率：100%\n- 成本：$0.014\n"
+    pdf = markdown_to_pdf(md_text, title="报告")
+    import io
+
+    from pypdf import PdfReader
+
+    reader = PdfReader(io.BytesIO(pdf))
+    text = "".join(page.extract_text() or "" for page in reader.pages)
+    assert "评测报告" in text
+    assert "准确率" in text

@@ -19,16 +19,39 @@ DATASET_JSONL = (
 
 
 def goto_projects(page: Page) -> None:
-    page.get_by_text("项目", exact=True).first.click()
+    page.locator('a[href="/projects"]').first.click()
     page.wait_for_load_state("networkidle")
 
 
 def seed_models(page: Page) -> None:
     """Open the model center and click 初始化模型 (idempotent)."""
-    page.get_by_text("模型", exact=True).first.click()
+    page.locator('a[href="/models"]').first.click()
     page.wait_for_load_state("networkidle")
     page.get_by_role("button", name="初始化模型").click()
     page.get_by_text("上下文", exact=False).first.wait_for(timeout=15000)
+
+
+def seed_mock_model(page: Page) -> str:
+    """Ensure an offline mock model exists for experiments (idempotent).
+
+    The seeded OpenRouter-style models need a real OpenRouter key; the E2E
+    backend runs in mock mode, so experiments must use a mock model.
+    """
+    resp = page.request.post(
+        "http://localhost:8001/api/v1/models/",
+        data={
+            "name": "E2E Mock",
+            "provider": "mock",
+            "model_id": "e2e-mock",
+            "context_length": 8192,
+            "pricing": {"input_per_1k": 0.0, "output_per_1k": 0.0},
+            "capabilities": ["qa", "coding"],
+        },
+    )
+    assert resp.ok or resp.status == 409, f"seed mock model failed: {resp.status}"
+    models = page.request.get("http://localhost:8001/api/v1/models/").json()["items"]
+    mock = next(m for m in models if m["model_id"] == "e2e-mock")
+    return mock["id"]
 
 
 def create_project(page: Page, name: str, description: str = "") -> None:
@@ -112,7 +135,8 @@ def create_experiment(
     selects.nth(0).select_option(index=1)  # dataset
     selects.nth(1).select_option(index=1)  # benchmark
     selects.nth(2).select_option(index=1)  # prompt
-    selects.nth(3).select_option(index=1)  # model
+    mock_model_id = seed_mock_model(page)
+    selects.nth(3).select_option(value=mock_model_id)  # model (offline mock)
     page.get_by_role("button", name="创建实验").click()
     page.get_by_text(name, exact=False).first.wait_for(timeout=10000)
 

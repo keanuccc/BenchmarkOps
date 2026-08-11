@@ -9,7 +9,8 @@ def test_report_model_id_resolution(monkeypatch) -> None:
     assert rs.resolve_report_model_id() == "deepseek/deepseek-v4-flash"
 
     monkeypatch.setattr(rs.settings, "report_model_id", "")
-    assert rs.resolve_report_model_id() == rs.DEFAULT_REPORT_MODEL_ID
+    # 当前测试环境 default_provider=qiniu，因此默认应落到七牛可用模型。
+    assert rs.resolve_report_model_id() == rs.QINIU_REPORT_MODEL_ID
 
 
 def test_report_uses_full_failure_count_not_sample_count() -> None:

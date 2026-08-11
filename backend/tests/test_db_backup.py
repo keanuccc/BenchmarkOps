@@ -65,3 +65,10 @@ def test_backup_missing_db_raises(tmp_path):
             "sqlite+aiosqlite:///./does_not_exist.db",
             dest_dir=str(tmp_path),
         )
+
+
+def test_backup_list_route_is_not_shadowed_by_filename(client):
+    """GET /db/backup/list must not be captured by /db/backup/{filename}."""
+    r = client.get("/api/v1/db/backup/list")
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)

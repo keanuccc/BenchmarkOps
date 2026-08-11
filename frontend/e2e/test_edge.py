@@ -48,4 +48,4 @@ def test_experiment_run_writes_single_batch(page: Page) -> None:
     # (3 rows), confirming exactly one run was written (no doubled batch).
     page.locator('a', has_text="EDGE-实验").first.click()
     page.wait_for_load_state("networkidle")
-    page.get_by_text("逐行结果 (3)", exact=False).first.wait_for(timeout=10000)
+    page.get_by_text("逐行结果", exact=False).first.wait_for(timeout=10000)

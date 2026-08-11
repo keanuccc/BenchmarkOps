@@ -129,6 +129,10 @@ export default function ExperimentDetailPage() {
   useEffect(() => {
     let closed = false;
 
+    // Load current state first so the page renders even when the SSE stream
+    // is unavailable (finished experiments, network issues, etc.).
+    refresh();
+
     function handleProgress(data: ExperimentSSEEvent) {
       if (closed) return;
       // Merge SSE data into a partial Experiment object for the UI

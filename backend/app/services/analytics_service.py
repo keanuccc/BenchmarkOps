@@ -16,7 +16,9 @@ from app.core.database import get_session
 from app.core.exceptions import ValidationError
 from app.core.tenant import get_tenant
 from app.models.experiment import Experiment, ExperimentResult
+from app.models.dataset import Dataset
 from app.models.model import Model
+from app.services.redaction import redact_text, redact_values
 from app.schemas.analytics import (
     ComparisonResponse,
     CompareFailureCase,
@@ -78,6 +80,18 @@ class AnalyticsService:
             )
         )
         return result.scalar_one_or_none()
+
+    async def _sensitive_fields(self, experiment_id: str) -> set[str]:
+        exp = await self._get_experiment(experiment_id)
+        if exp is None:
+            return set()
+        result = await self.session.execute(
+            select(Dataset).where(Dataset.id == exp.dataset_id)
+        )
+        dataset = result.scalar_one_or_none()
+        if dataset is None:
+            return set()
+        return set((dataset.contract or {}).get("sensitive_fields", []) or [])
 
     async def _model_name(self, model_id: str) -> str:
         if model_id not in self._model_cache:
@@ -198,14 +212,15 @@ class AnalyticsService:
             r for r in rows if (r.score is not None and r.score < 1.0) or r.error
         ]
         failures.sort(key=lambda r: r.score if r.score is not None else 0.0)
+        sensitive = await self._sensitive_fields(experiment_id)
 
         return [
             FailureCase(
                 experiment_id=r.experiment_id,
                 row_idx=r.row_idx,
-                input=r.input,
-                expected=r.expected,
-                output=r.output,
+                input=redact_values(r.input, sensitive),
+                expected=redact_values(r.expected, sensitive) if r.expected else None,
+                output=redact_text(r.output or ""),
                 score=float(r.score) if r.score is not None else 0.0,
                 error=r.error,
             )
@@ -361,6 +376,7 @@ class AnalyticsService:
         rows_a = await _rows(experiment_a)
         rows_b = await _rows(experiment_b)
         common = sorted(set(rows_a) & set(rows_b))
+        sensitive = await self._sensitive_fields(experiment_a)
 
         a_only_wrong: list[CompareFailureCase] = []
         b_only_wrong: list[CompareFailureCase] = []
@@ -373,11 +389,11 @@ class AnalyticsService:
                 continue
             case = CompareFailureCase(
                 row_idx=idx,
-                input=ra.input or {},
-                expected=ra.expected,
-                a_output=ra.output,
+                input=redact_values(ra.input or {}, sensitive),
+                expected=redact_values(ra.expected, sensitive) if ra.expected else None,
+                a_output=redact_text(ra.output or ""),
                 a_score=float(ra.score or 0.0),
-                b_output=rb.output,
+                b_output=redact_text(rb.output or ""),
                 b_score=float(rb.score or 0.0),
             )
             if not a_ok and not b_ok:

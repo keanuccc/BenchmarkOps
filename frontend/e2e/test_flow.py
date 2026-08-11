@@ -25,6 +25,7 @@ EXPERIMENT = "E2E-实验"
 def test_full_e2e_flow(page: Page) -> None:
     # 1) Models
     H.seed_models(page)
+    page.get_by_text("启用中", exact=False).first.wait_for(timeout=15000)
     cards = page.locator('div').filter(has_text="启用中").count()
     assert cards > 0, "expected at least one seeded model"
 

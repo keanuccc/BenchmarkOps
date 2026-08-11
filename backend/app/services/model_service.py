@@ -19,7 +19,7 @@ from app.schemas.model import ModelCreate, ModelUpdate
 _DEFAULT_MODELS: list[dict] = [
     {
         "name": "GPT-4o mini",
-        "provider": "openai",
+        "provider": "openrouter",
         "model_id": "openai/gpt-4o-mini",
         "context_length": 128000,
         "pricing": {"input_per_1k": 0.15, "output_per_1k": 0.6},
@@ -27,7 +27,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "GPT-4o",
-        "provider": "openai",
+        "provider": "openrouter",
         "model_id": "openai/gpt-4o",
         "context_length": 128000,
         "pricing": {"input_per_1k": 2.5, "output_per_1k": 10},
@@ -35,7 +35,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "Claude 3.5 Sonnet",
-        "provider": "anthropic",
+        "provider": "openrouter",
         "model_id": "anthropic/claude-3.5-sonnet",
         "context_length": 200000,
         "pricing": {"input_per_1k": 3, "output_per_1k": 15},
@@ -43,7 +43,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "Claude 3.5 Haiku",
-        "provider": "anthropic",
+        "provider": "openrouter",
         "model_id": "anthropic/claude-3.5-haiku",
         "context_length": 200000,
         "pricing": {"input_per_1k": 0.8, "output_per_1k": 4},
@@ -51,7 +51,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "Gemini 1.5 Pro",
-        "provider": "google",
+        "provider": "openrouter",
         "model_id": "google/gemini-pro-1.5",
         "context_length": 2000000,
         "pricing": {"input_per_1k": 1.25, "output_per_1k": 5},
@@ -59,7 +59,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "DeepSeek V3",
-        "provider": "deepseek",
+        "provider": "openrouter",
         "model_id": "deepseek/deepseek-chat",
         "context_length": 64000,
         "pricing": {"input_per_1k": 0.14, "output_per_1k": 0.28},
@@ -67,7 +67,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "Qwen 2.5 72B",
-        "provider": "qwen",
+        "provider": "openrouter",
         "model_id": "qwen/qwen-2.5-72b-instruct",
         "context_length": 32000,
         "pricing": {"input_per_1k": 0.35, "output_per_1k": 0.4},
@@ -75,7 +75,7 @@ _DEFAULT_MODELS: list[dict] = [
     },
     {
         "name": "GLM-4",
-        "provider": "zhipu",
+        "provider": "openrouter",
         "model_id": "zhipuai/glm-4",
         "context_length": 128000,
         "pricing": {"input_per_1k": 0.5, "output_per_1k": 0.5},

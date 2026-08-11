@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>全场景评测报告</title>
+  <style>
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+         padding: 2.2em; line-height: 1.65; color: #1a1a1a; max-width: 900px; margin: 0 auto; }
+  h1, h2, h3 { color: #111827; margin-top: 1.4em; }
+  h1 { font-size: 1.7em; border-bottom: 2px solid #e5e7eb; padding-bottom: .3em; }
+  h2 { font-size: 1.3em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .92em; }
+  th, td { border: 1px solid #d1d5db; padding: 7px 10px; text-align: left; }
+  th { background: #f3f4f6; }
+  pre { background: #f6f8fa; border: 1px solid #e5e7eb; border-radius: 6px;
+        padding: 12px; overflow-x: auto; font-size: .88em; }
+  code { background: #f6f8fa; padding: 2px 5px; border-radius: 4px;
+         font-family: "JetBrains Mono", Consolas, monospace; font-size: .9em; }
+  pre code { background: none; padding: 0; }
+  blockquote { border-left: 4px solid #d1d5db; margin: 1em 0; padding-left: 1em;
+               color: #4b5563; }
+</style>
+
+</head>
+<body><h2 id="_1">执行摘要</h2>
+<p>本次实验共评估 5 个场景，模型为「场景评测 Mock 388b64」，每个场景均包含 10 条测试数据，合计 50 条。所有实验状态均为 <code>completed</code>，数据覆盖率为 100%，无 <code>provider_errors</code> 和 <code>metric_errors</code>。</p>
+<ul>
+<li>整体平均准确率：<code>(0.6 + 0.0 + 0.5 + 0.5 + 0.5) / 5 = 0.42</code></li>
+<li>最佳场景：QA，准确率 <code>0.6</code></li>
+<li>最差场景：CLASS，准确率 <code>0.0</code></li>
+<li>CODING、AGENT、GEN 准确率均为 <code>0.5</code></li>
+<li>所有失败样本的共性是：模型仅输出前缀、重复输入或残缺代码，未生成有效目标内容，表明问题具有系统性。</li>
+</ul>
+<h2 id="_2">性能分析</h2>
+<p>各场景关键指标如下：</p>
+<p>| 场景 | 评估指标 | 准确率 | 行数 | 已评分 | 覆盖率 | 失败率 | 平均延迟 |
+|---|---:|---:|---:|---:|---:|---:|
+| QA | exact_match_ci | 0.6 | 10 | 10 | 1.0 | 0.0 | 189.6 ms |
+| CLASS | exact_match_ci | 0.0 | 10 | 10 | 1.0 | 0.0 | 274.5 ms |
+| CODING | code_pass | 0.5 | 10 | 10 | 1.0 | 0.0 | 175.9 ms |
+| AGENT | tool_call | 0.5 | 10 | 10 | 1.0 | 0.0 | 203.8 ms |
+| GEN | f1_token | 0.5 | 10 | 10 | 1.0 | 0.0 | 213.2 ms |</p>
+<ul>
+<li>QA 表现最好，10 条中通过 6 条。</li>
+<li>CLASS 表现最差，准确率为 0.0，即所有已评分样本均未通过。</li>
+<li>CODING、AGENT、GEN 均仅有 50% 的样本通过。</li>
+<li>平均延迟约为 <code>211.4 ms</code>；CLASS 延迟最高（274.5 ms），但准确率最低，说明延迟与效果无正相关。</li>
+</ul>
+<h2 id="_3">成本分析</h2>
+<p>所有实验的 <code>total_cost</code> 均为 <code>0.0</code>，未产生直接费用。Token 消耗如下：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th style="text-align: right;">Token 数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QA</td>
+<td style="text-align: right;">43</td>
+</tr>
+<tr>
+<td>CLASS</td>
+<td style="text-align: right;">92</td>
+</tr>
+<tr>
+<td>CODING</td>
+<td style="text-align: right;">247</td>
+</tr>
+<tr>
+<td>AGENT</td>
+<td style="text-align: right;">228</td>
+</tr>
+<tr>
+<td>GEN</td>
+<td style="text-align: right;">109</td>
+</tr>
+<tr>
+<td>合计</td>
+<td style="text-align: right;">719</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>平均每个场景消耗 <code>143.8</code> tokens。</li>
+<li>CODING 消耗 token 最多（247），主要原因是输出代码片段较长。</li>
+<li>CLASS 消耗 92 tokens，但准确率为 0.0，说明当前 token 消耗没有转化为有效答案。</li>
+<li>由于无 provider 错误和 metric 错误，也未触发额外重试成本。</li>
+</ul>
+<h2 id="_4">失败分析</h2>
+<p>5 个场景均存在得分 <code>0.0</code> 的失败样例，失败模式高度一致：</p>
+<h3 id="qa">QA</h3>
+<ul>
+<li>失败行为：输出固定前缀 <code>答案：</code></li>
+<li>示例：</li>
+<li>输入「退款多久到账？」期望 <code>1-3个工作日</code>，实际输出 <code>答案：</code></li>
+<li>输入「支持货到付款吗？」期望 <code>目前暂不支持</code>，实际输出 <code>答案：</code></li>
+<li>共 4 条失败，均未生成实际答案内容。</li>
+</ul>
+<h3 id="class">CLASS</h3>
+<ul>
+<li>准确率为 <code>0.0</code>，即全部样本未通过。</li>
+<li>失败行为：输出固定前缀 <code>类别：</code></li>
+<li>示例：</li>
+<li>输入 NBA 新闻，期望 <code>体育</code>，实际输出 <code>类别：</code></li>
+<li>输入央行降准新闻，期望 <code>财经</code>，实际输出 <code>类别：</code></li>
+<li>模型未输出任何类别标签。</li>
+</ul>
+<h3 id="coding">CODING</h3>
+<ul>
+<li>失败行为：仅输出函数中的 <code>return</code> 行，而不是完整函数定义。</li>
+<li>示例：</li>
+<li><code>sum_list</code> 期望完整函数，实际输出 <code>return total</code></li>
+<li><code>bubble_sort</code> 期望完整函数，实际输出 <code>return arr</code></li>
+<li>这些输出无法通过单元测试，因此 <code>code_pass</code> 为 0。</li>
+</ul>
+<h3 id="agent">AGENT</h3>
+<ul>
+<li>失败行为：直接重复用户输入，没有调用任何工具。</li>
+<li>示例：</li>
+<li>输入「帮我查一下账户 A1001 的余额」，期望调用 <code>check_balance</code>，实际输出为原始问题文本。</li>
+<li>输入「请把 500 元从 A1001 转到 A1002」，期望调用 <code>transfer_money</code>，实际输出仍为原始问题文本。</li>
+<li>模型未生成任何结构化工具调用参数。</li>
+</ul>
+<h3 id="gen">GEN</h3>
+<ul>
+<li>失败行为：输出固定前缀 <code>摘要：</code></li>
+<li>示例：</li>
+<li>输入公司营收公告新闻，期望生成摘要，实际仅输出 <code>摘要：</code></li>
+<li>5 条失败样本均只输出前缀，没有摘要内容。</li>
+</ul>
+<p>综上，失败並非随机错误，而是模型在生成答案时“只输出格式前缀/输入复述/代码片段，未继续生成核心内容”的系统性问题。<code>failure_rate</code> 为 0 表示没有发生服务或评分异常，但语义和格式层面的失败大量存在。</p>
+<h2 id="_5">建议</h2>
+<ol>
+<li>
+<p><strong>修正 Prompt 指令</strong>
+   - 明确要求「不要输出前缀，直接输出最终答案」。
+   - 在 QA、GEN 中禁止输出 <code>答案：</code>、<code>摘要：</code> 等占位前缀。
+   - 在 CLASS 中要求直接输出分类标签，例如 <code>体育</code> 而不是 <code>类别：体育</code>。</p>
+</li>
+<li>
+<p><strong>针对 AGENT 使用结构化工具调用</strong>
+   - 当前 AGENT 输出为原始问题文本，无法完成工具调用。
+   - 应接入 function calling / tool call 格式，要求输出 <code>function_name</code> 和 <code>arguments</code>，并进行 JSON 校验。</p>
+</li>
+<li>
+<p><strong>针对 CODING 增加完整代码约束</strong>
+   - 要求输出完整函数体，不能只输出 <code>return</code> 语句。
+   - 可要求用 Markdown 代码块包裹，并在评估前提取完整函数。</p>
+</li>
+<li>
+<p><strong>增加输出完整性检测</strong>
+   - 对仅输出前缀、仅复述输入的样本，直接判定为失败并触发一次重试。
+   - 重试 prompt 可追加「你的回答不完整，请补全」等提示。</p>
+</li>
+<li>
+<p><strong>扩展样本量</strong>
+   - 每个场景仅 10 条数据，统计波动较大；建议扩充到至少 50 条/场景，以便获得更稳定的准确率估计。</p>
+</li>
+</ol>
+<h2 id="_6">下一步行动</h2>
+<ol>
+<li>导出全部 50 条模型的完整输出，逐一确认失败模式是否全部为“截断/前缀/复述”问题。</li>
+<li>优先修复 CLASS：该场景准确率为 0，影响最大；先调整 prompt，再验证输出标签是否恢复。</li>
+<li>为 QA、GEN 增加前缀过滤和后处理，把 <code>答案：</code>、<code>摘要：</code> 剥离后参与评分。</li>
+<li>为 AGENT 配置工具函数定义和结构化输出验证，重跑 <code>tool_call</code> 场景。</li>
+<li>为 CODING 场景引入代码执行容器，确保输出函数可执行并通过单元测试。</li>
+<li>修复后重新运行全部实验，对比各场景准确率、延迟和 token 消耗，确认改进效果。</li>
+</ol></body>
+</html>

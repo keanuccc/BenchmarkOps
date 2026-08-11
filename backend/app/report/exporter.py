@@ -8,6 +8,7 @@ headings, lists, tables, fenced code blocks, and paragraphs.
 from __future__ import annotations
 
 import io
+import os
 import re
 
 import markdown as md
@@ -15,6 +16,8 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     Paragraph,
     Preformatted,
@@ -23,6 +26,34 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+
+
+def _register_cjk_font() -> str:
+    """Register a CJK-capable TTF for Chinese PDF output.
+
+    reportlab's built-in Helvetica cannot render CJK; without a registered
+    font every Chinese character becomes a black box. Windows ships SimHei /
+    Microsoft YaHei; Linux commonly has Noto Sans CJK.
+    """
+    candidates = [
+        (r"C:\Windows\Fonts\msyh.ttc", "Microsoft YaHei"),
+        (r"C:\Windows\Fonts\simhei.ttf", "SimHei"),
+        (r"C:\Windows\Fonts\simsun.ttc", "SimSun"),
+        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "Noto Sans CJK SC"),
+        ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "WenQuanYi Zen Hei"),
+    ]
+    for path, _label in candidates:
+        if not os.path.exists(path):
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont("CJK", path, subfontIndex=0))
+            return "CJK"
+        except Exception:  # noqa: BLE001
+            continue
+    return "Helvetica"
+
+
+_CJK_FONT = _register_cjk_font()
 
 
 def _stylesheet() -> str:
@@ -75,7 +106,7 @@ _FENCE_RE = re.compile(r"^```(?:\w+)?\s*$")
 def _inline(text: str) -> str:
     """Convert the minimal inline Markdown used by report templates."""
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-    text = re.sub(r"`([^`]+)`", r"<font face='Courier'><i>\1</i></font>", text)
+    text = re.sub(r"`([^`]+)`", rf"<font face='{_CJK_FONT}'><i>\1</i></font>", text)
     return text
 
 
@@ -92,11 +123,11 @@ def markdown_to_pdf(content: str, *, title: str = "BenchmarkOps 评测报告") -
         title=title,
     )
     styles = getSampleStyleSheet()
-    h1 = ParagraphStyle("H1", parent=styles["Heading1"], fontSize=16, spaceAfter=8)
-    h2 = ParagraphStyle("H2", parent=styles["Heading2"], fontSize=13, spaceBefore=10, spaceAfter=5)
-    h3 = ParagraphStyle("H3", parent=styles["Heading3"], fontSize=11.5, spaceBefore=8, spaceAfter=4)
-    body = ParagraphStyle("Body", parent=styles["BodyText"], fontSize=10, leading=15)
-    code = ParagraphStyle("Code", parent=styles["Code"], fontSize=8.5, leading=11)
+    h1 = ParagraphStyle("H1", parent=styles["Heading1"], fontName=_CJK_FONT, fontSize=16, spaceAfter=8)
+    h2 = ParagraphStyle("H2", parent=styles["Heading2"], fontName=_CJK_FONT, fontSize=13, spaceBefore=10, spaceAfter=5)
+    h3 = ParagraphStyle("H3", parent=styles["Heading3"], fontName=_CJK_FONT, fontSize=11.5, spaceBefore=8, spaceAfter=4)
+    body = ParagraphStyle("Body", parent=styles["BodyText"], fontName=_CJK_FONT, fontSize=10, leading=15)
+    code = ParagraphStyle("Code", parent=styles["Code"], fontName=_CJK_FONT, fontSize=8.5, leading=11)
 
     story: list = []
     in_code = False
@@ -115,7 +146,7 @@ def markdown_to_pdf(content: str, *, title: str = "BenchmarkOps 评测报告") -
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F3F4F6")),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
-                    ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+                    ("FONTNAME", (0, 0), (-1, -1), _CJK_FONT),
                     ("FONTSIZE", (0, 0), (-1, -1), 8.5),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 5),

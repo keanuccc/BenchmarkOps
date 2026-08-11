@@ -241,7 +241,13 @@ def _policy_values(answer_policy: dict | None) -> list[str]:
     values: list[str] = []
     for key in ("aliases", "accepted_answers", "valid_answers"):
         raw = policy.get(key, [])
-        values.extend(_flatten_strings(raw))
+        if isinstance(raw, dict):
+            # aliases may be a mapping {"巴黎": ["Paris", "paris"]}: every
+            # mapped value is an accepted spelling, so flatten all of them.
+            for mapped in raw.values():
+                values.extend(_flatten_strings(mapped))
+        else:
+            values.extend(_flatten_strings(raw))
     return values
 
 
@@ -293,6 +299,34 @@ def _split_answer_values(value: str, *, answer_policy: dict | None = None) -> li
     return [part.strip() for part in re.split(r"[,，、]\s*", value) if part.strip()]
 
 
+def _alias_sets(answer_policy: dict | None) -> dict[str, set[str]]:
+    """Map each canonical answer to its accepted aliases (normalized)."""
+    policy = answer_policy or {}
+    raw = policy.get("aliases", {})
+    if not raw:
+        return {}
+    out: dict[str, set[str]] = {}
+    if isinstance(raw, dict):
+        for key, values in raw.items():
+            norm_key = _normalize_match_text(key, answer_policy=policy)
+            if not norm_key:
+                continue
+            out.setdefault(norm_key, set()).update(
+                _normalize_match_text(v, answer_policy=policy)
+                for v in _flatten_strings(values)
+                if str(v).strip()
+            )
+    else:
+        flat = {
+            _normalize_match_text(v, answer_policy=policy)
+            for v in _flatten_strings(raw)
+            if str(v).strip()
+        }
+        if flat:
+            out[""] = flat
+    return out
+
+
 @register("exact_match")
 def exact_match(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
     return 1.0 if expected is not None and expected.strip() and prediction == expected else 0.0
@@ -320,10 +354,16 @@ def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict 
         }
         if not required:
             return 0.0
-        matched = len(required & parts)
+        alias_sets = _alias_sets(answer_policy)
+        matched = 0
+        for req in required:
+            if req in parts or any(alias in parts for alias in alias_sets.get(req, set())):
+                matched += 1
+            elif req == "" and any(alias in parts for alias in alias_sets.get("", set())):
+                matched += 1
         if (answer_policy or {}).get("partial_credit"):
             return matched / len(required)
-        return 1.0 if (parts == required if mode == "set" else required <= parts) else 0.0
+        return 1.0 if matched == len(required) else 0.0
     if pred_n in candidates:
         return 1.0
     return 0.0

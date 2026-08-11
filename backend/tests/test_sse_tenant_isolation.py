@@ -61,3 +61,52 @@ def test_sse_rejects_other_org_key(client):
         lines = resp.iter_lines()
         head = [next(lines, "") for _ in range(4)]
         assert any("id:" in line or "progress" in line for line in head)
+
+
+def test_sse_completed_experiment_emits_json_progress(client):
+    """A finished experiment must stream a valid progress event (not an error)."""
+    from datetime import datetime, timezone
+
+    from app.core.database import AsyncSessionLocal
+    from app.models.experiment import Experiment
+    from app.models.project import Project
+
+    import asyncio
+
+    async def _seed():
+        async with AsyncSessionLocal() as session:
+            project = Project(name="sse-completed")
+            session.add(project)
+            await session.flush()
+            exp = Experiment(
+                project_id=project.id,
+                name="done",
+                dataset_id="d",
+                benchmark_id="b",
+                prompt_id="p",
+                model_id="m",
+                status="completed",
+                progress=3,
+                rows_total=3,
+                cells_done=3,
+                accuracy=1.0,
+                metrics={"accuracy": 1.0},
+                total_cost=0.0,
+                total_tokens=10,
+                runtime_ms=50,
+                updated_at=datetime.now(timezone.utc),
+            )
+            session.add(exp)
+            await session.commit()
+            return exp.id
+
+    exp_id = asyncio.run(_seed())
+    with client.stream(
+        "GET",
+        f"/api/v1/experiments/{exp_id}/stream",
+    ) as resp:
+        assert resp.status_code == 200
+        body = "".join(resp.iter_lines())
+        assert "event: progress" in body
+        assert "stream error" not in body
+        assert '"updated_at":' in body

@@ -115,7 +115,11 @@ async def _event_generator(experiment_id: str, org_id: str | None):
                         "total_cost": exp.total_cost,
                         "total_tokens": exp.total_tokens,
                         "runtime_ms": exp.runtime_ms,
-                        "updated_at": current_updated,
+                        "updated_at": (
+                            current_updated.isoformat()
+                            if current_updated is not None
+                            else None
+                        ),
                     }
                     yield f"id: {event_id}\nevent: progress\ndata: {json.dumps(data)}\n\n"
 
