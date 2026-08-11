@@ -44,7 +44,7 @@
                   "key": {
                     "type": "string",
                     "description": "要操作的 API Key 值，格式为 `sk-` 开头的字符串",
-                    "example": "sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2"
+                    "example": "sk-replace-with-your-own-key"
                   },
                   "enabled": {
                     "type": "boolean",
@@ -60,13 +60,13 @@
               "examples": {
                 "禁用 Key": {
                   "value": {
-                    "key": "sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2",
+                    "key": "sk-replace-with-your-own-key",
                     "enabled": false
                   }
                 },
                 "重新启用 Key": {
                   "value": {
-                    "key": "sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2",
+                    "key": "sk-replace-with-your-own-key",
                     "enabled": true
                   }
                 }
@@ -147,7 +147,7 @@
                 ]
               },
               "example": {
-                "key": "sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2"
+                "key": "sk-replace-with-your-own-key"
               }
             }
           }
@@ -248,7 +248,7 @@
                         "key": {
                           "type": "string",
                           "description": "新创建的 API Key 完整值（格式：`sk-` 开头）。**此为唯一一次返回完整 Key，请立即保存，后续无法再次获取**",
-                          "example": "sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2"
+                          "example": "sk-replace-with-your-own-key"
                         },
                         "name": {
                           "type": "string",
@@ -544,7 +544,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "example": "sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2"
+              "example": "sk-replace-with-your-own-key"
             }
           },
           {

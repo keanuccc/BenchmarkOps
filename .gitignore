@@ -22,6 +22,19 @@ venv/
 # Runtime logs
 *.log
 
+# Demo video tooling / venvs (keep only rendered assets)
+videos/**/.tools/
+videos/**/ffvenv/
+videos/**/.venv/
+videos/**/venv/
+videos/**/my-video/.thumbnails/
+videos/**/renders/verify/probe/
+
+# Large business datasets (documented in business-data/README.md)
+business-data/*.csv
+business-data/*.xlsx
+business-data/*.xls
+
 # E2E test caches
 frontend/e2e/.pytest_cache/
 
