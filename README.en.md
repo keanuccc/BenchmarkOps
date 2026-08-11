@@ -43,9 +43,26 @@ In short, it turns "running a model evaluation" from scattered scripts and hard-
 - **Two queue backends**: in-process asyncio queue (default) and Redis + ARQ distributed queue (optional)
 - **CI coverage**: backend unit tests and frontend Playwright E2E run on GitHub Actions
 
+## Demo
+
+<video src="videos/benchmarkops-demo/my-video/renders/benchmarkops-demo-v2.mp4" controls width="100%"></video>
+
+![Dashboard](videos/benchmarkops-demo/my-video/capture/screenshots/full-page.png)
+
+## Real-World Evaluation Results
+
+The repo ships **real public datasets + real model evaluations** across two
+gateways (Qiniu Cloud AI and OpenRouter), covering C-Eval (Chinese exam QA),
+THUCNews (news classification) and HumanEval (Python code generation).
+See [docs/real-world-eval/](docs/real-world-eval/) for the report and
+[sample-data/real-world/README.md](sample-data/real-world/README.md) for the
+one-command reproduction.
+
 ## Table of Contents
 
 - [Features](#features)
+- [Demo](#demo)
+- [Real-World Evaluation Results](#real-world-evaluation-results)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
@@ -296,6 +313,10 @@ All endpoints are under `/api/v1`; interactive docs are available at `/docs` (Sw
 | [docs/postgres-migration-guide.md](docs/postgres-migration-guide.md) | SQLite → PostgreSQL migration guide |
 | [docs/production-readiness-evaluation.md](docs/production-readiness-evaluation.md) | Production readiness evaluation |
 | [docs/FUTURE-DISTRIBUTED-QUEUE.md](docs/FUTURE-DISTRIBUTED-QUEUE.md) | Distributed task queue design |
+| [docs/tech/benchmarkops-distributed-queue.md](docs/tech/benchmarkops-distributed-queue.md) | Engineering deep-dive: distributed eval queue |
+| [docs/tech/benchmarkops-reproducible-eval.md](docs/tech/benchmarkops-reproducible-eval.md) | Engineering deep-dive: reproducibility, redaction & audit |
+| [sample-data/real-world/README.md](sample-data/real-world/README.md) | Real-world datasets & one-command reproduction |
+| [SECURITY.md](SECURITY.md) | Security policy & key incident record |
 
 ## Known Limitations and Notes
 

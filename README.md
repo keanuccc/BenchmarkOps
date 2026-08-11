@@ -43,9 +43,42 @@ flowchart LR
 - **双队列支持**：进程内 asyncio 队列（默认）与 Redis + ARQ 分布式队列（可选）
 - **CI 覆盖**：后端单元测试与前端 Playwright E2E 已接入 GitHub Actions
 
+## 演示
+
+<video src="videos/benchmarkops-demo/my-video/renders/benchmarkops-demo-v2.mp4" controls width="100%"></video>
+
+![总览看板](videos/benchmarkops-demo/my-video/capture/screenshots/full-page.png)
+
+## 真实评测结果
+
+项目内置**真实公开数据集 + 真实模型**的跨网关评测（详见
+[docs/real-world-eval/](docs/real-world-eval/)），覆盖：
+
+- **C-Eval**：中文考试真题问答（60+ 题，选项精确匹配）
+- **THUCNews**：新闻文本分类（10 类）
+- **HumanEval**：Python 代码生成
+
+模型同时路由到**七牛云 AI** 与 **OpenRouter** 两个网关，验证平台的多 Provider
+可插拔架构。评测方法与一键复现脚本见
+[sample-data/real-world/README.md](sample-data/real-world/README.md)，
+评测报告见 [docs/real-world-eval/report.md](docs/real-world-eval/report.md)，
+深度分析见 [docs/real-world-eval/ANALYSIS.md](docs/real-world-eval/ANALYSIS.md)。
+
+**最近一次评测结果（2026-08，真实模型、真实数据、双网关）**：
+
+| 模型 | 网关 | C-Eval 问答 | THUCNews 分类 | 平均延迟/行 |
+|---|---|---:|---:|---:|
+| Doubao Seed 2.0 Pro | 七牛云 AI | **91.8%** | **93.3%** | 5.3–12.6s |
+| DeepSeek V3 | 七牛云 AI | 70.5% | 84.2% | **1.2s** |
+| GPT-4o mini | OpenRouter | 55.7% | 84.2% | 1.6–1.9s |
+
+> 完整数据（含成本、Token、失败样本逐行分析）见 `docs/real-world-eval/`。
+
 ## 目录
 
 - [功能特性](#功能特性)
+- [演示](#演示)
+- [真实评测结果](#真实评测结果)
 - [技术栈](#技术栈)
 - [架构](#架构)
 - [快速开始](#快速开始)
@@ -297,6 +330,10 @@ npm run build              # Next.js 生产构建
 | [docs/postgres-migration-guide.md](docs/postgres-migration-guide.md) | SQLite → PostgreSQL 迁移指南 |
 | [docs/production-readiness-evaluation.md](docs/production-readiness-evaluation.md) | 生产就绪评估 |
 | [docs/FUTURE-DISTRIBUTED-QUEUE.md](docs/FUTURE-DISTRIBUTED-QUEUE.md) | 分布式任务队列设计 |
+| [docs/tech/benchmarkops-distributed-queue.md](docs/tech/benchmarkops-distributed-queue.md) | 技术文章：分布式评测队列的工程演进 |
+| [docs/tech/benchmarkops-reproducible-eval.md](docs/tech/benchmarkops-reproducible-eval.md) | 技术文章：可复现、脱敏与审计设计 |
+| [sample-data/real-world/README.md](sample-data/real-world/README.md) | 真实评测数据集与一键复现 |
+| [SECURITY.md](SECURITY.md) | 安全策略与密钥事件记录 |
 
 ## 已知限制与注意事项
 
@@ -306,7 +343,7 @@ npm run build              # Next.js 生产构建
 <summary>🔒 数据安全</summary>
 
 - `.env` 文件已被 `.gitignore` 排除，**请勿将包含 API Key 的 `.env` 提交到仓库**。
-- **七牛云 API Key 曾泄露**（参见历史 commit）：如曾在此仓库提交过 `.env`，请立即在七牛云控制台吊销并重新生成 API Key。
+- **七牛云 API Key 曾泄露**：开发早期将 Key 作为示例写入 `references/openapi.json` 并提交；已吊销并替换为占位符，详见 [SECURITY.md](SECURITY.md)。
 - `API_TOKEN` 是**全局共享密钥**，非用户/租户系统。生产环境务必设置。
 - **生产环境强制鉴权**：`APP_ENV=production` 且未设置 `API_TOKEN` 时，应用拒绝启动。
 - **SSE 进度流鉴权**：启用 `API_TOKEN` 后，`/experiments/{id}/stream` 会校验 `?token=` 参数（EventSource 无法设置请求头）。
