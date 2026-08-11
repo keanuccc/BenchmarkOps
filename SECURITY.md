@@ -22,7 +22,9 @@
 
 - 所有 API Key 只允许存在于本地 `backend/.env`（已被 `.gitignore` 忽略），
   禁止写入任何会提交的文件（含文档、示例、测试夹具）。
-- 提交前使用 `gitleaks` 或 GitHub Secret Scanning 扫描。
+- 提交前使用 `gitleaks` 或 GitHub Secret Scanning 扫描；CI 已集成
+  `.github/workflows/secret-scan.yml`（历史已知泄露在 `.gitleaks.toml` 白名单中，
+  完成历史重写后移除）。
 - 生产环境必须设置 `API_TOKEN`：`APP_ENV=production` 且未设置时应用拒绝启动。
 - SSE 进度流校验 `?token=` 参数；写接口校验 `Authorization: Bearer <token>`。
 

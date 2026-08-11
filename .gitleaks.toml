@@ -1,0 +1,13 @@
+title = "BenchmarkOps gitleaks config"
+
+[extend]
+useDefault = true
+
+# 历史已知泄露（已吊销并替换，见 SECURITY.md）。
+# 在完成 git 历史重写（filter-repo + force push）后，应删除此 allowlist。
+[[allowlist]]
+description = "Historical Qiniu API keys documented in SECURITY.md (revoked)"
+regexes = [
+  '''sk-2019c55114cdb233bd2202c9273d4cc677ec76b04682a4b2ebbc11ab316636e2''',
+  '''sk-13821f6bef8c5aaa8d3254ad4f7e01ab62b4a13a95f3d3abcd04ee0718970b03''',
+]
