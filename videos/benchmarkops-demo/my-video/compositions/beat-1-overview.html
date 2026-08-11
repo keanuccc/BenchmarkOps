@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <template>
+      <style>
+        @font-face {
+          font-family: "Avenir Next";
+          src: local("Avenir Next");
+        }
+        @font-face {
+          font-family: "SFMono-Regular";
+          src: local("SFMono-Regular");
+        }
+        @font-face {
+          font-family: "PingFang SC";
+          src: local("PingFang SC");
+        }
+        @font-face {
+          font-family: "Microsoft YaHei";
+          src: local("Microsoft YaHei");
+        }
+        .b1-scene {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          overflow: hidden;
+          background: #090d0f;
+          font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        .b1-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 80px),
+            repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.02) 0 2px, transparent 2px 80px);
+        }
+        .b1-glow {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(58% 46% at 50% 36%, rgba(213, 243, 106, 0.1), transparent 70%);
+        }
+        .b1-brand {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-top: 64px;
+        }
+        .b1-brand-mark {
+          width: 44px;
+          height: 44px;
+          background: #d5f36a;
+          -webkit-mask: url('capture/assets/svgs/logo-4cf5203a.svg') center/contain no-repeat;
+          mask: url('capture/assets/svgs/logo-4cf5203a.svg') center/contain no-repeat;
+          display: block;
+        }
+        .b1-wordmark {
+          font-size: 34px;
+          font-weight: 700;
+          color: #f2f2e9;
+          letter-spacing: -0.5px;
+        }
+        .b1-chip {
+          display: inline-flex;
+          align-items: center;
+          height: 36px;
+          padding: 0 18px;
+          border-radius: 999px;
+          background: #1c2a2e;
+          color: #d5f36a;
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+        }
+        .b1-headline {
+          margin-top: 52px;
+          text-align: center;
+        }
+        .b1-line {
+          font-size: 96px;
+          font-weight: 600;
+          letter-spacing: -2px;
+          line-height: 1.14;
+          display: block;
+        }
+        .b1-line-1 {
+          color: #f2f2e9;
+        }
+        .b1-line-2 {
+          color: #d5f36a;
+        }
+        .b1-sub {
+          margin-top: 28px;
+          font-size: 28px;
+          color: #a2b0ad;
+          letter-spacing: -0.3px;
+        }
+        .b1-bottom {
+          display: flex;
+          align-items: center;
+          gap: 56px;
+          margin-top: 54px;
+        }
+        .b1-stats {
+          display: flex;
+          gap: 24px;
+        }
+        .b1-stat {
+          width: 300px;
+          height: 190px;
+          border-radius: 16px;
+          border: 1px solid #27383c;
+          background: linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0) 38%), #101719;
+          box-shadow: 0 20px 55px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.22);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 8px;
+          padding: 24px;
+        }
+        .b1-num {
+          font-size: 56px;
+          font-weight: 700;
+          letter-spacing: -1px;
+          line-height: 1;
+          color: #f2f2e9;
+        }
+        .b1-num-accent {
+          color: #d5f36a;
+        }
+        .b1-stat-label {
+          font-size: 18px;
+          color: #a2b0ad;
+        }
+        .b1-rank {
+          width: 430px;
+          border-radius: 16px;
+          border: 1px solid #27383c;
+          background: linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0) 38%), #101719;
+          box-shadow: 0 20px 55px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.22);
+          padding: 28px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        .b1-rank-title {
+          font-size: 24px;
+          font-weight: 700;
+          color: #f2f2e9;
+        }
+        .b1-rank-row {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          border-top: 1px solid #1c2a2e;
+          padding-top: 18px;
+        }
+        .b1-rank-top {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+        }
+        .b1-rank-name {
+          font-size: 24px;
+          font-weight: 600;
+          color: #f2f2e9;
+          flex: 1;
+        }
+        .b1-rank-pct {
+          font-size: 24px;
+          font-weight: 700;
+          color: #d5f36a;
+        }
+        .b1-rank-sub {
+          font-size: 16px;
+          color: #667875;
+          font-family: "SFMono-Regular", "JetBrains Mono", monospace;
+          width: 100%;
+        }
+      </style>
+
+      <div data-hf-id="hf-9erh" id="beat-1-overview" data-composition-id="beat-1-overview" data-width="1920" data-height="1080" data-duration="7" style="position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; background:#090D0F;">
+        <div data-hf-id="hf-4czi" id="b1-scene" class="b1-scene">
+          <div data-hf-id="hf-hh1a" id="b1-grid" class="b1-grid"></div>
+          <div data-hf-id="hf-aca4" id="b1-glow" class="b1-glow"></div>
+
+          <div data-hf-id="hf-fo4m" id="b1-brand" class="b1-brand">
+            <div data-hf-id="hf-dtns" id="b1-mark" class="b1-brand-mark"></div>
+            <span data-hf-id="hf-5ow8" id="b1-wordmark" class="b1-wordmark">BenchmarkOps</span>
+            <span data-hf-id="hf-5o7u" id="b1-chip" class="b1-chip">openrouter</span>
+          </div>
+
+          <div data-hf-id="hf-um42" id="b1-headline" class="b1-headline">
+            <span data-hf-id="hf-ea28" id="b1-line1" class="b1-line b1-line-1">把每一次模型迭代，</span>
+            <span data-hf-id="hf-x922" id="b1-line2" class="b1-line b1-line-2">变成可解释的进步。</span>
+          </div>
+          <div data-hf-id="hf-7fdr" id="b1-sub" class="b1-sub">从数据集、基准到实验报告，在一个清晰的工作区里掌握评测质量与成本变化</div>
+
+          <div data-hf-id="hf-zc28" id="b1-bottom" class="b1-bottom">
+            <div data-hf-id="hf-lszq" id="b1-stats" class="b1-stats">
+              <div data-hf-id="hf-fr9s" id="b1-stat-1" class="b1-stat">
+                <div data-hf-id="hf-9ckn" id="b1-num-1" class="b1-num b1-num-accent"></div>
+                <div data-hf-id="hf-gr5m" class="b1-stat-label">实验完成率</div>
+              </div>
+              <div data-hf-id="hf-of5n" id="b1-stat-2" class="b1-stat">
+                <div data-hf-id="hf-ddcf" id="b1-num-2" class="b1-num"></div>
+                <div data-hf-id="hf-90d2" class="b1-stat-label">实验总数</div>
+              </div>
+              <div data-hf-id="hf-kh1m" id="b1-stat-3" class="b1-stat">
+                <div data-hf-id="hf-9f8e" id="b1-num-3" class="b1-num"></div>
+                <div data-hf-id="hf-sqeb" class="b1-stat-label">已完成</div>
+              </div>
+              <div data-hf-id="hf-1pbx" id="b1-stat-4" class="b1-stat">
+                <div data-hf-id="hf-i349" id="b1-num-4" class="b1-num"></div>
+                <div data-hf-id="hf-egtb" class="b1-stat-label">累计成本</div>
+              </div>
+            </div>
+
+            <div data-hf-id="hf-cmea" id="b1-rank" class="b1-rank">
+              <div data-hf-id="hf-rtyi" id="b1-rank-title" class="b1-rank-title">模型表现排行</div>
+              <div data-hf-id="hf-t3it" id="b1-rank-1" class="b1-rank-row">
+                <div data-hf-id="hf-ehyo" class="b1-rank-top">
+                  <span data-hf-id="hf-v91t" class="b1-rank-name">Tencent HY3 (free)</span>
+                  <span data-hf-id="hf-w2y5" class="b1-rank-pct">100%</span>
+                </div>
+                <div data-hf-id="hf-6d25" class="b1-rank-sub">coverage 100% · failure 0%</div>
+              </div>
+              <div data-hf-id="hf-x1mu" id="b1-rank-2" class="b1-rank-row">
+                <div data-hf-id="hf-vs5k" class="b1-rank-top">
+                  <span data-hf-id="hf-q4n9" class="b1-rank-name">Tencent HY3 (free)</span>
+                  <span data-hf-id="hf-u275" class="b1-rank-pct">100%</span>
+                </div>
+                <div data-hf-id="hf-kbzl" class="b1-rank-sub">coverage 100% · failure 0%</div>
+              </div>
+              <div data-hf-id="hf-0zqv" id="b1-rank-3" class="b1-rank-row">
+                <div data-hf-id="hf-ul8h" class="b1-rank-top">
+                  <span data-hf-id="hf-rbkc" class="b1-rank-name">Tencent HY3 (free)</span>
+                  <span data-hf-id="hf-v948" class="b1-rank-pct">100%</span>
+                </div>
+                <div data-hf-id="hf-liwo" class="b1-rank-sub">coverage 100% · failure 0%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          window.__timelines = window.__timelines || {};
+          var tl = gsap.timeline({ paused: true });
+
+          tl.fromTo(
+            "#b1-scene",
+            { scale: 1.05 },
+            { scale: 1, duration: 7, ease: "power1.out" },
+            0
+          );
+
+          tl.fromTo(
+            "#b1-brand",
+            { y: 40, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+            0.15
+          );
+
+          tl.fromTo(
+            "#b1-line1",
+            { y: 50, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, ease: "power4.out" },
+            0.35
+          );
+
+          tl.fromTo(
+            "#b1-line2",
+            { y: 50, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.6, ease: "power4.out" },
+            0.6
+          );
+
+          tl.fromTo(
+            "#b1-sub",
+            { y: 30, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" },
+            0.9
+          );
+
+          tl.fromTo(
+            "#b1-stat-1",
+            { y: 70, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.4)" },
+            1.1
+          );
+          tl.fromTo(
+            "#b1-stat-2",
+            { y: 70, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.4)" },
+            1.22
+          );
+          tl.fromTo(
+            "#b1-stat-3",
+            { y: 70, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.4)" },
+            1.34
+          );
+          tl.fromTo(
+            "#b1-stat-4",
+            { y: 70, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "back.out(1.4)" },
+            1.46
+          );
+
+          tl.set("#b1-num-1", { textContent: "74%" }, 1.1);
+          tl.set("#b1-num-2", { textContent: "35" }, 1.22);
+          tl.set("#b1-num-3", { textContent: "26" }, 1.34);
+          tl.set("#b1-num-4", { textContent: "$1.863" }, 1.46);
+
+          tl.fromTo(
+            "#b1-rank-title",
+            { y: 40, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+            2.2
+          );
+          tl.fromTo(
+            "#b1-rank-1",
+            { x: 60, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+            2.3
+          );
+          tl.fromTo(
+            "#b1-rank-2",
+            { x: 60, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+            2.45
+          );
+          tl.fromTo(
+            "#b1-rank-3",
+            { x: 60, opacity: 0 },
+            { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" },
+            2.6
+          );
+
+          tl.fromTo(
+            "#b1-grid",
+            { x: -30 },
+            { x: 30, duration: 1.2, yoyo: true, repeat: 1, ease: "power1.inOut" },
+            3.4
+          );
+          tl.fromTo(
+            "#b1-stats",
+            { y: 8 },
+            { y: -8, duration: 1.4, yoyo: true, repeat: 1, ease: "power1.inOut" },
+            3.6
+          );
+          tl.fromTo(
+            "#b1-headline",
+            { y: 6 },
+            { y: -6, duration: 1.8, yoyo: true, repeat: 1, ease: "power1.inOut" },
+            3.9
+          );
+          tl.fromTo(
+            "#b1-rank",
+            { y: -8 },
+            { y: 8, duration: 1.0, yoyo: true, repeat: 1, ease: "power1.inOut" },
+            4.6
+          );
+          tl.fromTo(
+            "#b1-glow",
+            { opacity: 0.65 },
+            { opacity: 1, duration: 0.8, yoyo: true, repeat: 1, ease: "power1.inOut" },
+            5.0
+          );
+
+          window.__timelines["beat-1-overview"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,201 @@
+{
+  "typography": [
+    {
+      "role": "display",
+      "fontFamily": "Avenir Next",
+      "fontSize": "48px",
+      "fontWeight": "600",
+      "lineHeight": "50.4px",
+      "letterSpacing": "-3.12px",
+      "color": "#F2F2E9",
+      "sampleText": "把每一次模型迭代，变成可解释的进步。"
+    },
+    {
+      "role": "body",
+      "fontFamily": "Avenir Next",
+      "fontSize": "30px",
+      "fontWeight": "600",
+      "lineHeight": "36px",
+      "letterSpacing": "-1.8px",
+      "color": "#F2F2E9",
+      "sampleText": "74%"
+    },
+    {
+      "role": "link",
+      "fontFamily": "Avenir Next",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "24px",
+      "letterSpacing": "normal",
+      "color": "#F2F2E9",
+      "sampleText": "B.BenchmarkOps"
+    },
+    {
+      "role": "heading",
+      "fontFamily": "Avenir Next",
+      "fontSize": "12px",
+      "fontWeight": "700",
+      "lineHeight": "16px",
+      "letterSpacing": "1.92px",
+      "color": "#A2B0AD",
+      "sampleText": "准确率趋势"
+    },
+    {
+      "role": "code",
+      "fontFamily": "SFMono-Regular",
+      "fontSize": "10px",
+      "fontWeight": "400",
+      "lineHeight": "13.3333px",
+      "letterSpacing": "normal",
+      "color": "#A2B0AD",
+      "sampleText": "⌘ K"
+    }
+  ],
+  "spacing": {
+    "observed": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      20,
+      24,
+      28,
+      32,
+      40
+    ],
+    "baseUnit": 4
+  },
+  "radius": [
+    "8px",
+    "12px"
+  ],
+  "shadows": [
+    {
+      "value": "rgba(0, 0, 0, 0.22) 0px 20px 55px 0px, rgba(0, 0, 0, 0.22) 0px 2px 8px 0px",
+      "count": 9
+    },
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(213, 243, 106, 0.1) 0px 8px 18px 0px",
+      "count": 1
+    }
+  ],
+  "buttons": [
+    {
+      "label": "button",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "8px",
+      "borderRadius": "8px",
+      "border": "0px solid rgb(39, 56, 60)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "32px"
+    },
+    {
+      "label": "开始新评测",
+      "background": "#D5F36A",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#10150E",
+      "padding": "8px 16px",
+      "borderRadius": "12px",
+      "border": "1px solid rgb(39, 56, 60)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(213, 243, 106, 0.1) 0px 8px 18px 0px",
+      "fontSize": "14px",
+      "fontWeight": "600",
+      "height": "40px"
+    }
+  ],
+  "cards": [
+    {
+      "label": "card",
+      "background": "#101719",
+      "backgroundImage": "linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0) 38%), none",
+      "backdropFilter": "",
+      "color": "#F2F2E9",
+      "padding": "20px",
+      "borderRadius": "16px",
+      "border": "1px solid rgb(39, 56, 60)",
+      "boxShadow": "rgba(0, 0, 0, 0.22) 0px 20px 55px 0px, rgba(0, 0, 0, 0.22) 0px 2px 8px 0px",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "height": "180px"
+    }
+  ],
+  "nav": {
+    "label": "navigation",
+    "background": "transparent",
+    "backgroundImage": "",
+    "backdropFilter": "",
+    "color": "#F2F2E9",
+    "padding": "28px 16px",
+    "borderRadius": "0px",
+    "border": "0px solid rgb(39, 56, 60)",
+    "boxShadow": "none",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "height": "800px"
+  },
+  "chips": [
+    {
+      "label": "OP",
+      "background": "#1C2A2E",
+      "color": "#D5F36A",
+      "padding": "0px",
+      "borderRadius": "3.35544e+07px",
+      "border": "0px solid rgb(39, 56, 60)",
+      "boxShadow": "none",
+      "fontSize": "10px",
+      "fontWeight": "700",
+      "height": "28px"
+    },
+    {
+      "label": "active",
+      "background": "color(srgb 0.466667 0.843137 0.603922 / 0.14)",
+      "color": "#77D79A",
+      "padding": "4px 10px",
+      "borderRadius": "3.35544e+07px",
+      "border": "1px solid rgba(0, 0, 0, 0)",
+      "boxShadow": "none",
+      "fontSize": "11px",
+      "fontWeight": "700",
+      "height": "26.5px"
+    }
+  ],
+  "statCells": [],
+  "tabs": [],
+  "backgrounds": [
+    {
+      "value": "linear-gradient(120deg, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 38%, rgba(213, 243, 106, 0.035) 50%, rgba(0, 0, 0, 0) 62%)",
+      "area": 2997660
+    },
+    {
+      "value": "linear-gradient(rgba(255, 255, 255, 0.02) 1px, rgba(0, 0, 0, 0) 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, rgba(0, 0, 0, 0) 1px)",
+      "area": 2997660
+    },
+    {
+      "value": "linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(213, 243, 106, 0.3), rgba(0, 0, 0, 0))",
+      "area": 1357477
+    },
+    {
+      "value": "linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0) 38%), none",
+      "area": 1357477
+    }
+  ],
+  "glass": [
+    {
+      "backdropFilter": "blur(24px)",
+      "background": "rgba(9, 13, 15, 0.88)",
+      "border": "",
+      "borderRadius": "0px",
+      "boxShadow": "",
+      "area": 120888
+    }
+  ]
+}

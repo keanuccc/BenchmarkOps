@@ -1,0 +1,110 @@
+<template>
+  <style>
+    @font-face { font-family: "Avenir Next"; src: local("Avenir Next"); }
+    @font-face { font-family: "SFMono-Regular"; src: local("SFMono-Regular"); }
+    @font-face { font-family: "PingFang SC"; src: local("PingFang SC"); }
+    @font-face { font-family: "Microsoft YaHei"; src: local("Microsoft YaHei"); }
+    #root, #root * { margin: 0; padding: 0; box-sizing: border-box; }
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #090D0F; font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif; color: #F2F2E9; }
+    .b5-scene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+    .b5-bg { position: absolute; inset: 0; background: #090D0F; }
+    .b5-grid { position: absolute; left: -40px; top: -40px; width: 2000px; height: 1160px; background-image: repeating-linear-gradient(to right, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px), repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px); }
+    .b5-glow { position: absolute; left: 50%; top: -280px; width: 1500px; height: 820px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(213,243,106,0.09), transparent 70%); }
+    .b5-title { position: absolute; left: 120px; top: 140px; width: 1600px; }
+    .b5-h1 { font-size: 84px; font-weight: 600; letter-spacing: -2px; }
+    .b5-sub { margin-top: 24px; font-size: 24px; color: #A2B0AD; }
+    .b5-report { position: absolute; left: 150px; top: 340px; width: 600px; height: 480px; padding: 30px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(0,0,0,0) 38%), #101719; border: 1px solid #27383C; border-radius: 16px; box-shadow: 0 20px 55px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.22); }
+    .b5-radar { position: absolute; left: 1150px; top: 340px; width: 620px; height: 480px; padding: 24px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(0,0,0,0) 38%), #101719; border: 1px solid #27383C; border-radius: 16px; box-shadow: 0 20px 55px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.22); }
+    .b5-head { display: flex; align-items: center; gap: 12px; }
+    .b5-hic { width: 34px; height: 34px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-6c058e2e.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-6c058e2e.svg') center/contain no-repeat; }
+    .b5-hic2 { width: 34px; height: 34px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-54444bb5.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-54444bb5.svg') center/contain no-repeat; }
+    .b5-headtext { font-size: 34px; font-weight: 700; }
+    .b5-lines { margin-top: 22px; }
+    .b5-line { height: 38px; font-family: "SFMono-Regular", "JetBrains Mono", monospace; font-size: 24px; color: #F2F2E9; line-height: 38px; white-space: nowrap; overflow: hidden; }
+    .b5-line-accent { color: #D5F36A; }
+    .b5-exports { position: absolute; left: 30px; bottom: 26px; display: flex; gap: 14px; }
+    .b5-export { padding: 10px 22px; border-radius: 12px; background: #1C2A2E; color: #D5F36A; font-size: 20px; font-weight: 700; }
+    .b5-chart { margin-top: 12px; width: 100%; }
+    .b5-kpis { position: absolute; left: 24px; right: 24px; bottom: 22px; display: flex; justify-content: center; gap: 14px; }
+    .b5-kpi { padding: 10px 18px; border-radius: 999px; background: rgba(213,243,106,0.12); color: #D5F36A; font-size: 18px; font-weight: 700; }
+  </style>
+
+  <div data-hf-id="hf-mf0v" id="root" data-composition-id="beat-5-report-radar" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-bw2m" class="b5-scene" id="b5-scene">
+      <div data-hf-id="hf-8gzh" class="b5-bg"></div>
+      <div data-hf-id="hf-pcpw" class="b5-grid"></div>
+      <div data-hf-id="hf-x6kn" class="b5-glow"></div>
+
+      <div data-hf-id="hf-zjjm" class="b5-title" id="b5-title">
+        <h1 data-hf-id="hf-rmew" class="b5-h1" id="b5-h1">从结果到结论，一步到位</h1>
+        <p data-hf-id="hf-kk3f" class="b5-sub" id="b5-sub">AI 报告 + 行业雷达：单次实验放进全局 KPI 视图</p>
+      </div>
+
+      <div data-hf-id="hf-vq0y" class="b5-report" id="b5-report">
+        <div data-hf-id="hf-sg62" class="b5-head"><div data-hf-id="hf-a9tg" class="b5-hic"></div><div data-hf-id="hf-6ohc" class="b5-headtext">AI 报告</div></div>
+        <div data-hf-id="hf-h6l1" class="b5-lines">
+          <div data-hf-id="hf-ht7e" class="b5-line b5-line-accent" id="b5-line1"></div>
+          <div data-hf-id="hf-mkos" class="b5-line" id="b5-line2"></div>
+          <div data-hf-id="hf-nccl" class="b5-line" id="b5-line3"></div>
+          <div data-hf-id="hf-642a" class="b5-line" id="b5-line4"></div>
+          <div data-hf-id="hf-a26b" class="b5-line" id="b5-line5"></div>
+          <div data-hf-id="hf-z6oo" class="b5-line" id="b5-line6"></div>
+        </div>
+        <div data-hf-id="hf-c9rd" class="b5-exports"><div data-hf-id="hf-3riy" class="b5-export" id="b5-export1">Markdown</div><div data-hf-id="hf-k3lu" class="b5-export" id="b5-export2">PDF</div></div>
+      </div>
+
+      <div data-hf-id="hf-209m" class="b5-radar" id="b5-radar">
+        <div data-hf-id="hf-pe66" class="b5-head"><div data-hf-id="hf-81ry" class="b5-hic2"></div><div data-hf-id="hf-vat8" class="b5-headtext">行业雷达</div></div>
+        <svg data-hf-id="hf-5ewp" class="b5-chart" id="b5-chart" viewBox="0 0 460 460" fill="none" aria-hidden="true">
+          <circle data-hf-id="hf-o4aa" class="b5-ring" cx="230" cy="230" r="60" stroke="rgba(255,255,255,0.10)" stroke-width="4" />
+          <circle data-hf-id="hf-rvtn" class="b5-ring" cx="230" cy="230" r="115" stroke="rgba(255,255,255,0.10)" stroke-width="4" />
+          <circle data-hf-id="hf-3nxq" class="b5-ring" cx="230" cy="230" r="170" stroke="rgba(255,255,255,0.10)" stroke-width="4" />
+          <line data-hf-id="hf-k089" x1="230" y1="20" x2="230" y2="440" stroke="rgba(255,255,255,0.07)" stroke-width="4" />
+          <line data-hf-id="hf-mteh" x1="20" y1="230" x2="440" y2="230" stroke="rgba(255,255,255,0.07)" stroke-width="4" />
+          <path data-hf-id="hf-sllg" id="b5-poly" d="M230 100 L343 165 L343 295 L230 360 L117 295 L117 165 Z" fill="rgba(213,243,106,0.30)" stroke="#D5F36A" stroke-width="4" stroke-linejoin="round" />
+          <text data-hf-id="hf-1yjk" class="b5-ax" x="230" y="24" text-anchor="middle" fill="#A2B0AD" font-size="20" font-family="'Avenir Next','PingFang SC','Microsoft YaHei',sans-serif">准确率</text>
+          <text data-hf-id="hf-vnnf" class="b5-ax" x="403" y="130" text-anchor="middle" fill="#A2B0AD" font-size="20" font-family="'Avenir Next','PingFang SC','Microsoft YaHei',sans-serif">令牌</text>
+          <text data-hf-id="hf-yiz6" class="b5-ax" x="403" y="330" text-anchor="middle" fill="#A2B0AD" font-size="20" font-family="'Avenir Next','PingFang SC','Microsoft YaHei',sans-serif">延迟</text>
+          <text data-hf-id="hf-8678" class="b5-ax" x="230" y="448" text-anchor="middle" fill="#A2B0AD" font-size="20" font-family="'Avenir Next','PingFang SC','Microsoft YaHei',sans-serif">覆盖率</text>
+          <text data-hf-id="hf-yy5u" class="b5-ax" x="57" y="330" text-anchor="middle" fill="#A2B0AD" font-size="20" font-family="'Avenir Next','PingFang SC','Microsoft YaHei',sans-serif">成本</text>
+          <text data-hf-id="hf-quhb" class="b5-ax" x="57" y="130" text-anchor="middle" fill="#A2B0AD" font-size="20" font-family="'Avenir Next','PingFang SC','Microsoft YaHei',sans-serif">失败率</text>
+        </svg>
+        <div data-hf-id="hf-bphd" class="b5-kpis">
+          <div data-hf-id="hf-mddg" class="b5-kpi">供应商准确率 100%</div>
+          <div data-hf-id="hf-rglv" class="b5-kpi">覆盖率 100%</div>
+          <div data-hf-id="hf-6fqg" class="b5-kpi">失败率 0%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#b5-scene", { scale: 1.04 }, { scale: 1, duration: 7, ease: "power1.out" }, 0);
+      tl.fromTo("#b5-h1", { y: 56, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power4.out" }, 0.15);
+      tl.fromTo("#b5-sub", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 0.5);
+      tl.fromTo("#b5-report", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.8);
+      tl.fromTo("#b5-radar", { x: 80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.95);
+      tl.set("#b5-line1", { textContent: "# 评测报告" }, 1.2);
+      tl.set("#b5-line2", { textContent: "实验：Run: Tencent HY3 (free)" }, 1.2);
+      tl.set("#b5-line3", { textContent: "准确率：100%" }, 1.2);
+      tl.set("#b5-line4", { textContent: "成本：$0.00" }, 1.2);
+      tl.set("#b5-line5", { textContent: "结论：表现稳定，建议上线" }, 1.2);
+      tl.set("#b5-line6", { textContent: "导出：Markdown · PDF" }, 1.2);
+      tl.fromTo(".b5-ring", { opacity: 0 }, { opacity: 1, duration: 0.4, stagger: 0.18 }, 1.6);
+      tl.fromTo(".b5-ax", { opacity: 0 }, { opacity: 1, duration: 0.35, stagger: 0.08 }, 2.0);
+      tl.fromTo("#b5-poly", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 2.6);
+      tl.fromTo(".b5-kpi", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.12 }, 3.4);
+      tl.fromTo(".b5-export", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.12 }, 3.6);
+
+      tl.fromTo("#b5-title", { x: 0 }, { x: -12, duration: 1.1, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.5);
+      tl.fromTo("#b5-report", { y: 0 }, { y: 10, duration: 1.0, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.7);
+      tl.fromTo("#b5-radar", { y: 0 }, { y: -10, duration: 0.95, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.9);
+
+      window.__timelines["beat-5-report-radar"] = tl;
+    })();
+  </script>
+</template>

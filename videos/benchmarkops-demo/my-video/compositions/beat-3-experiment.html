@@ -1,0 +1,112 @@
+<template>
+  <style>
+    @font-face { font-family: "Avenir Next"; src: local("Avenir Next"); }
+    @font-face { font-family: "SFMono-Regular"; src: local("SFMono-Regular"); }
+    @font-face { font-family: "PingFang SC"; src: local("PingFang SC"); }
+    @font-face { font-family: "Microsoft YaHei"; src: local("Microsoft YaHei"); }
+    #root, #root * { margin: 0; padding: 0; box-sizing: border-box; }
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #090D0F; font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif; color: #F2F2E9; }
+    .b3-scene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+    .b3-bg { position: absolute; inset: 0; background: #090D0F; }
+    .b3-grid { position: absolute; left: -40px; top: -40px; width: 2000px; height: 1160px; background-image: repeating-linear-gradient(to right, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px), repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px); }
+    .b3-glow { position: absolute; left: 50%; top: -280px; width: 1500px; height: 820px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(213,243,106,0.09), transparent 70%); }
+    .b3-title { position: absolute; left: 120px; top: 130px; width: 1600px; }
+    .b3-h1 { font-size: 84px; font-weight: 600; letter-spacing: -2px; }
+    .b3-sub { margin-top: 20px; font-size: 24px; color: #A2B0AD; }
+    .b3-flow { position: absolute; left: 130px; top: 330px; display: flex; align-items: center; gap: 90px; }
+    .b3-node { width: 200px; height: 120px; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(0,0,0,0) 38%), #101719; border: 1px solid #27383C; border-radius: 16px; box-shadow: 0 20px 55px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.22); }
+    .b3-nodeic { width: 44px; height: 44px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-dfffb6f1.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-dfffb6f1.svg') center/contain no-repeat; }
+    .b3-nodeic2 { width: 44px; height: 44px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-f1e1bf30.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-f1e1bf30.svg') center/contain no-repeat; }
+    .b3-nodeic3 { width: 44px; height: 44px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-ba1c8960.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-ba1c8960.svg') center/contain no-repeat; }
+    .b3-nodeic4 { width: 44px; height: 44px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-0671e939.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-0671e939.svg') center/contain no-repeat; }
+    .b3-nodename { font-size: 24px; font-weight: 700; }
+    .b3-bar { width: 90px; height: 4px; border-radius: 2px; background: rgba(213,243,106,0.35); }
+    .b3-down { position: absolute; left: 933px; top: 462px; width: 4px; height: 66px; border-radius: 2px; background: rgba(213,243,106,0.35); }
+    .b3-card { position: absolute; left: 680px; top: 560px; width: 560px; height: 300px; padding: 28px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(0,0,0,0) 38%), #101719; border: 1px solid #27383C; border-radius: 16px; box-shadow: 0 20px 55px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.22); }
+    .b3-cardhead { display: flex; align-items: center; justify-content: space-between; }
+    .b3-cardtitle { font-size: 28px; font-weight: 700; }
+    .b3-chip { padding: 8px 18px; border-radius: 999px; background: rgba(137,200,255,0.14); color: #89C8FF; font-size: 18px; font-weight: 700; }
+    .b3-progress { display: flex; gap: 8px; margin-top: 26px; }
+    .b3-prog { width: 40px; height: 14px; border-radius: 7px; background: #D5F36A; }
+    .b3-metrics { display: flex; gap: 56px; margin-top: 34px; }
+    .b3-metric { width: 130px; }
+    .b3-mlabel { font-size: 18px; color: #A2B0AD; }
+    .b3-mval { margin-top: 6px; font-size: 30px; font-weight: 700; }
+    .b3-check { position: absolute; right: 28px; bottom: 24px; width: 40px; height: 40px; background: #77D79A; -webkit-mask: url('capture/assets/svgs/svg-61b64d58.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-61b64d58.svg') center/contain no-repeat; }
+  </style>
+
+  <div data-hf-id="hf-j2p5" id="root" data-composition-id="beat-3-experiment" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-1dnm" class="b3-scene" id="b3-scene">
+      <div data-hf-id="hf-grzv" class="b3-bg"></div>
+      <div data-hf-id="hf-7e2a" class="b3-grid"></div>
+      <div data-hf-id="hf-41ll" class="b3-glow"></div>
+
+      <div data-hf-id="hf-0vri" class="b3-title" id="b3-title">
+        <h1 data-hf-id="hf-hp25" class="b3-h1" id="b3-h1">四要素绑定，一键异步评测</h1>
+        <p data-hf-id="hf-9wwr" class="b3-sub" id="b3-sub">数据集 + 基准 + 提示词 + 模型 → 异步执行，实时看进度</p>
+      </div>
+
+      <div data-hf-id="hf-apt2" class="b3-flow">
+        <div data-hf-id="hf-clnb" class="b3-node" id="b3-node1"><div data-hf-id="hf-99qy" class="b3-nodeic"></div><div data-hf-id="hf-jx0p" class="b3-nodename">数据集</div></div>
+        <div data-hf-id="hf-aha3" class="b3-bar" id="b3-bar1"></div>
+        <div data-hf-id="hf-1q5o" class="b3-node" id="b3-node2"><div data-hf-id="hf-zgas" class="b3-nodeic2"></div><div data-hf-id="hf-2bsn" class="b3-nodename">基准</div></div>
+        <div data-hf-id="hf-zlsg" class="b3-bar" id="b3-bar2"></div>
+        <div data-hf-id="hf-2hth" class="b3-node" id="b3-node3"><div data-hf-id="hf-07yl" class="b3-nodeic3"></div><div data-hf-id="hf-j318" class="b3-nodename">提示词</div></div>
+        <div data-hf-id="hf-0dg9" class="b3-bar" id="b3-bar3"></div>
+        <div data-hf-id="hf-l9j6" class="b3-node" id="b3-node4"><div data-hf-id="hf-izoa" class="b3-nodeic4"></div><div data-hf-id="hf-8yiv" class="b3-nodename">模型</div></div>
+      </div>
+      <div data-hf-id="hf-smqq" class="b3-down" id="b3-down"></div>
+
+      <div data-hf-id="hf-i4u2" class="b3-card" id="b3-card">
+        <div data-hf-id="hf-n1sy" class="b3-cardhead">
+          <div data-hf-id="hf-7e5z" class="b3-cardtitle">Run: Tencent HY3 (free)</div>
+          <div data-hf-id="hf-fe5t" class="b3-chip" id="b3-chip">排队</div>
+        </div>
+        <div data-hf-id="hf-nw4z" class="b3-progress">
+          <div data-hf-id="hf-7fwy" class="b3-prog"></div><div data-hf-id="hf-zudy" class="b3-prog"></div><div data-hf-id="hf-08oz" class="b3-prog"></div><div data-hf-id="hf-0n00" class="b3-prog"></div><div data-hf-id="hf-xuut" class="b3-prog"></div>
+          <div data-hf-id="hf-y95u" class="b3-prog"></div><div data-hf-id="hf-yngv" class="b3-prog"></div><div data-hf-id="hf-z1rw" class="b3-prog"></div><div data-hf-id="hf-w9mp" class="b3-prog"></div><div data-hf-id="hf-wnxq" class="b3-prog"></div>
+        </div>
+        <div data-hf-id="hf-misp" class="b3-metrics">
+          <div data-hf-id="hf-fifi" class="b3-metric"><div data-hf-id="hf-1des" class="b3-mlabel">准确率</div><div data-hf-id="hf-9tpq" class="b3-mval" id="b3-mv1">—</div></div>
+          <div data-hf-id="hf-eq6q" class="b3-metric"><div data-hf-id="hf-i7i0" class="b3-mlabel">延迟</div><div data-hf-id="hf-hg8b" class="b3-mval" id="b3-mv2">—</div></div>
+          <div data-hf-id="hf-f4hr" class="b3-metric"><div data-hf-id="hf-emsn" class="b3-mlabel">成本</div><div data-hf-id="hf-zy2o" class="b3-mval" id="b3-mv3">—</div></div>
+        </div>
+        <div data-hf-id="hf-7nrm" class="b3-check" id="b3-check"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#b3-scene", { scale: 1.04 }, { scale: 1, duration: 7, ease: "power1.out" }, 0);
+      tl.fromTo("#b3-h1", { y: 56, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power4.out" }, 0.15);
+      tl.fromTo("#b3-sub", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 0.5);
+      tl.fromTo(".b3-node", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "back.out(1.5)", stagger: 0.15 }, 0.7);
+      tl.fromTo(".b3-bar", { opacity: 0 }, { opacity: 1, duration: 0.35, stagger: 0.12 }, 1.2);
+      tl.fromTo("#b3-down", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 1.7);
+      tl.fromTo("#b3-card", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 2.2);
+      tl.fromTo(".b3-prog", { opacity: 0 }, { opacity: 1, duration: 0.2, stagger: 0.15 }, 2.7);
+      tl.set("#b3-chip", { textContent: "排队" }, 2.7);
+      tl.set("#b3-chip", { backgroundColor: "rgba(137,200,255,0.14)", color: "#89C8FF" }, 2.7);
+      tl.set("#b3-chip", { textContent: "运行中" }, 3.4);
+      tl.set("#b3-chip", { backgroundColor: "rgba(242,197,109,0.14)", color: "#F2C56D" }, 3.4);
+      tl.set("#b3-chip", { textContent: "已完成" }, 4.0);
+      tl.set("#b3-chip", { backgroundColor: "rgba(119,215,154,0.14)", color: "#77D79A" }, 4.0);
+      tl.set("#b3-mv1", { textContent: "100%" }, 4.0);
+      tl.set("#b3-mv2", { textContent: "2.1s" }, 4.0);
+      tl.set("#b3-mv3", { textContent: "$0.00" }, 4.0);
+      tl.fromTo("#b3-check", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, 4.1);
+
+      tl.fromTo("#b3-chip", { opacity: 0.75 }, { opacity: 1, duration: 1.2, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.5);
+      tl.fromTo("#b3-node1", { y: 0 }, { y: 10, duration: 0.9, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.5);
+      tl.fromTo("#b3-node2", { y: 0 }, { y: -10, duration: 0.9, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.7);
+      tl.fromTo("#b3-node3", { y: 0 }, { y: 10, duration: 0.9, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.9);
+      tl.fromTo("#b3-node4", { y: 0 }, { y: -10, duration: 0.9, yoyo: true, repeat: 1, ease: "power1.inOut" }, 5.1);
+
+      window.__timelines["beat-3-experiment"] = tl;
+    })();
+  </script>
+</template>

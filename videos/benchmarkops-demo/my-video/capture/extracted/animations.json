@@ -1,0 +1,179 @@
+{
+  "summary": {
+    "webAnimations": 4,
+    "cssDeclarations": 35,
+    "scrollTargets": 60,
+    "cdpAnimations": 5,
+    "canvases": 0
+  },
+  "namedAnimations": [
+    "reveal"
+  ],
+  "scrollTriggeredElements": 60,
+  "representativeAnimations": [
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "reveal",
+      "targetSelector": "section.reveal.grid.gap-6",
+      "targetRect": {
+        "x": 392,
+        "y": 113,
+        "width": 1400,
+        "height": 339.28125,
+        "top": 113,
+        "right": 1792,
+        "bottom": 452.28125,
+        "left": 392
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(8px)",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(0px)",
+          "opacity": "1",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 420,
+        "delay": 0,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "reveal",
+      "targetSelector": "section.reveal.reveal-delay-1.grid",
+      "targetRect": {
+        "x": 392,
+        "y": 480.28125,
+        "width": 1400,
+        "height": 180,
+        "top": 480.28125,
+        "right": 1792,
+        "bottom": 660.28125,
+        "left": 392
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(8px)",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(0px)",
+          "opacity": "1",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 420,
+        "delay": 60,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "reveal",
+      "targetSelector": "section.reveal.reveal-delay-2.grid",
+      "targetRect": {
+        "x": 392,
+        "y": 688.28125,
+        "width": 1400,
+        "height": 302,
+        "top": 688.28125,
+        "right": 1792,
+        "bottom": 990.28125,
+        "left": 392
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(8px)",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(0px)",
+          "opacity": "1",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 420,
+        "delay": 120,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    },
+    {
+      "type": "CSSAnimation",
+      "playState": "finished",
+      "animationName": "reveal",
+      "targetSelector": "section.reveal.reveal-delay-3.grid",
+      "targetRect": {
+        "x": 392,
+        "y": 1018.28125,
+        "width": 1400,
+        "height": 503,
+        "top": 1018.28125,
+        "right": 1792,
+        "bottom": 1521.28125,
+        "left": 392
+      },
+      "keyframes": [
+        {
+          "offset": 0,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(8px)",
+          "opacity": "0",
+          "computedOffset": 0
+        },
+        {
+          "offset": 1,
+          "easing": "ease",
+          "composite": "auto",
+          "transform": "translateY(0px)",
+          "opacity": "1",
+          "computedOffset": 1
+        }
+      ],
+      "timing": {
+        "duration": 420,
+        "delay": 180,
+        "iterations": 1,
+        "easing": "linear",
+        "direction": "normal"
+      }
+    }
+  ]
+}

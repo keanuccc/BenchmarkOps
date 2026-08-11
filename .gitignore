@@ -29,6 +29,12 @@ videos/**/.venv/
 videos/**/venv/
 videos/**/my-video/.thumbnails/
 videos/**/renders/verify/probe/
+videos/**/my-video/snapshots/
+videos/**/my-video/renders/verify/
+videos/**/my-video/renders/benchmarkops-demo.mp4
+videos/**/my-video/capture/AGENTS.md
+videos/**/my-video/capture/CLAUDE.md
+videos/**/my-video/capture/.cursorrules
 
 # Large business datasets (documented in business-data/README.md)
 business-data/*.csv

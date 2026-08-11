@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #090d0f;
+      }
+      .scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-tm9x" id="root" data-composition-id="main" data-start="0" data-duration="40.1" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-b6k8" id="beat-1-overview" class="scene" data-composition-id="beat-1-overview" data-composition-src="compositions/beat-1-overview.html" data-start="0" data-duration="7" data-track-index="1" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+
+      <div data-hf-id="hf-hl7o" id="beat-2-assets" class="scene" data-composition-id="beat-2-assets" data-composition-src="compositions/beat-2-assets.html" data-start="6.6" data-duration="7" data-track-index="2" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+
+      <div data-hf-id="hf-z84u" id="beat-3-experiment" class="scene" data-composition-id="beat-3-experiment" data-composition-src="compositions/beat-3-experiment.html" data-start="13.2" data-duration="7" data-track-index="3" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+
+      <div data-hf-id="hf-m2ag" id="beat-4-compare" class="scene" data-composition-id="beat-4-compare" data-composition-src="compositions/beat-4-compare.html" data-start="19.8" data-duration="7" data-track-index="4" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+
+      <div data-hf-id="hf-hp2c" id="beat-5-report-radar" class="scene" data-composition-id="beat-5-report-radar" data-composition-src="compositions/beat-5-report-radar.html" data-start="26.4" data-duration="7" data-track-index="5" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+
+      <div data-hf-id="hf-ycf7" id="beat-6-cta" class="scene" data-composition-id="beat-6-cta" data-composition-src="compositions/beat-6-cta.html" data-start="33" data-duration="7" data-track-index="6" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+
+      <div data-hf-id="hf-rx8n" id="s-end" class="scene" data-composition-id="s-end" data-no-timeline="" data-start="40" data-duration="0.1" data-track-index="7" data-width="1920" data-height="1080" style="background: #090d0f"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      tl.set("#beat-1-overview", { opacity: 1 }, 0);
+      tl.set("#s-end", { opacity: 0 }, 0);
+
+      var beats = [
+        { id: "beat-1-overview", start: 0 },
+        { id: "beat-2-assets", start: 6.6 },
+        { id: "beat-3-experiment", start: 13.2 },
+        { id: "beat-4-compare", start: 19.8 },
+        { id: "beat-5-report-radar", start: 26.4 },
+        { id: "beat-6-cta", start: 33 }
+      ];
+
+      for (var i = 1; i < beats.length; i++) {
+        var prev = beats[i - 1];
+        var cur = beats[i];
+        tl.fromTo(
+          "#" + cur.id,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.5, ease: "power2.out" },
+          cur.start
+        );
+        tl.to("#" + prev.id, { opacity: 0, duration: 0.5, ease: "power2.in" }, cur.start);
+      }
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

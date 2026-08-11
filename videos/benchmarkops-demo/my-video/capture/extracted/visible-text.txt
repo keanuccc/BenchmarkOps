@@ -1,0 +1,82 @@
+[span] BenchmarkOps
+[span] 开始一次评测
+[p] 评测运营员
+[p] 系统在线
+[span] BenchmarkOps
+[span] 搜索工作区
+[kbd] ⌘ K
+[a] 快速评测
+[span] openrouter
+[div] 工作区 / 总览
+[h1] 把每一次模型迭代，
+[span] 变成可解释的进步。
+[p] 从数据集、基准套件到实验报告，在一个清晰的工作区里掌握评测质量、运行状态与成本变化。
+[button] 开始新评测
+[a] 查看项目
+[p] 运行信号
+[p] 74%
+[p] 实验完成率
+[span] 工作区健康度
+[div] 数据与服务连接正常
+[p] 实验总数
+[p] 26 已完成
+[p] 运行中
+[p] 当前空闲
+[p] 累计成本
+[p] $1.863
+[h2] 准确率趋势
+[span] LATEST RUNS / ACCURACY
+[h2] 实验状态
+[text] total
+[span] 已完成
+[span] 运行中
+[span] 待运行
+[h2] 模型表现排行
+[a] 查看全部
+[span] Tencent HY3 (free)
+[span] 100.0
+[div] coverage
+[div] 100.0
+[div] % · failure
+[div] 0.0
+[span] Tencent HY3 (free)
+[span] 100.0
+[div] coverage
+[div] 100.0
+[div] % · failure
+[div] 0.0
+[span] Tencent HY3 (free)
+[span] 100.0
+[div] coverage
+[div] 100.0
+[div] % · failure
+[div] 0.0
+[span] Tencent HY3 (free)
+[span] 100.0
+[div] coverage
+[div] 100.0
+[div] % · failure
+[div] 0.0
+[span] Tencent HY3 (free)
+[span] 100.0
+[div] coverage
+[div] 100.0
+[div] % · failure
+[div] 0.0
+[h2] 最近项目
+[a] 管理项目
+[span] ??????
+[span] 尚未添加描述
+[span] active
+[span] E2E-测试项目
+[span] 端到端测试自动创建
+[span] active
+[span] EDGE-防双写
+[span] 边界:并发防双写
+[span] active
+[span] EDGE-必填
+[span] 边界:必填
+[span] active
+[span] EDGE-超限行数
+[span] 边界:超行数
+[span] active

@@ -1,0 +1,94 @@
+<template>
+  <style>
+    @font-face { font-family: "Avenir Next"; src: local("Avenir Next"); }
+    @font-face { font-family: "SFMono-Regular"; src: local("SFMono-Regular"); }
+    @font-face { font-family: "PingFang SC"; src: local("PingFang SC"); }
+    @font-face { font-family: "Microsoft YaHei"; src: local("Microsoft YaHei"); }
+    #root, #root * { margin: 0; padding: 0; box-sizing: border-box; }
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #090D0F; font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif; color: #F2F2E9; }
+    .b2-scene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+    .b2-bg { position: absolute; inset: 0; background: #090D0F; }
+    .b2-grid { position: absolute; left: -40px; top: -40px; width: 2000px; height: 1160px; background-image: repeating-linear-gradient(to right, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px), repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px); }
+    .b2-glow { position: absolute; left: 50%; top: -260px; width: 1500px; height: 820px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(213,243,106,0.09), transparent 70%); }
+    .b2-title { position: absolute; left: 120px; top: 140px; width: 1500px; }
+    .b2-h1 { font-size: 88px; font-weight: 600; letter-spacing: -2px; }
+    .b2-sub { margin-top: 24px; font-size: 24px; color: #A2B0AD; }
+    .b2-cards { position: absolute; left: 150px; top: 380px; display: flex; gap: 270px; }
+    .b2-card { width: 360px; height: 440px; padding: 34px 30px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(0,0,0,0) 38%), #101719; border: 1px solid #27383C; border-radius: 16px; box-shadow: 0 20px 55px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.22); text-align: center; }
+    .b2-iconnode { width: 64px; height: 64px; margin: 0 auto 22px; display: flex; align-items: center; justify-content: center; background: #1C2A2E; border-radius: 12px; }
+    .b2-ic { width: 40px; height: 40px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-dfffb6f1.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-dfffb6f1.svg') center/contain no-repeat; }
+    .b2-ic2 { width: 40px; height: 40px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-f1e1bf30.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-f1e1bf30.svg') center/contain no-repeat; }
+    .b2-ic3 { width: 40px; height: 40px; background: #D5F36A; -webkit-mask: url('capture/assets/svgs/svg-ba1c8960.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-ba1c8960.svg') center/contain no-repeat; }
+    .b2-name { font-size: 34px; font-weight: 700; }
+    .b2-count { margin-top: 10px; font-size: 26px; font-weight: 700; color: #D5F36A; }
+    .b2-cap { margin-top: 22px; font-size: 20px; color: #A2B0AD; line-height: 1.55; }
+    .b2-pills { position: absolute; left: 683px; top: 900px; display: flex; gap: 28px; }
+    .b2-pill { padding: 16px 44px; border-radius: 999px; background: rgba(213,243,106,0.12); color: #D5F36A; font-size: 26px; font-weight: 700; }
+  </style>
+
+  <div data-hf-id="hf-8xsu" id="root" data-composition-id="beat-2-assets" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-pf0a" class="b2-scene" id="b2-scene">
+      <div data-hf-id="hf-pp2s" class="b2-bg"></div>
+      <div data-hf-id="hf-os59" class="b2-grid"></div>
+      <div data-hf-id="hf-97r6" class="b2-glow"></div>
+
+      <div data-hf-id="hf-ztwe" class="b2-title" id="b2-title">
+        <h1 data-hf-id="hf-dga5" class="b2-h1" id="b2-h1">评测三件套，统一管理</h1>
+        <p data-hf-id="hf-s6m5" class="b2-sub" id="b2-sub">一个工作区，管好所有评测资产</p>
+      </div>
+
+      <div data-hf-id="hf-op5y" class="b2-cards">
+        <div data-hf-id="hf-spl5" class="b2-card" id="b2-card1">
+          <div data-hf-id="hf-ltzm" class="b2-iconnode"><div data-hf-id="hf-2lod" class="b2-ic"></div></div>
+          <div data-hf-id="hf-htas" class="b2-name">数据集</div>
+          <div data-hf-id="hf-q6m1" class="b2-count">27</div>
+          <div data-hf-id="hf-15wj" class="b2-cap"><div data-hf-id="hf-3xzl">JSONL / CSV / XLSX</div><div data-hf-id="hf-g1xv">版本化 · 敏感字段脱敏</div></div>
+        </div>
+        <div data-hf-id="hf-wnp6" class="b2-card" id="b2-card2">
+          <div data-hf-id="hf-cpqu" class="b2-iconnode"><div data-hf-id="hf-6ly5" class="b2-ic2"></div></div>
+          <div data-hf-id="hf-gba0" class="b2-name">基准</div>
+          <div data-hf-id="hf-qz83" class="b2-count">25</div>
+          <div data-hf-id="hf-ws2r" class="b2-cap"><div data-hf-id="hf-ojqn">QA / Coding / Agent</div><div data-hf-id="hf-quyd">Classification / Generation</div></div>
+        </div>
+        <div data-hf-id="hf-0lt7" class="b2-card" id="b2-card3">
+          <div data-hf-id="hf-d41v" class="b2-iconnode"><div data-hf-id="hf-5uac" class="b2-ic3"></div></div>
+          <div data-hf-id="hf-tlhl" class="b2-name">提示词</div>
+          <div data-hf-id="hf-xqnn" class="b2-count">25</div>
+          <div data-hf-id="hf-wdrq" class="b2-cap"><div data-hf-id="hf-p8hr">{variable} 占位符</div><div data-hf-id="hf-qhqp">嵌套路径 · 版本化</div></div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-8nqz" class="b2-pills">
+        <div data-hf-id="hf-fsz9" class="b2-pill" id="b2-pill1">可复现</div>
+        <div data-hf-id="hf-s9lf" class="b2-pill" id="b2-pill2">可审计</div>
+        <div data-hf-id="hf-n0ln" class="b2-pill" id="b2-pill3">可对比</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#b2-scene", { scale: 1.04 }, { scale: 1, duration: 7, ease: "power1.out" }, 0);
+      tl.fromTo("#b2-h1", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power4.out" }, 0.15);
+      tl.fromTo("#b2-sub", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 0.55);
+      tl.fromTo("#b2-card1", { x: -90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.9);
+      tl.fromTo("#b2-card2", { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 1.05);
+      tl.fromTo("#b2-card3", { x: 90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 1.2);
+      tl.fromTo(".b2-ic, .b2-ic2, .b2-ic3", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)", stagger: 0.12 }, 1.5);
+      tl.fromTo(".b2-cap", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 2.3);
+      tl.fromTo("#b2-pill1", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)" }, 3.9);
+      tl.fromTo("#b2-pill2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)" }, 3.9);
+      tl.fromTo("#b2-pill3", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)" }, 3.9);
+
+      tl.fromTo("#b2-title", { x: 0 }, { x: -12, duration: 1.1, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.5);
+      tl.fromTo("#b2-card1", { y: 0 }, { y: 10, duration: 1.0, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.5);
+      tl.fromTo("#b2-card2", { y: 0 }, { y: -10, duration: 1.0, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.7);
+      tl.fromTo("#b2-card3", { y: 0 }, { y: 10, duration: 1.0, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.9);
+
+      window.__timelines["beat-2-assets"] = tl;
+    })();
+  </script>
+</template>

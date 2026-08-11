@@ -1,0 +1,108 @@
+<template>
+  <style>
+    @font-face { font-family: "Avenir Next"; src: local("Avenir Next"); }
+    @font-face { font-family: "SFMono-Regular"; src: local("SFMono-Regular"); }
+    @font-face { font-family: "PingFang SC"; src: local("PingFang SC"); }
+    @font-face { font-family: "Microsoft YaHei"; src: local("Microsoft YaHei"); }
+    #root, #root * { margin: 0; padding: 0; box-sizing: border-box; }
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; background: #090D0F; font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif; color: #F2F2E9; }
+    .b4-scene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+    .b4-bg { position: absolute; inset: 0; background: #090D0F; }
+    .b4-grid { position: absolute; left: -40px; top: -40px; width: 2000px; height: 1160px; background-image: repeating-linear-gradient(to right, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px), repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0 1px, transparent 1px 80px); }
+    .b4-glow { position: absolute; left: 50%; top: -280px; width: 1500px; height: 820px; transform: translateX(-50%); background: radial-gradient(closest-side, rgba(213,243,106,0.09), transparent 70%); }
+    .b4-title { position: absolute; left: 120px; top: 140px; width: 1600px; }
+    .b4-h1 { font-size: 88px; font-weight: 600; letter-spacing: -2px; }
+    .b4-sub { margin-top: 24px; font-size: 24px; color: #A2B0AD; }
+    .b4-row { position: absolute; left: 160px; width: 1600px; height: 96px; display: flex; align-items: center; padding: 0 28px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(0,0,0,0) 38%), #101719; border: 1px solid #27383C; border-radius: 16px; box-shadow: 0 20px 55px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.22); }
+    .b4-row1 { top: 330px; }
+    .b4-row2 { top: 446px; }
+    .b4-row3 { top: 562px; }
+    .b4-row4 { top: 678px; }
+    .b4-name { width: 320px; font-size: 30px; font-weight: 700; }
+    .b4-bar { display: flex; gap: 10px; width: 260px; }
+    .b4-seg { width: 28px; height: 16px; border-radius: 4px; }
+    .b4-seg-on { background: #77D79A; }
+    .b4-seg-warn { background: #F2C56D; }
+    .b4-seg-off { background: rgba(255,255,255,0.10); }
+    .b4-metrics { margin-left: auto; display: flex; gap: 64px; }
+    .b4-r2 .b4-metrics { padding-right: 240px; }
+    .b4-metric { width: 150px; }
+    .b4-mlabel { font-size: 18px; color: #667875; }
+    .b4-mval { margin-top: 4px; font-size: 28px; font-weight: 700; }
+    .b4-macc { color: #D5F36A; }
+    .b4-best { position: absolute; inset: 0; border: 4px solid #D5F36A; border-radius: 16px; }
+    .b4-check { position: absolute; right: 190px; top: 30px; width: 34px; height: 34px; background: #77D79A; -webkit-mask: url('capture/assets/svgs/svg-61b64d58.svg') center/contain no-repeat; mask: url('capture/assets/svgs/svg-61b64d58.svg') center/contain no-repeat; }
+    .b4-pill { position: absolute; right: 26px; top: 22px; padding: 8px 18px; border-radius: 999px; background: rgba(213,243,106,0.12); color: #D5F36A; font-size: 18px; font-weight: 700; }
+  </style>
+
+  <div data-hf-id="hf-lftw" id="root" data-composition-id="beat-4-compare" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-fora" class="b4-scene" id="b4-scene">
+      <div data-hf-id="hf-x6ce" class="b4-bg"></div>
+      <div data-hf-id="hf-cvon" class="b4-grid"></div>
+      <div data-hf-id="hf-akcw" class="b4-glow"></div>
+
+      <div data-hf-id="hf-xaj6" class="b4-title" id="b4-title">
+        <h1 data-hf-id="hf-calf" class="b4-h1" id="b4-h1">同框对比，决策有据</h1>
+        <p data-hf-id="hf-14cn" class="b4-sub" id="b4-sub">同一数据集 · 多模型同框 · 准确率、延迟与成本一并比较</p>
+      </div>
+
+      <div data-hf-id="hf-afn5" class="b4-row b4-row1 b4-r1" id="b4-row1">
+        <div data-hf-id="hf-w660" class="b4-name">Tencent HY3 (free)</div>
+        <div data-hf-id="hf-x1c2" class="b4-bar"><div data-hf-id="hf-3iea" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-p0hy" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-pesz" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-pt40" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-n0yt" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-nf9u" class="b4-seg b4-seg-on"></div></div>
+          <div data-hf-id="hf-n3e6" class="b4-metrics"><div data-hf-id="hf-tbxz" class="b4-metric"><div data-hf-id="hf-sffz" class="b4-mlabel">准确率</div><div data-hf-id="hf-mzjk" class="b4-mval b4-macc" id="b4-acc1">0%</div></div><div data-hf-id="hf-8b7b" class="b4-metric"><div data-hf-id="hf-anid" class="b4-mlabel">延迟</div><div data-hf-id="hf-hyfh" class="b4-mval">2.1s</div></div><div data-hf-id="hf-7wwa" class="b4-metric"><div data-hf-id="hf-oj3m" class="b4-mlabel">成本</div><div data-hf-id="hf-7thf" class="b4-mval">$0.000</div></div></div>
+      </div>
+
+      <div data-hf-id="hf-myry" class="b4-row b4-row2 b4-r2" id="b4-row2">
+        <div data-hf-id="hf-0146" class="b4-name">GPT-4o mini</div>
+        <div data-hf-id="hf-3ihy" class="b4-bar"><div data-hf-id="hf-ntkv" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-o7vw" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-lfqp" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-lu1q" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-ygci" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-y21h" class="b4-seg b4-seg-on"></div></div>
+        <div data-hf-id="hf-3mk2" class="b4-metrics"><div data-hf-id="hf-7il9" class="b4-metric"><div data-hf-id="hf-mhjj" class="b4-mlabel">准确率</div><div data-hf-id="hf-uqkz" class="b4-mval b4-macc" id="b4-acc2">0%</div></div><div data-hf-id="hf-aaqg" class="b4-metric"><div data-hf-id="hf-vcux" class="b4-mlabel">延迟</div><div data-hf-id="hf-sh24" class="b4-mval">0.22s</div></div><div data-hf-id="hf-9wff" class="b4-metric"><div data-hf-id="hf-ua9i" class="b4-mlabel">成本</div><div data-hf-id="hf-vx8u" class="b4-mval">$0.014</div></div></div>
+        <div data-hf-id="hf-phs4" class="b4-best" id="b4-best"></div>
+        <div data-hf-id="hf-q9h6" class="b4-check" id="b4-check"></div>
+        <div data-hf-id="hf-w5x8" class="b4-pill" id="b4-pill">最优性价比</div>
+      </div>
+
+      <div data-hf-id="hf-fdqj" class="b4-row b4-row3 b4-r3" id="b4-row3">
+        <div data-hf-id="hf-1jt6" class="b4-name">Claude 3.5 Haiku</div>
+        <div data-hf-id="hf-3wsz" class="b4-bar"><div data-hf-id="hf-z8yk" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-yunj" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-01km" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-zn9l" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-0u6o" class="b4-seg b4-seg-on"></div><div data-hf-id="hf-0fvn" class="b4-seg b4-seg-on"></div></div>
+        <div data-hf-id="hf-40v3" class="b4-metrics"><div data-hf-id="hf-9i4e" class="b4-metric"><div data-hf-id="hf-m38i" class="b4-mlabel">准确率</div><div data-hf-id="hf-dji6" class="b4-mval b4-macc" id="b4-acc3">0%</div></div><div data-hf-id="hf-93td" class="b4-metric"><div data-hf-id="hf-wjs0" class="b4-mlabel">延迟</div><div data-hf-id="hf-lqa8" class="b4-mval">0.13s</div></div><div data-hf-id="hf-bvyk" class="b4-metric"><div data-hf-id="hf-uokj" class="b4-mlabel">成本</div><div data-hf-id="hf-5ep0" class="b4-mval">$0.078</div></div></div>
+      </div>
+
+      <div data-hf-id="hf-wb14" class="b4-row b4-row4 b4-r4" id="b4-row4">
+        <div data-hf-id="hf-8bvj" class="b4-name">DeepSeek V3</div>
+        <div data-hf-id="hf-4b40" class="b4-bar"><div data-hf-id="hf-lk7d" class="b4-seg b4-seg-warn"></div><div data-hf-id="hf-ni4d" class="b4-seg b4-seg-warn"></div><div data-hf-id="hf-op1g" class="b4-seg b4-seg-warn"></div><div data-hf-id="hf-oaqf" class="b4-seg b4-seg-warn"></div><div data-hf-id="hf-phni" class="b4-seg b4-seg-warn"></div><div data-hf-id="hf-wp0g" class="b4-seg b4-seg-off"></div></div>
+        <div data-hf-id="hf-4f64" class="b4-metrics"><div data-hf-id="hf-bhnj" class="b4-metric"><div data-hf-id="hf-loxh" class="b4-mlabel">准确率</div><div data-hf-id="hf-dt5l" class="b4-mval b4-macc" id="b4-acc4">0%</div></div><div data-hf-id="hf-yfet" class="b4-metric"><div data-hf-id="hf-w5gz" class="b4-mlabel">延迟</div><div data-hf-id="hf-v7ht" class="b4-mval">3.0s</div></div><div data-hf-id="hf-ytpu" class="b4-metric"><div data-hf-id="hf-v2vk" class="b4-mlabel">成本</div><div data-hf-id="hf-metf" class="b4-mval">$0.000</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      tl.fromTo("#b4-scene", { scale: 1.05 }, { scale: 1, duration: 7, ease: "power1.out" }, 0);
+      tl.fromTo("#b4-h1", { y: 56, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power4.out" }, 0.15);
+      tl.fromTo("#b4-sub", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 0.5);
+      tl.fromTo(".b4-row", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out", stagger: 0.15 }, 0.8);
+      tl.fromTo(".b4-r1 .b4-seg", { opacity: 0 }, { opacity: 1, duration: 0.25, stagger: 0.12 }, 1.1);
+      tl.fromTo(".b4-r2 .b4-seg", { opacity: 0 }, { opacity: 1, duration: 0.25, stagger: 0.12 }, 1.4);
+      tl.fromTo(".b4-r3 .b4-seg", { opacity: 0 }, { opacity: 1, duration: 0.25, stagger: 0.12 }, 1.7);
+      tl.fromTo(".b4-r4 .b4-seg", { opacity: 0 }, { opacity: 1, duration: 0.25, stagger: 0.12 }, 2.0);
+      tl.set("#b4-acc1", { textContent: "100%" }, 1.1);
+      tl.set("#b4-acc2", { textContent: "100%" }, 1.4);
+      tl.set("#b4-acc3", { textContent: "100%" }, 1.7);
+      tl.set("#b4-acc4", { textContent: "87%" }, 2.0);
+      tl.fromTo("#b4-best", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 3.2);
+      tl.fromTo("#b4-check", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, 3.35);
+      tl.fromTo("#b4-pill", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.6)" }, 3.6);
+
+      tl.fromTo("#b4-title", { x: 0 }, { x: -12, duration: 1.1, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.5);
+      tl.fromTo("#b4-row1", { y: 0 }, { y: 8, duration: 1.05, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.6);
+      tl.fromTo("#b4-row2", { y: 0 }, { y: -8, duration: 1.0, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.7);
+      tl.fromTo("#b4-row3", { y: 0 }, { y: 8, duration: 0.95, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.8);
+      tl.fromTo("#b4-row4", { y: 0 }, { y: -8, duration: 0.9, yoyo: true, repeat: 1, ease: "power1.inOut" }, 4.9);
+
+      window.__timelines["beat-4-compare"] = tl;
+    })();
+  </script>
+</template>
