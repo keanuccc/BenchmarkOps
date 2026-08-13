@@ -192,6 +192,24 @@ _UNIT_SUFFIX_RE = re.compile(
 )
 
 
+def _fullwidth_to_halfwidth(text: str) -> str:
+    """Convert full-width ASCII/CJK punctuation to half-width.
+
+    Models frequently emit full-width digits/letters (１２３, ＡＢＣ) and
+    punctuation (，：) in Chinese contexts; normalizing them avoids false
+    negatives in exact matching.
+    """
+    out: list[str] = []
+    for ch in text:
+        code = ord(ch)
+        if code == 0x3000:      # full-width space
+            code = 0x20
+        elif 0xFF01 <= code <= 0xFF5E:
+            code -= 0xFEE0
+        out.append(chr(code))
+    return "".join(out)
+
+
 def _normalize_match_text(
     value: object,
     *,
@@ -199,6 +217,7 @@ def _normalize_match_text(
     remove_whitespace: bool = True,
 ) -> str:
     text = "" if value is None else str(value).strip()
+    text = _fullwidth_to_halfwidth(text)
     policy = answer_policy or {}
     if policy.get("strip_units", True):
         compact = re.sub(r"\s+", "", text)
@@ -476,13 +495,31 @@ def f1_token(prediction: str, expected: str | None, *, expected_raw: dict | list
 
 @register("numeric_match")
 def numeric_match(prediction: str, expected: str | None, *, expected_raw: dict | list | None = None, **kwargs) -> float:
+    _CN_UNIT = {"万亿": 1e12, "亿": 1e8, "千万": 1e7, "百万": 1e6, "万": 1e4, "千": 1e3}
+    _CN_UNIT_RE = re.compile(
+        r"([-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(万亿|千万|百万|亿|万|千)"
+    )
+    _NUM_RE = re.compile(
+        r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?"
+    )
+
     def _to_floats(value: str | None) -> list[float]:
-        matches = re.finditer(
-            r"[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[eE][-+]?\d+)?",
-            (value or "").strip(),
-        )
         values: list[float] = []
-        for match in matches:
+        raw = (value or "").strip()
+        # 中文数字单位（2.5万、1亿、3000万、1.5万亿）：先按带单位解析
+        unit_matches = list(_CN_UNIT_RE.finditer(raw))
+        unit_spans = [(m.start(), m.end()) for m in unit_matches]
+        for match in unit_matches:
+            try:
+                num = float(match.group(1).replace(",", ""))
+                values.append(num * _CN_UNIT[match.group(2)])
+            except ValueError:
+                continue
+        # 普通数字（含千分位、科学计数）；带单位表达式中的数字不再重复计入，
+        # 避免 "2.5万" 同时得到 2.5 和 25000 两个候选值造成假阳性
+        for match in _NUM_RE.finditer(raw):
+            if any(s <= match.start() and match.end() <= e for s, e in unit_spans):
+                continue
             try:
                 values.append(float(match.group(0).replace(",", "")))
             except ValueError:

@@ -45,6 +45,7 @@ _ANSWER_PREFIX_RE = re.compile(
     r"^(?:最\s*终\s*答\s*案[：:\s]*|答\s*案(?:\s*是)?[：:\s]*|回\s*答[：:\s]*|答\s*题?[：:\s]*|answer[s]?[：:]?\s*|final\s+answer\s*[：:]?\s*|结\s*论[：:\s]*)",
     flags=re.IGNORECASE,
 )
+_FENCE_RE = re.compile(r"^[ \t]*```[ \t]*(\w*)[ \t]*$", re.MULTILINE)
 
 
 async def _load_dataset_rows(
@@ -287,6 +288,31 @@ def _extract_answer(
     last = re.sub(r"\s+", "" if normalize_whitespace else " ", last).strip()
 
     return last
+
+
+def _extract_code(text: str) -> str:
+    """Extract runnable code from a model output for coding benchmarks.
+
+    Real models often wrap code in Markdown fences (`````python ... `````), which
+    breaks code_pass execution. This helper:
+
+    * if fenced blocks exist, concatenates their contents (most models emit one);
+    * otherwise returns the raw text with any stray fence markers stripped.
+
+    It deliberately skips the QA-oriented ``_extract_answer`` noise removal,
+    which would truncate code at commas or keep only the last line.
+    """
+    if not text:
+        return ""
+    matches = list(_FENCE_RE.finditer(text))
+    if not matches:
+        return text.replace("```", "").strip()
+    parts: list[str] = []
+    for i, m in enumerate(matches):
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        parts.append(text[start:end].strip())
+    return "\n\n".join(p for p in parts if p).strip() or text.strip()
 
 
 def _score_reason(
@@ -687,12 +713,17 @@ async def _run_experiment(experiment_id: str) -> None:
                 metric_name in {"exact_match", "exact_match_ci", "numeric_match"}
                 and multi_answer not in ("all", "set")
             )
-            cleaned_prediction = _extract_answer(
-                completion.text,
-                split_commas=split_commas,
-                normalize_whitespace=False,
-                strip_units=answer_policy.get("strip_units", True),
-            ).strip()
+            if benchmark_type == "coding":
+                # 代码评测：保留完整可执行代码（含 Markdown 围栏内容），
+                # 不做 QA 式答案抽取（会截断代码）。
+                cleaned_prediction = _extract_code(completion.text)
+            else:
+                cleaned_prediction = _extract_answer(
+                    completion.text,
+                    split_commas=split_commas,
+                    normalize_whitespace=False,
+                    strip_units=answer_policy.get("strip_units", True),
+                ).strip()
 
             metric_scores: dict[str, float] = {}
             weighted_score = 0.0

@@ -6,9 +6,7 @@ import {
   listExperiments,
   compareExperiments,
   getLeaderboard,
-  type Experiment,
   type ComparisonResponse,
-  type LeaderboardEntry,
 } from "@/lib/api";
 import { Button, Card, EmptyState } from "@/components/ui";
 import { BarChart } from "@/components/charts";
@@ -219,11 +217,23 @@ function CompareInner() {
                 {leaderboard.map((row, i) => (
                   <tr
                     key={row.experiment_id}
-                    className="border-b last:border-0"
+                    className={
+                      i === 0
+                        ? "border-b bg-[var(--ocd-accent-soft)]"
+                        : "border-b last:border-0"
+                    }
                     style={{ borderColor: "var(--ocd-border-soft)" }}
                   >
-                    <td className="px-4 py-3 font-medium text-[var(--ocd-text-faint)]">
-                      {i + 1}
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          i === 0
+                            ? "grid h-6 w-6 place-items-center rounded-md bg-[var(--ocd-accent)] font-mono text-xs font-bold text-[var(--ocd-accent-fg)]"
+                            : "font-mono text-xs text-[var(--ocd-text-faint)]"
+                        }
+                      >
+                        {i + 1}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-[var(--ocd-text)]">
                       {row.experiment_name}
@@ -231,7 +241,11 @@ function CompareInner() {
                     <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
                       {row.model_name}
                     </td>
-                    <td className="px-4 py-3 font-medium text-[var(--ocd-text)]">
+                    <td
+                      className={`px-4 py-3 font-semibold tabular-nums ${
+                        i === 0 ? "text-[var(--ocd-accent)]" : "text-[var(--ocd-ok)]"
+                      }`}
+                    >
                       {(row.accuracy * 100).toFixed(1)}%
                     </td>
                     <td className="px-4 py-3 text-[var(--ocd-text-muted)]">

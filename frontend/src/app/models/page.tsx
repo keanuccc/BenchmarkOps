@@ -5,7 +5,6 @@ import {
   listModels,
   seedModels,
   createModel,
-  deleteModel,
   deleteModels,
   listOpenRouterModels,
   listQiniuModels,
@@ -16,7 +15,30 @@ import {
 } from "@/lib/api";
 import { Button, Card, Badge, EmptyState, Spinner, Modal } from "@/components/ui";
 import { PaginationBar } from "@/components/pagination";
-import { Cpu, Plus, Trash2 } from "lucide-react";
+import { Cpu, Plus, ShieldCheck, Trash2 } from "lucide-react";
+
+const DOMESTIC_PROVIDERS = new Set([
+  "deepseek",
+  "qiniu",
+  "qwen",
+  "zhipuai",
+  "moonshot",
+  "tencent",
+  "doubao",
+  "baichuan",
+  "minimax",
+  "stepfun",
+]);
+
+const PROVIDER_ACCENT: Record<string, string> = {
+  deepseek: "var(--ocd-accent)",
+  qiniu: "var(--ocd-info)",
+  openrouter: "var(--ocd-coral)",
+};
+
+function providerAccent(provider: string): string {
+  return PROVIDER_ACCENT[provider] ?? "var(--ocd-text-muted)";
+}
 
 type ConfirmState = {
   kind: "single" | "bulk" | "all";
@@ -399,8 +421,30 @@ export default function ModelsPage() {
                       className="mt-1"
                     />
                     <div className="min-w-0">
-                      <p className="font-semibold">{m.name}</p>
-                      <Badge>{m.provider}</Badge>
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate font-semibold">{m.name}</p>
+                        {DOMESTIC_PROVIDERS.has(m.provider) && (
+                          <span
+                            className="inline-flex shrink-0 items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold text-[var(--ocd-ok)]"
+                            style={{
+                              borderColor: "color-mix(in srgb, var(--ocd-ok) 30%, transparent)",
+                              background: "color-mix(in srgb, var(--ocd-ok) 10%, transparent)",
+                            }}
+                          >
+                            <ShieldCheck size={11} /> 国产
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className="mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                        style={{
+                          color: providerAccent(m.provider),
+                          borderColor: `color-mix(in srgb, ${providerAccent(m.provider)} 30%, transparent)`,
+                          background: `color-mix(in srgb, ${providerAccent(m.provider)} 10%, transparent)`,
+                        }}
+                      >
+                        {m.provider}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -434,7 +478,14 @@ export default function ModelsPage() {
                     <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-faint)]">
                       输入 / 输出
                     </p>
-                    <p className="text-[var(--ocd-text-muted)]">
+                    <p
+                      className={
+                        typeof m.pricing?.input_per_1k === "number" &&
+                        m.pricing.input_per_1k <= 0.2
+                          ? "font-semibold tabular-nums text-[var(--ocd-ok)]"
+                          : "tabular-nums text-[var(--ocd-text-muted)]"
+                      }
+                    >
                       ${m.pricing?.input_per_1k ?? "?"} / ${m.pricing?.output_per_1k ?? "?"}
                     </p>
                   </div>

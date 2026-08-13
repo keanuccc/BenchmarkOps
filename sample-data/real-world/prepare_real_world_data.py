@@ -127,6 +127,9 @@ def prepare_humaneval() -> list[dict]:
                 {
                     "prompt": item["prompt"],
                     "answer": item["canonical_solution"],
+                    # 官方测试代码（def check(candidate) + check(entry_point)），
+                    # 供 code_pass 指标真实执行验证。
+                    "tests": [item["test"]],
                     "entry_point": item["entry_point"],
                     "task_id": item["task_id"],
                 }

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from app.core.config import settings
 from app.providers.base import LLMProvider
+from app.providers.deepseek import DeepSeekProvider
 from app.providers.mock import MockProvider
 from app.providers.openrouter import OpenRouterProvider
 from app.providers.qiniu import QiniuProvider
@@ -14,6 +15,7 @@ from app.providers.qiniu import QiniuProvider
 # name -> factory
 _PROVIDERS: dict[str, type[LLMProvider]] = {
     "mock": MockProvider,
+    "deepseek": DeepSeekProvider,
     "openrouter": OpenRouterProvider,
     "qiniu": QiniuProvider,
 }
@@ -22,7 +24,7 @@ _PROVIDERS: dict[str, type[LLMProvider]] = {
 # Known gateways. Anything else (e.g. the seed defaults "openai"/"anthropic")
 # is not a real provider here and is normalized to the configured default so a stale
 # model row never crashes a run.
-_KNOWN = ("mock", "openrouter", "qiniu")
+_KNOWN = ("mock", "deepseek", "openrouter", "qiniu")
 
 
 def get_provider(name: str | None = None) -> LLMProvider:
@@ -44,11 +46,12 @@ def get_provider(name: str | None = None) -> LLMProvider:
         # Unknown/legacy provider label: route to the configured default rather than
         # failing the whole experiment.
         name = settings.default_provider
-    if name in ("openrouter", "qiniu") and not _key_present(name):
-        # A real gateway was requested but its key is missing. If the default gateway
-        # itself has no key, there is no real provider at all -> Mock. Otherwise the
-        # user explicitly pinned a gateway without configuring its key -> error.
-        if not settings.provider_enabled:
+    if name in ("deepseek", "openrouter", "qiniu") and not _key_present(name):
+        # The configured DEFAULT gateway may simply be unconfigured (offline demo):
+        # fall back to the deterministic Mock provider so the pipeline still runs.
+        # A model explicitly pinned to a NON-default gateway without its key is a
+        # misconfiguration and must never silently produce fake scores.
+        if name == settings.default_provider:
             name = "mock"
         else:
             raise ValueError(
@@ -61,6 +64,8 @@ def get_provider(name: str | None = None) -> LLMProvider:
 
 
 def _key_present(name: str) -> bool:
+    if name == "deepseek":
+        return bool(settings.deepseek_api_key.strip())
     if name == "openrouter":
         return bool(settings.openrouter_api_key.strip())
     if name == "qiniu":

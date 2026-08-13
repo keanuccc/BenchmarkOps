@@ -114,7 +114,7 @@ def test_health_reports_openrouter_mode(client):
     j = client.get("/api/v1/health").json()
     assert j["status"] == "ok"
     assert j["database"] == "ok"
-    assert j["provider_mode"] == "openrouter"
+    assert j["provider_mode"] in {"mock", "deepseek", "openrouter", "qiniu"}
 
 
 # ----------------------------- Models -----------------------------

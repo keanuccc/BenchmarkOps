@@ -35,13 +35,30 @@ function formatResultInput(input: Record<string, unknown>): string {
   return parts.length ? parts.join(" · ") : "{}";
 }
 
+const METRIC_ACCENTS: Record<string, string> = {
+  准确率: "var(--ocd-accent)",
+  "花费 (USD)": "var(--ocd-warn)",
+  令牌数: "var(--ocd-info)",
+  运行耗时: "var(--ocd-ok)",
+};
+
 function Metric({ label, value }: { label: string; value: string }) {
+  const accent = METRIC_ACCENTS[label] ?? "var(--ocd-accent)";
   return (
-    <Card className="p-4">
+    <Card className="relative overflow-hidden p-4">
+      <div
+        className="absolute inset-x-0 top-0 h-px"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+          opacity: 0.55,
+        }}
+      />
       <p className="text-xs uppercase tracking-wider text-[var(--ocd-text-muted)]">
         {label}
       </p>
-      <p className="mt-1 text-xl font-semibold text-[var(--ocd-text)]">{value}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--ocd-text)]">
+        {value}
+      </p>
     </Card>
   );
 }

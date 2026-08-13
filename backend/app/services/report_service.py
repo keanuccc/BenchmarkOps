@@ -31,9 +31,10 @@ from app.schemas.report import ReportGenerateRequest
 
 # Runtime default model slugs used ONLY as a provider call argument when no
 # other default is configured. The slug must be valid on the gateway actually
-# serving the request: OpenRouter exposes openai/gpt-4o-mini, while the Qiniu
-# gateway does not carry that model (it returns 400 "no available channels").
-# Qiniu is verified to serve deepseek/deepseek-v4-flash and deepseek-v3.
+# serving the request: DeepSeek serves deepseek-chat directly, OpenRouter
+# exposes openai/gpt-4o-mini, and Qiniu is verified to serve
+# deepseek/deepseek-v4-flash and deepseek-v3.
+DEEPSEEK_REPORT_MODEL_ID = "deepseek-chat"
 DEFAULT_REPORT_MODEL_ID = "openai/gpt-4o-mini"
 QINIU_REPORT_MODEL_ID = "deepseek/deepseek-v4-flash"
 
@@ -43,6 +44,8 @@ def resolve_report_model_id() -> str:
     if settings.report_model_id:
         return settings.report_model_id
     provider = (settings.report_provider or settings.default_provider).lower()
+    if provider == "deepseek":
+        return DEEPSEEK_REPORT_MODEL_ID
     if provider == "qiniu":
         return QINIU_REPORT_MODEL_ID
     return DEFAULT_REPORT_MODEL_ID

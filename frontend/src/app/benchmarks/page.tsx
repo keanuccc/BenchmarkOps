@@ -20,7 +20,6 @@ import {
   Badge,
   EmptyState,
   Modal,
-  SectionTitle,
   Spinner,
 } from "@/components/ui";
 import { PaginationBar } from "@/components/pagination";

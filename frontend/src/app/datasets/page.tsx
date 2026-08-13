@@ -27,7 +27,6 @@ import {
   Badge,
   EmptyState,
   Modal,
-  SectionTitle,
   Spinner,
 } from "@/components/ui";
 import { PaginationBar } from "@/components/pagination";
@@ -35,7 +34,6 @@ import {
   Database,
   Upload,
   Trash2,
-  ArrowLeft,
   Eye,
   Archive,
   ArchiveRestore,

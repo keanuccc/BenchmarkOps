@@ -41,6 +41,9 @@ business-data/*.csv
 business-data/*.xlsx
 business-data/*.xls
 
+# Real-world eval download cache (regenerable via prepare_real_world_data.py)
+sample-data/real-world/_downloads/
+
 # E2E test caches
 frontend/e2e/.pytest_cache/
 

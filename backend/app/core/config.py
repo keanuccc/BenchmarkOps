@@ -38,8 +38,15 @@ class Settings(BaseSettings):
     openrouter_app_title: str = "BenchmarkOps"
 
     # Provider routing. The default gateway used when a model does not pin its own
-    # provider. User wants Qiniu AI as the default gateway. Allowed: openrouter|qiniu|mock.
-    default_provider: str = "qiniu"
+    # provider. DeepSeek is the cheapest strong domestic gateway, so it is the
+    # default. Allowed: deepseek|openrouter|qiniu|mock.
+    default_provider: str = "deepseek"
+
+    # DeepSeek official API (OpenAI-compatible, domestic + low cost). Empty key ->
+    # provider disabled (Mock fallback unless explicitly requested). The key lives
+    # only in .env, which is git-ignored; never hardcode it here.
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
 
     # Qiniu Cloud AI Token API (OpenAI-compatible), the second gateway. Empty key ->
     # provider disabled (Mock fallback unless explicitly requested). The key lives only
@@ -104,7 +111,11 @@ class Settings(BaseSettings):
     @property
     def provider_enabled(self) -> bool:
         """True when any real provider key is configured; else Mock is used."""
-        return bool(self.openrouter_api_key.strip()) or bool(self.qiniu_api_key.strip())
+        return (
+            bool(self.deepseek_api_key.strip())
+            or bool(self.openrouter_api_key.strip())
+            or bool(self.qiniu_api_key.strip())
+        )
 
     @property
     def auth_enabled(self) -> bool:

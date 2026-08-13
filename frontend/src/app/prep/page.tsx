@@ -83,7 +83,7 @@ function ColumnChips({
               }
               className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-all ${
                 active
-                  ? "border-[var(--ocd-accent)] bg-[color:rgb(213_243_106/0.12)] text-[var(--ocd-accent)]"
+                  ? "border-[var(--ocd-accent)] bg-[color:rgb(99_230_216/0.14)] text-[var(--ocd-accent)]"
                   : "border-[var(--ocd-border)] bg-[var(--ocd-surface-2)] text-[var(--ocd-text-muted)] hover:text-[var(--ocd-text)]"
               }`}
             >
@@ -114,7 +114,7 @@ function StepHeader({ step }: { step: number }) {
             <div
               className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
                 active
-                  ? "border-[var(--ocd-accent)] bg-[color:rgb(213_243_106/0.10)] text-[var(--ocd-accent)]"
+                  ? "border-[var(--ocd-accent)] bg-[color:rgb(99_230_216/0.12)] text-[var(--ocd-accent)]"
                   : done
                     ? "border-[var(--ocd-ok)] text-[var(--ocd-ok)]"
                     : "border-[var(--ocd-border)] text-[var(--ocd-text-muted)]"

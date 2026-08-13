@@ -40,12 +40,12 @@ def _seed(client: TestClient) -> None:
     seed = client.post(f"{API}/models/seed")
     seed.raise_for_status()
     n = seed.json()["seeded"]
-    models = client.get(f"{API}/models/").json()
+    models = client.get(f"{API}/models/").json()["items"]
     print(f"  models   -> seeded {n}, total {len(models)}")
 
-    # Pick two distinct seeded models for the comparison.
-    m_a = next(m for m in models if m["name"] == "Claude 3.5 Haiku")
-    m_b = next(m for m in models if m["name"] == "GPT-4o mini")
+    # Pick two distinct seeded domestic models for the comparison.
+    m_a = next(m for m in models if m["name"] == "DeepSeek-V3")
+    m_b = next(m for m in models if m["name"] == "DeepSeek-R1")
 
     # 3. Dataset (upload as JSONL). Pure arithmetic so the deterministic Mock
     # provider scores 1.0 on exact_match — giving a meaningful demo offline.

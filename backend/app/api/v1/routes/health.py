@@ -32,7 +32,7 @@ async def health(session: AsyncSession = Depends(get_session)) -> dict:
         "app": settings.app_name,
         "env": settings.app_env,
         "database": "ok" if db_ok else "error",
-        "provider_mode": "openrouter" if settings.provider_enabled else "mock",
+        "provider_mode": active_provider_name(),
         "db_backend": get_db_info(settings.database_url),
     }
 
@@ -62,6 +62,12 @@ async def ready(session: AsyncSession = Depends(get_session)) -> dict:
             provider_status = "ok (mock)"
         else:
             provider = get_provider(prov_name)
+            # A minimal model id valid on the gateway actually being probed.
+            probe_model_id = {
+                "deepseek": "deepseek-chat",
+                "openrouter": "openai/gpt-4o-mini",
+                "qiniu": "deepseek-v3",
+            }.get(prov_name, "gpt-4o-mini")
             # Lightweight ping: a minimal request to verify the gateway is reachable.
             # We use a short timeout so a hung provider doesn't block the probe.
             with asyncio.timeout(3):
@@ -70,7 +76,7 @@ async def ready(session: AsyncSession = Depends(get_session)) -> dict:
                 from app.providers.base import ChatMessage, CompletionRequest
                 result = await provider.complete(
                     CompletionRequest(
-                        model_id="gpt-4o-mini",
+                        model_id=probe_model_id,
                         messages=[ChatMessage(role="user", content="hi")],
                         max_tokens=1,
                     )

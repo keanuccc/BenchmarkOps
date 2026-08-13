@@ -76,21 +76,31 @@ export default function DashboardPage() {
           <div className="mb-5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--ocd-accent)]">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--ocd-accent)] shadow-[0_0_12px_var(--ocd-accent)]" /> 工作区 / 总览
           </div>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-[1.05] tracking-[-0.065em] text-[var(--ocd-text)] sm:text-5xl">把每一次模型迭代，<span className="text-[var(--ocd-accent)]">变成可解释的进步。</span></h1>
+          <h1 className="max-w-2xl text-4xl font-semibold leading-[1.05] tracking-[-0.065em] text-[var(--ocd-text)] sm:text-5xl">把每一次模型迭代，<span className="text-[var(--ocd-accent)] drop-shadow-[0_0_18px_var(--ocd-accent-soft)]">变成可解释的进步。</span></h1>
           <p className="mt-5 max-w-xl text-sm leading-6 text-[var(--ocd-text-muted)]">从数据集、基准套件到实验报告，在一个清晰的工作区里掌握评测质量、运行状态与成本变化。</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--ocd-text-faint)]">
+            <span className="rounded-md border border-[var(--ocd-border-soft)] bg-[var(--ocd-surface-2)] px-2 py-1">国产模型优先</span>
+            <span className="rounded-md border border-[var(--ocd-border-soft)] bg-[var(--ocd-surface-2)] px-2 py-1">DeepSeek 直连</span>
+            <span className="rounded-md border border-[var(--ocd-border-soft)] bg-[var(--ocd-surface-2)] px-2 py-1">可复现</span>
+            <span className="rounded-md border border-[var(--ocd-border-soft)] bg-[var(--ocd-surface-2)] px-2 py-1">可审计</span>
+          </div>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link href="/evaluation"><Button><Plus size={16} /> 开始新评测</Button></Link>
             <Link href="/projects" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--ocd-border)] px-4 py-2 text-sm font-semibold text-[var(--ocd-text-muted)] hover:border-[var(--ocd-accent)] hover:text-[var(--ocd-accent)]">查看项目 <ArrowRight size={15} /></Link>
           </div>
         </div>
-        <div className="relative flex min-h-[230px] flex-col justify-between rounded-2xl border border-[var(--ocd-border-soft)] bg-[var(--ocd-bg)] p-5">
+        <div className="relative flex min-h-[230px] flex-col justify-between overflow-hidden rounded-2xl border border-[var(--ocd-border-soft)] bg-[var(--ocd-bg)] p-5">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-[var(--ocd-accent-soft)] blur-3xl" />
           <div className="flex items-start justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ocd-text-faint)]">运行信号</p>
-              <p className="mt-2 text-3xl font-semibold tracking-[-0.06em]">{experiments.length ? `${((completed.length / experiments.length) * 100).toFixed(0)}%` : "—"}</p>
+              <p className="mt-2 text-3xl font-semibold tabular-nums tracking-[-0.06em] text-[var(--ocd-text)]">{experiments.length ? `${((completed.length / experiments.length) * 100).toFixed(0)}%` : "—"}</p>
               <p className="mt-1 text-xs text-[var(--ocd-text-muted)]">实验完成率</p>
             </div>
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--ocd-accent-soft)] text-[var(--ocd-accent)]"><Activity size={18} /></span>
+            <span className="relative grid h-10 w-10 place-items-center rounded-xl bg-[var(--ocd-accent-soft)] text-[var(--ocd-accent)]">
+              <Activity size={18} />
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 animate-pulse rounded-full bg-[var(--ocd-accent)] shadow-[0_0_8px_var(--ocd-accent)]" />
+            </span>
           </div>
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs"><span className="text-[var(--ocd-text-faint)]">工作区健康度</span><span className="font-semibold text-[var(--ocd-ok)]">稳定</span></div>

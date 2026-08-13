@@ -18,7 +18,7 @@ import {
   Spinner,
   SectionTitle,
 } from "@/components/ui";
-import { LineChart, BarChart, DonutChart, RadarChart } from "@/components/charts";
+import { BarChart, DonutChart, RadarChart } from "@/components/charts";
 import { Radar, Activity, Cpu, DollarSign } from "lucide-react";
 
 const C = [
@@ -75,8 +75,6 @@ export default function IndustryRadarPage() {
   }
 
   const providerByModel = new Map(models.map((m) => [m.name, m.provider]));
-  const modelByLb = new Map(leaderboard.map((l) => [l.model_name, l]));
-
   // Group leaderboard by provider (derived from model name).
   const byProvider = new Map<string, number[]>();
   for (const l of leaderboard) {
@@ -106,7 +104,6 @@ export default function IndustryRadarPage() {
     }),
   );
 
-  const completed = experiments.filter((e) => e.status === "completed");
   const avgAcc =
     leaderboard.length > 0
       ? leaderboard.reduce((a, b) => a + b.accuracy, 0) / leaderboard.length
@@ -148,7 +145,15 @@ export default function IndustryRadarPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
-          <SectionTitle>各供应商准确率</SectionTitle>
+          <SectionTitle
+            action={
+              <span className="font-mono text-[10px] text-[var(--ocd-text-faint)]">
+                {radarItems.length} providers
+              </span>
+            }
+          >
+            各供应商准确率
+          </SectionTitle>
           {radarItems.length === 0 ? (
             <p className="text-sm text-[var(--ocd-text-faint)]">暂无数据。</p>
           ) : (
@@ -205,7 +210,7 @@ export default function IndustryRadarPage() {
                     style={{ borderColor: "var(--ocd-border-soft)" }}
                   >
                     <td className="px-3 py-2 font-medium">{l.model_name}</td>
-                    <td className="px-3 py-2 text-[var(--ocd-text-muted)]">
+                    <td className="px-3 py-2 font-semibold tabular-nums text-[var(--ocd-ok)]">
                       {(l.accuracy * 100).toFixed(1)}%
                     </td>
                     <td className="px-3 py-2 text-[var(--ocd-text-muted)]">

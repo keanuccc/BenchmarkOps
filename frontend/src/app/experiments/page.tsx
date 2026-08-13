@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   listExperiments,
@@ -12,7 +12,6 @@ import {
   createExperiment,
   getRunningTasks,
   type Experiment,
-  type ModelInfo,
   type Project,
   type Dataset,
   type Benchmark,
@@ -25,13 +24,11 @@ import {
   Badge,
   EmptyState,
   Modal,
-  SectionTitle,
   Spinner,
-  ProgressBar,
 } from "@/components/ui";
 import { Combobox } from "@/components/Combobox";
 import { PaginationBar } from "@/components/pagination";
-import { Play, Plus, Activity } from "lucide-react";
+import { Plus, Activity } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // --- Combobox helper types ---------------------------------------------------

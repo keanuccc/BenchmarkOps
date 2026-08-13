@@ -6,7 +6,7 @@ import { setApiToken as setLocalToken } from "@/lib/api";
 import { Card, Badge, EmptyState, Spinner, SectionTitle, Button } from "@/components/ui";
 import { useToast } from "@/components/notifications";
 import { OrganizationManager } from "@/components/organization-manager";
-import { Settings, Server, KeyRound, Shield, Eye, EyeOff, CheckCircle, XCircle, Database, HardDrive, GitBranch, Download, Trash2 } from "lucide-react";
+import { Settings, Server, KeyRound, Shield, Eye, EyeOff, CheckCircle, XCircle, Database, GitBranch, Download, Trash2 } from "lucide-react";
 
 // Backup endpoints live under /db (outside the /api/v1 prefix). Derive the
 // backend base from the same API_BASE_URL used by the typed client.

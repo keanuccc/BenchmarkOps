@@ -27,9 +27,20 @@ OUT_DIR = ROOT / "docs" / "real-world-eval"
 BASE = os.environ.get("BENCHMARKOPS_API", "http://localhost:8000/api/v1")
 TOKEN = os.environ.get("BENCHMARKOPS_TOKEN", "")
 
-# 跨网关真实模型：key = 展示名, value = (provider, model_id, pricing, 说明)
-# 说明：默认 4 个模型覆盖 2 个网关；未配置对应网关 Key 的模型会被自动跳过。
+# 国产真实模型：key = 展示名, value = (provider, model_id, pricing, 说明)
+# 说明：默认 5 个国产模型，覆盖 DeepSeek 官方直连与七牛云双网关；
+# 未配置对应网关 Key 的模型会被自动跳过。
 REAL_MODELS: dict[str, dict] = {
+    "DeepSeek-V3 (DeepSeek)": {
+        "provider": "deepseek",
+        "model_id": "deepseek-chat",
+        "pricing": {"input_per_1k": 0.14, "output_per_1k": 0.28},
+    },
+    "DeepSeek-R1 (DeepSeek)": {
+        "provider": "deepseek",
+        "model_id": "deepseek-reasoner",
+        "pricing": {"input_per_1k": 0.55, "output_per_1k": 2.19},
+    },
     "DeepSeek V4 Flash (Qiniu)": {
         "provider": "qiniu",
         "model_id": "deepseek/deepseek-v4-flash",
@@ -45,11 +56,6 @@ REAL_MODELS: dict[str, dict] = {
         "model_id": "doubao-seed-2.0-pro",
         "pricing": {"input_per_1k": 0.0, "output_per_1k": 0.0},
     },
-    "GPT-4o mini (OpenRouter)": {
-        "provider": "openrouter",
-        "model_id": "openai/gpt-4o-mini",
-        "pricing": {"input_per_1k": 0.15, "output_per_1k": 0.6},
-    },
 }
 
 
@@ -58,7 +64,11 @@ def _gateway_key_present(provider: str) -> bool:
     env_path = ROOT / "backend" / ".env"
     if not env_path.exists():
         return False
-    key_name = "QINIU_API_KEY" if provider == "qiniu" else "OPENROUTER_API_KEY"
+    key_name = {
+        "deepseek": "DEEPSEEK_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "qiniu": "QINIU_API_KEY",
+    }.get(provider, "OPENROUTER_API_KEY")
     for line in env_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line.startswith(key_name + "="):
@@ -176,6 +186,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="每个数据集最多行数")
     parser.add_argument("--models", default=None, help="逗号分隔的模型名（匹配展示名）")
     parser.add_argument("--include-coding", action="store_true", help="追加 HumanEval 代码评测")
+    parser.add_argument("--only-coding", action="store_true", help="只跑 HumanEval 代码评测")
     args = parser.parse_args()
 
     tag = uuid.uuid4().hex[:6]
@@ -204,16 +215,18 @@ def main() -> None:
         model_ids[name] = ensure_model(name, spec)
     print(f"[2] 模型就绪: {list(chosen)}")
 
-    datasets = [
-        ("ceval-qa.jsonl", "C-Eval 中文考试真题 (QA)", "真实中文考试选择题，答案为选项字母",
-         "qa", ["question"], ["answer"], ["subject"]),
-        ("thucnews-classification.jsonl", "THUCNews 新闻分类", "10 类新闻文本真实分类",
-         "classification", ["text"], ["answer"], []),
-    ]
-    if args.include_coding:
+    datasets = []
+    if not args.only_coding:
+        datasets = [
+            ("ceval-qa.jsonl", "C-Eval 中文考试真题 (QA)", "真实中文考试选择题，答案为选项字母",
+             "qa", ["question"], ["answer"], ["subject"]),
+            ("thucnews-classification.jsonl", "THUCNews 新闻分类", "10 类新闻文本真实分类",
+             "classification", ["text"], ["answer"], []),
+        ]
+    if args.include_coding or args.only_coding:
         datasets.append(
-            ("humaneval-coding.jsonl", "HumanEval 代码生成", "Python 函数补全",
-             "coding", ["prompt"], ["answer"], ["entry_point", "task_id"])
+            ("humaneval-coding.jsonl", "HumanEval 代码生成", "Python 函数补全（真实执行测试用例）",
+             "coding", ["prompt"], ["answer", "tests"], ["entry_point", "task_id"])
         )
 
     ds_info: dict[str, dict] = {}
@@ -226,15 +239,18 @@ def main() -> None:
                "模型输出须与标准答案选项字母完全一致（忽略大小写）"),
         "classification": ("THUCNews 类别精确匹配", "classification", "exact_match_ci",
                            "模型输出须与新闻类别标签完全一致"),
-        "coding": ("HumanEval 标准解包含", "coding", "contains",
-                   "模型输出须包含标准参考实现"),
+        "coding": ("HumanEval 测试用例通过", "coding", "code_pass",
+                   "模型输出须通过官方测试用例（真实代码执行，超时 8s）"),
     }
     bench_ids: dict[str, str] = {}
     for task, (name, btype, metric, desc) in benches.items():
-        st, bm = req("POST", "/benchmarks/", body={
+        body = {
             "project_id": pid, "name": name, "type": btype,
             "metric": metric, "description": desc,
-        })
+        }
+        if metric == "code_pass":
+            body["metric_config"] = {"timeout_seconds": 8}
+        st, bm = req("POST", "/benchmarks/", body=body)
         if st != 201:
             raise SystemExit(f"创建基准 {name} 失败: {bm}")
         bench_ids[task] = bm["id"]
@@ -255,11 +271,13 @@ def main() -> None:
         prompt_ids[task] = pr["id"]
     print("[5] 提示词就绪")
 
-    pairs = [
-        ("ceval-qa.jsonl", "qa"),
-        ("thucnews-classification.jsonl", "classification"),
-    ]
-    if args.include_coding:
+    pairs = []
+    if not args.only_coding:
+        pairs = [
+            ("ceval-qa.jsonl", "qa"),
+            ("thucnews-classification.jsonl", "classification"),
+        ]
+    if args.include_coding or args.only_coding:
         pairs.append(("humaneval-coding.jsonl", "coding"))
 
     experiment_ids: list[str] = []

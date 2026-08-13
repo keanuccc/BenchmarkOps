@@ -147,7 +147,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       >
         <div className={`flex h-[88px] items-center border-b border-[var(--ocd-border-soft)] px-5 ${collapsed ? "lg:justify-center lg:px-0" : "justify-between"}`}>
           <Link href="/" className="flex items-center gap-3" aria-label="BenchmarkOps 总览">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[var(--ocd-accent)] text-lg font-black tracking-[-0.08em] text-[var(--ocd-accent-fg)] shadow-[0_0_0_5px_rgb(213_243_106/0.08)]">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[var(--ocd-accent)] text-lg font-black tracking-[-0.08em] text-[var(--ocd-accent-fg)] shadow-[0_0_0_5px_rgb(99_230_216/0.10)]">
               B<span className="text-[var(--ocd-coral)]">.</span>
             </span>
             {!collapsed && <span className="sidebar-brand text-[15px] font-semibold tracking-[-0.03em] lg:block">BenchmarkOps</span>}
@@ -162,7 +162,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className={`px-4 pt-5 ${collapsed ? "lg:px-3" : ""}`}>
-          <Link href="/evaluation" className={`flex items-center gap-2.5 rounded-xl bg-[var(--ocd-accent)] px-3.5 py-3 text-sm font-semibold text-[var(--ocd-accent-fg)] shadow-[0_12px_25px_rgb(213_243_106/0.08)] hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgb(213_243_106/0.15)] ${collapsed ? "lg:justify-center lg:px-0" : ""}`}>
+          <Link href="/evaluation" className={`flex items-center gap-2.5 rounded-xl bg-[var(--ocd-accent)] px-3.5 py-3 text-sm font-semibold text-[var(--ocd-accent-fg)] shadow-[0_12px_25px_rgb(99_230_216/0.10)] hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgb(99_230_216/0.20)] ${collapsed ? "lg:justify-center lg:px-0" : ""}`}>
             <Sparkles size={16} strokeWidth={2.4} />
             {!collapsed && <span className="lg:block">开始一次评测</span>}
             {!collapsed && <ArrowUpRight size={14} className="ml-auto" />}

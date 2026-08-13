@@ -1,10 +1,47 @@
+"use client";
+
 import { CheckCircle2, X } from "lucide-react";
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
+
+export function CountUp({ value }: { value: number }) {
+  const [display, setDisplay] = useState(value);
+  const prev = useRef(value);
+
+  useEffect(() => {
+    const from = prev.current;
+    const to = value;
+    if (from === to) return;
+    const duration = 650;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (to - from) * eased);
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        prev.current = to;
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return <>{Math.round(display)}</>;
+}
 
 type Variant = "primary" | "secondary" | "danger" | "ghost";
 
 const STYLES: Record<Variant, string> = {
-  primary: "border border-[var(--ocd-accent)] bg-[var(--ocd-accent)] text-[var(--ocd-accent-fg)] shadow-[0_8px_18px_rgb(213_243_106/0.10)] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgb(213_243_106/0.18)]",
+  primary: "border border-[var(--ocd-accent)] bg-[var(--ocd-accent)] text-[var(--ocd-accent-fg)] shadow-[0_8px_18px_rgb(99_230_216/0.12)] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgb(99_230_216/0.22)]",
   secondary: "border bg-[var(--ocd-surface-2)] text-[var(--ocd-text)] hover:border-[var(--ocd-accent)] hover:bg-[var(--ocd-surface-3)]",
   danger: "border border-[color:rgb(255_143_143/0.35)] text-[var(--ocd-bad)] hover:bg-[color:rgb(255_143_143/0.10)]",
   ghost: "text-[var(--ocd-text-muted)] hover:bg-[var(--ocd-surface-2)] hover:text-[var(--ocd-text)]",
@@ -109,8 +146,9 @@ export function KpiCard({
   icon?: ReactNode;
   accent?: string;
 }) {
+  const numeric = typeof value === "number";
   return (
-    <Card className="group p-5">
+    <Card className="group relative p-5">
       <div className="mb-5 flex items-center justify-between">
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ocd-text-faint)]">{label}</p>
         {icon && (
@@ -119,9 +157,11 @@ export function KpiCard({
           </span>
         )}
       </div>
-      <p className="text-3xl font-semibold tracking-[-0.055em] text-[var(--ocd-text)]">{value}</p>
+      <p className="text-3xl font-semibold tabular-nums tracking-[-0.055em] text-[var(--ocd-text)]">
+        {numeric ? <CountUp value={value as number} /> : value}
+      </p>
       {delta && <p className="mt-2 text-xs text-[var(--ocd-text-muted)]">{delta}</p>}
-      <div className="mt-5 h-0.5 w-8 rounded-full transition-all group-hover:w-14" style={{ background: accent }} />
+      <div className="mt-5 h-0.5 w-8 rounded-full transition-all duration-300 group-hover:w-14" style={{ background: accent, boxShadow: `0 0 12px ${accent}` }} />
     </Card>
   );
 }

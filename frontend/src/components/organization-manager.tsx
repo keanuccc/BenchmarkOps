@@ -14,7 +14,7 @@ import {
   type OrganizationInfo,
   type OrganizationWithKey,
 } from "@/lib/api";
-import { Badge, Button, Card, EmptyState, SectionTitle, Spinner } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Spinner } from "@/components/ui";
 import { useToast } from "@/components/notifications";
 import {
   Building2,

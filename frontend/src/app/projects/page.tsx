@@ -7,9 +7,8 @@ import {
   createProject,
   archiveProject,
   ApiRequestError,
-  type Project,
 } from "@/lib/api";
-import { Button, Card, Badge, EmptyState, Modal, SectionTitle } from "@/components/ui";
+import { Button, Card, Badge, EmptyState, Modal } from "@/components/ui";
 import { Plus, Boxes, Archive, FolderOpen } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 

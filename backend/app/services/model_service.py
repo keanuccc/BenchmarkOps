@@ -18,6 +18,22 @@ from app.schemas.model import ModelCreate, ModelUpdate
 
 _DEFAULT_MODELS: list[dict] = [
     {
+        "name": "DeepSeek-V3",
+        "provider": "deepseek",
+        "model_id": "deepseek-chat",
+        "context_length": 64000,
+        "pricing": {"input_per_1k": 0.14, "output_per_1k": 0.28},
+        "capabilities": ["chat", "coding"],
+    },
+    {
+        "name": "DeepSeek-R1",
+        "provider": "deepseek",
+        "model_id": "deepseek-reasoner",
+        "context_length": 64000,
+        "pricing": {"input_per_1k": 0.55, "output_per_1k": 2.19},
+        "capabilities": ["chat", "coding", "reasoning"],
+    },
+    {
         "name": "GPT-4o mini",
         "provider": "openrouter",
         "model_id": "openai/gpt-4o-mini",
@@ -47,22 +63,6 @@ _DEFAULT_MODELS: list[dict] = [
         "model_id": "anthropic/claude-3.5-haiku",
         "context_length": 200000,
         "pricing": {"input_per_1k": 0.8, "output_per_1k": 4},
-        "capabilities": ["chat", "coding"],
-    },
-    {
-        "name": "Gemini 1.5 Pro",
-        "provider": "openrouter",
-        "model_id": "google/gemini-pro-1.5",
-        "context_length": 2000000,
-        "pricing": {"input_per_1k": 1.25, "output_per_1k": 5},
-        "capabilities": ["chat", "reasoning"],
-    },
-    {
-        "name": "DeepSeek V3",
-        "provider": "openrouter",
-        "model_id": "deepseek/deepseek-chat",
-        "context_length": 64000,
-        "pricing": {"input_per_1k": 0.14, "output_per_1k": 0.28},
         "capabilities": ["chat", "coding"],
     },
     {

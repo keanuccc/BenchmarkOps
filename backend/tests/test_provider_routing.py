@@ -15,16 +15,46 @@ import pytest
 
 import app.providers.registry as registry_mod
 from app.providers.base import LLMProvider
+from app.providers.deepseek import DeepSeekProvider
 from app.providers.mock import MockProvider
 from app.providers.openrouter import OpenRouterProvider
 from app.providers.qiniu import QiniuProvider
 from app.providers.registry import get_provider
 
 
-def _set(monkeypatch, *, openrouter_key: str = "", qiniu_key: str = "", default: str = "qiniu"):
+def _set(
+    monkeypatch,
+    *,
+    deepseek_key: str = "",
+    openrouter_key: str = "",
+    qiniu_key: str = "",
+    default: str = "deepseek",
+):
+    monkeypatch.setattr(registry_mod.settings, "deepseek_api_key", deepseek_key)
     monkeypatch.setattr(registry_mod.settings, "openrouter_api_key", openrouter_key)
     monkeypatch.setattr(registry_mod.settings, "qiniu_api_key", qiniu_key)
     monkeypatch.setattr(registry_mod.settings, "default_provider", default)
+
+
+def test_default_deepseek_routes_to_deepseek(monkeypatch):
+    _set(monkeypatch, deepseek_key="sk-ds", default="deepseek")
+    provider = get_provider()
+    assert isinstance(provider, DeepSeekProvider)
+    assert provider.name == "deepseek"
+
+
+def test_default_deepseek_without_key_falls_back_to_mock(monkeypatch):
+    """The default DeepSeek gateway missing its key falls back to Mock for offline
+    demo, even when another gateway (Qiniu) happens to have a key configured."""
+    _set(monkeypatch, deepseek_key="", qiniu_key="sk-x", default="deepseek")
+    provider = get_provider()
+    assert isinstance(provider, MockProvider)
+
+
+def test_explicit_deepseek_routes_deepseek(monkeypatch):
+    _set(monkeypatch, deepseek_key="sk-ds", default="qiniu")
+    provider = get_provider("deepseek")
+    assert isinstance(provider, DeepSeekProvider)
 
 
 def test_default_qiniu_routes_to_qiniu(monkeypatch):
@@ -60,6 +90,13 @@ def test_known_gateway_without_key_raises(monkeypatch):
         get_provider("qiniu")
 
 
+def test_known_deepseek_without_key_raises(monkeypatch):
+    """Pinning deepseek without configuring its key is a misconfiguration."""
+    _set(monkeypatch, deepseek_key="", qiniu_key="sk-x", default="qiniu")
+    with pytest.raises(ValueError):
+        get_provider("deepseek")
+
+
 def test_no_real_key_falls_back_to_mock(monkeypatch):
     _set(monkeypatch, openrouter_key="", qiniu_key="", default="qiniu")
     provider = get_provider()
@@ -67,6 +104,8 @@ def test_no_real_key_falls_back_to_mock(monkeypatch):
 
 
 def test_provider_enabled_true_with_any_key(monkeypatch):
+    _set(monkeypatch, deepseek_key="sk-ds", openrouter_key="", qiniu_key="")
+    assert registry_mod.settings.provider_enabled is True
     _set(monkeypatch, openrouter_key="", qiniu_key="sk-x")
     assert registry_mod.settings.provider_enabled is True
     _set(monkeypatch, openrouter_key="sk-or", qiniu_key="")

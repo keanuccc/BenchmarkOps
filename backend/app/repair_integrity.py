@@ -32,13 +32,13 @@ from app.services.db_service import backup_database
 logger = logging.getLogger("benchmarkops.repair")
 
 _PROVIDER_BY_PREFIX = {
-    # OpenRouter-style model ids (vendor/model) are routed through the
-    # openrouter gateway; legacy provider names are not platform gateways and
-    # would break both routing and repair-time deduplication.
+    # DeepSeek is now a first-class direct domestic gateway; other vendor/model
+    # ids are routed through OpenRouter. Legacy provider names are not platform
+    # gateways and would break both routing and repair-time deduplication.
     "openai": "openrouter",
     "anthropic": "openrouter",
     "google": "openrouter",
-    "deepseek": "openrouter",
+    "deepseek": "deepseek",
     "qwen": "openrouter",
     "zhipuai": "openrouter",
     "tencent": "openrouter",

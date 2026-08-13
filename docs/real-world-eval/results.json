@@ -1,90 +1,53 @@
 {
-  "project_id": "671b8aec-7fce-4f1b-bf10-45c451d8f1a8",
-  "generated_at": "2026-08-12T02:16:34+0800",
+  "project_id": "79a03faa-d223-4d56-8dd6-7812e614cf5c",
+  "project_name": "真实模型跨网关评测 4bcafe",
+  "generated_at": "2026-08-12T02:34:32+0800",
+  "models": {
+    "DeepSeek V3 (Qiniu)": {
+      "provider": "qiniu",
+      "model_id": "deepseek-v3",
+      "pricing": {
+        "input_per_1k": 0.0,
+        "output_per_1k": 0.0
+      }
+    },
+    "GPT-4o mini (OpenRouter)": {
+      "provider": "openrouter",
+      "model_id": "openai/gpt-4o-mini",
+      "pricing": {
+        "input_per_1k": 0.15,
+        "output_per_1k": 0.6
+      }
+    }
+  },
   "results": {
-    "GPT-4o mini (OpenRouter)|THUCNews 新闻分类": {
-      "experiment_id": "8f5f2d1f-c8b6-45c4-a59c-c1f852ab0eeb",
-      "dataset": "THUCNews 新闻分类",
-      "model": "GPT-4o mini (OpenRouter)",
-      "provider": "openrouter",
-      "model_id": "openai/gpt-4o-mini",
-      "status": "completed",
-      "accuracy": 0.8417,
-      "cells_done": 120,
-      "rows_total": 120,
-      "total_cost": 14.6511,
-      "total_tokens": 97065,
-      "avg_latency_ms": 1556.9
-    },
-    "Doubao Seed 2.0 Pro (Qiniu)|THUCNews 新闻分类": {
-      "experiment_id": "6d524f33-6f54-4e30-aee1-543e5b9922d9",
-      "dataset": "THUCNews 新闻分类",
-      "model": "Doubao Seed 2.0 Pro (Qiniu)",
-      "provider": "qiniu",
-      "model_id": "doubao-seed-2.0-pro",
-      "status": "completed",
-      "accuracy": 0.9333,
-      "cells_done": 120,
-      "rows_total": 120,
-      "total_cost": 0.0,
-      "total_tokens": 111301,
-      "avg_latency_ms": 5340.8
-    },
-    "DeepSeek V3 (Qiniu)|THUCNews 新闻分类": {
-      "experiment_id": "c23b701f-6b1b-47ed-8aa7-dc829e15e3f1",
-      "dataset": "THUCNews 新闻分类",
+    "DeepSeek V3 (Qiniu)|humaneval-coding.jsonl": {
+      "experiment_id": "126d4933-3296-42e1-a2ae-bbfc73d2bc6b",
+      "dataset": "humaneval-coding.jsonl",
       "model": "DeepSeek V3 (Qiniu)",
       "provider": "qiniu",
-      "model_id": "deepseek-v3",
       "status": "completed",
-      "accuracy": 0.8417,
-      "cells_done": 120,
-      "rows_total": 120,
+      "accuracy": 0.0,
+      "cells_done": 60,
+      "rows_total": 60,
+      "errors": 0,
       "total_cost": 0.0,
-      "total_tokens": 83315,
-      "avg_latency_ms": 1199.7
+      "total_tokens": 14457,
+      "avg_latency_ms": 3963.8
     },
-    "GPT-4o mini (OpenRouter)|C-Eval 中文考试真题 (QA)": {
-      "experiment_id": "8fc7dfb8-aaae-4197-9a6f-f7750bc7cafa",
-      "dataset": "C-Eval 中文考试真题 (QA)",
+    "GPT-4o mini (OpenRouter)|humaneval-coding.jsonl": {
+      "experiment_id": "d1260adb-bf85-4c25-a80e-c0b617fb7633",
+      "dataset": "humaneval-coding.jsonl",
       "model": "GPT-4o mini (OpenRouter)",
       "provider": "openrouter",
-      "model_id": "openai/gpt-4o-mini",
       "status": "completed",
-      "accuracy": 0.5574,
-      "cells_done": 61,
-      "rows_total": 61,
-      "total_cost": 1.17645,
-      "total_tokens": 7573,
-      "avg_latency_ms": 1685.5
-    },
-    "Doubao Seed 2.0 Pro (Qiniu)|C-Eval 中文考试真题 (QA)": {
-      "experiment_id": "91f1deba-0d64-42d1-90c5-06c8ef0ddaa5",
-      "dataset": "C-Eval 中文考试真题 (QA)",
-      "model": "Doubao Seed 2.0 Pro (Qiniu)",
-      "provider": "qiniu",
-      "model_id": "doubao-seed-2.0-pro",
-      "status": "completed",
-      "accuracy": 0.918,
-      "cells_done": 61,
-      "rows_total": 61,
-      "total_cost": 0.0,
-      "total_tokens": 43729,
-      "avg_latency_ms": 12564.1
-    },
-    "DeepSeek V3 (Qiniu)|C-Eval 中文考试真题 (QA)": {
-      "experiment_id": "cb58942c-53f0-4ed9-bcf3-a622a23dde09",
-      "dataset": "C-Eval 中文考试真题 (QA)",
-      "model": "DeepSeek V3 (Qiniu)",
-      "provider": "qiniu",
-      "model_id": "deepseek-v3",
-      "status": "completed",
-      "accuracy": 0.7049,
-      "cells_done": 61,
-      "rows_total": 61,
-      "total_cost": 0.0,
-      "total_tokens": 6499,
-      "avg_latency_ms": 1207.8
+      "accuracy": 0.0,
+      "cells_done": 60,
+      "rows_total": 60,
+      "errors": 0,
+      "total_cost": 3.97845,
+      "total_tokens": 11763,
+      "avg_latency_ms": 2420.3
     }
   }
 }

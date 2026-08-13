@@ -1,7 +1,6 @@
 /* Hand-rolled SVG charts (no chart lib) — match the design-spec component set.
    All take plain data; container is responsive (viewBox + width 100%). */
 
-const AXIS = "var(--ocd-border)";
 const GRID = "var(--ocd-border-soft)";
 const LABEL = "var(--ocd-text-faint)";
 const SERIES = [

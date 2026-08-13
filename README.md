@@ -97,7 +97,7 @@ flowchart LR
 | 模块 | 说明 |
 |------|------|
 | **项目管理** | 创建、归档项目，所有资源按项目隔离 |
-| **模型中心** | 统一模型注册表，支持多 Provider（OpenRouter / Qiniu AI / Mock），含定价与能力标签 |
+| **模型中心** | 统一模型注册表，支持多 Provider（DeepSeek 直连 / Qiniu AI / OpenRouter / Mock），含定价与能力标签 |
 | **数据集** | 上传 JSONL / JSON / CSV / TSV / XLSX 评测样例，支持预览、校验、版本化、异步导入、敏感字段脱敏与审计 |
 | **基准（Benchmarks）** | 定义评测协议（qa / coding / agent / classification / generation），内置多种评分指标 |
 | **提示词库** | 可复用模板，支持 `{variable}` 占位符（含嵌套路径寻址），版本化管理 |
@@ -114,7 +114,7 @@ flowchart LR
 | **前端** | Next.js 14（App Router）· React 18 · TypeScript · Tailwind CSS v4 · ECharts · lucide-react |
 | **后端** | FastAPI · SQLAlchemy 2.0（async）· Pydantic v2 · uvicorn |
 | **数据库** | SQLite（aiosqlite，默认）→ 可切换 PostgreSQL（postgresql+asyncpg） |
-| **LLM Provider** | Qiniu AI（默认）· OpenRouter · Mock（离线回退）；实验快照固定实际 Provider 路由 |
+| **LLM Provider** | DeepSeek 官方直连（默认）· Qiniu AI · OpenRouter · Mock（离线回退）；实验快照固定实际 Provider 路由 |
 | **任务队列** | 进程内 asyncio（默认）· Redis + ARQ 分布式队列（可选），支持并发限制、取消、任务持久化与崩溃恢复 |
 | **测试 / CI** | pytest · Playwright · GitHub Actions |
 
@@ -141,6 +141,7 @@ flowchart TB
         REDIS[("Redis（ARQ 可选）")]
     end
     subgraph LLM["LLM Providers"]
+        P0["DeepSeek（直连）"]
         P1["OpenRouter"]
         P2["Qiniu AI"]
         P3["Mock"]
@@ -155,7 +156,7 @@ flowchart TB
     SERVICE --> EVAL
     EVAL --> QUEUE
     QUEUE --> REDIS
-    EVAL --> P1 & P2 & P3
+    EVAL --> P0 & P1 & P2 & P3
 ```
 
 ## 快速开始
@@ -218,7 +219,7 @@ uv run python -m app.seed
 
 自动创建一套完整 Demo：项目、8 个模型、数据集、基准、提示词、2 个实验及报告。打开前端进入 **Demo: QA Benchmark** 项目即可查看。
 
-> 💡 未配置 `OPENROUTER_API_KEY` / `QINIU_API_KEY` 时，评测自动走 **Mock Provider**，无需联网即可体验完整流程。
+> 💡 未配置 `DEEPSEEK_API_KEY` / `QINIU_API_KEY` / `OPENROUTER_API_KEY` 时，评测自动走 **Mock Provider**，无需联网即可体验完整流程。
 
 ### 方式二：Docker Compose 一键启动
 
@@ -244,7 +245,8 @@ docker compose up --build
 | `API_TOKEN` | *(空)* | 全局鉴权 token。留空 = 不强制鉴权（Demo/Mock 模式）；配置后所有写请求需 `Authorization: Bearer <token>` |
 | `APP_ENV` | `development` | 置为 `production` 时若未设置 `API_TOKEN`，应用拒绝启动 |
 | `DATABASE_URL` | `sqlite+aiosqlite:///./benchmarkops.db` | 数据库连接串，生产环境建议切换 PostgreSQL |
-| `DEFAULT_PROVIDER` | `qiniu` | 默认 Provider 路由，可选 `openrouter` / `qiniu` / `mock` |
+| `DEFAULT_PROVIDER` | `deepseek` | 默认 Provider 路由，可选 `deepseek` / `openrouter` / `qiniu` / `mock` |
+| `DEEPSEEK_API_KEY` | *(空)* | DeepSeek 官方 API 密钥（国产、低成本、默认直连）；留空自动走 Mock Provider |
 | `OPENROUTER_API_KEY` | *(空)* | OpenRouter API 密钥；留空自动走 Mock Provider，可离线使用 |
 | `QINIU_API_KEY` | *(空)* | 七牛云 AI Token API 密钥 |
 | `BACKEND_CORS_ORIGINS` | `http://localhost:3000,...` | 允许的浏览器来源，换端口/域名时必须同步更新 |
@@ -252,7 +254,7 @@ docker compose up --build
 | `REDIS_DSN` | `redis://localhost:6379/0` | ARQ 队列与 worker 使用的 Redis 连接串（仅 `arq` 模式） |
 | `EVAL_MAX_WORKERS` | `4` | 单 worker 进程内的评测并发上限 |
 | `TASK_MAX_TRIES` | `2` | 单任务最大尝试次数；仅瞬态、计费前失败会重试，Provider 侧失败不重试 |
-| `REPORT_MODEL_ID` | *(空)* | AI 报告生成模型；留空使用内置默认（`openai/gpt-4o-mini`） |
+| `REPORT_MODEL_ID` | *(空)* | AI 报告生成模型；留空按网关使用内置默认（DeepSeek 为 `deepseek-chat`） |
 | `MAX_UPLOAD_BYTES` | `52428800` (50 MB) | 数据集上传大小上限 |
 | `MAX_DATASET_ROWS` | `100000` | 数据集行数上限 |
 
@@ -369,7 +371,7 @@ npm run build              # Next.js 生产构建
 - **计费安全**：ARQ 仅对“调用 Provider 之前”的瞬态失败（如数据库锁）自动重试；429 / 配额耗尽 / 行级错误一律标记失败，人工重试。
 - **Redis 必须开启 AOF 持久化**（compose 中已配置 `--appendonly yes`），否则 Redis 自身重启会丢失队列任务。
 - **多写者约束**：compose 默认后端 + worker 共享 SQLite，存在 `database is locked` 风险；生产环境请按 [docs/postgres-migration-guide.md](docs/postgres-migration-guide.md) 切换 PostgreSQL，或保持单 backend + 任务侧 worker 的部署形态。
-- 未配置 `OPENROUTER_API_KEY` / `QINIU_API_KEY` 时，自动使用 **Mock Provider** 生成合成结果，可用于功能演示。
+- 未配置 `DEEPSEEK_API_KEY` / `QINIU_API_KEY` / `OPENROUTER_API_KEY` 时，自动使用 **Mock Provider** 生成合成结果，可用于功能演示。
 
 </details>
 
