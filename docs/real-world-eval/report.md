@@ -1,38 +1,70 @@
-# AI 评测报告
-
 ## 执行摘要
 
-本报告覆盖 **2** 个实验，总花费 **$0**，共消耗 **7692** 个令牌，累计运行 **104473 毫秒**。
+本次评估基于两个模型（DeepSeek V4 Flash 与 DeepSeek V3）在三个数据集（ceval-qa、thucnews-classification、humaneval-coding）上的对比实验数据。核心发现如下：
 
-综合准确率最高的是 **DeepSeek V3 (Qiniu) | humaneval-coding** （DeepSeek V3 (Qiniu)），达到 **100.0%**。
+- **DeepSeek V4 Flash** 在知识问答（ceval-qa）和新闻分类（thucnews-classification）上准确率更高，分别达到 **86.89%** 和 **89.17%**，优于 DeepSeek V3 的 **70.49%** 和 **84.17%**。但在编码任务（humaneval-coding）上，V4 Flash 的准确率为 **95.00%**，低于 V3 的 **100%**。
+- **DeepSeek V3** 在延迟上表现显著优于 V4 Flash，所有任务的平均延迟仅为 V4 Flash 的 20%‑50%，且 token 消耗更少。
+- 两个模型在本次实验中的 **总成本均为 0**（免费调用），但 V4 Flash 消耗的 token 总量（164,672）高于 V3（104,132）。
+- 失败分析显示，V4 Flash 在知识问答和编码任务中各有 3 个失败案例，V3 在知识问答和分类任务中各有 5 个和 8 个失败案例，但 V4 Flash 在编码任务的失败数量（3 个）多于 V3（0 个）。
+
+综合来看，**DeepSeek V4 Flash** 更适合对准确率要求高的知识性任务，而 **DeepSeek V3** 在延迟敏感或编码任务中更具优势。建议根据实际业务场景选择模型，并针对失败案例进行针对性优化。
 
 ## 性能分析
 
-| 实验 | 模型 | 准确率 | 覆盖率 | 失败率 | 平均延迟(毫秒) | 已评分行数 | 失败行数 |
-|---|---|---|---|---|---|---|---|
-| DeepSeek V4 Flash (Qiniu) | humaneval-coding | deepseek/deepseek-v4-flash | 90.00 | 100.00 | 0.00 | 5192.00 | 10 | 0 |
-| DeepSeek V3 (Qiniu) | humaneval-coding | DeepSeek V3 (Qiniu) | 100.00 | 100.00 | 0.00 | 4908.80 | 10 | 0 |
+| 模型 | 数据集 | 准确率 | 平均延迟 (ms) | 每行平均耗时 (ms) | 总 Token 数 | 运行时 (ms) |
+|------|--------|--------|---------------|-------------------|-------------|-------------|
+| DeepSeek V4 Flash | ceval-qa | 86.89% | 6216.6 | 9171.4 | 34,412 | 559,454 |
+| DeepSeek V3 | ceval-qa | 70.49% | 1369.4 | 1372.2 | 6,499 | 83,704 |
+| DeepSeek V4 Flash | thucnews-classification | 89.17% | 4236.6 | 4740.0 | 90,680 | 568,797 |
+| DeepSeek V3 | thucnews-classification | 84.17% | 1314.8 | 1318.1 | 83,315 | 158,174 |
+| DeepSeek V4 Flash | humaneval-coding | 95.00% | 8609.6 | 10734.2 | 39,580 | 644,050 |
+| DeepSeek V3 | humaneval-coding | 100.00% | 4475.1 | 4605.0 | 14,318 | 276,302 |
+
+- **准确率**：V4 Flash 在 ceval-qa 和 thucnews-classification 上分别高出 V3 16.4 和 5 个百分点；但在 humaneval-coding 上，V3 完美通过所有测试（100%），V4 Flash 仅达到 95%。
+- **延迟**：V3 在所有任务上的平均延迟均远低于 V4 Flash，差距约 3‑6 倍。尤其在 ceval-qa 上，V3 延迟（1369 ms）仅为 V4 Flash（6217 ms）的 22%。
+- **Token 消耗**：V4 Flash 消耗的 token 总数是 V3 的 1.58 倍，主要增量来自 thucnews 任务（90,680 vs 83,315）和 ceval 任务（34,412 vs 6,499）。在编码任务上，V4 Flash 消耗 token 是 V3 的 2.76 倍。
 
 ## 成本分析
 
-总花费：**$0**，共 **7692** 个令牌。
-最省钱的实验：**DeepSeek V4 Flash (Qiniu) | humaneval-coding** （$0.00，deepseek/deepseek-v4-flash）。
-- DeepSeek V4 Flash (Qiniu) | humaneval-coding：$0.00 （5016 个令牌）
-- DeepSeek V3 (Qiniu) | humaneval-coding：$0.00 （2676 个令牌）
+所有实验的 `total_cost` 均为 0.0，表明两个模型在当前调用方式下均为免费，未产生直接费用。因此，成本差异主要体现在 token 消耗量和运行时间上：
+
+- **Token 消耗**：V4 Flash 总消耗 164,672 token，V3 总消耗 104,132 token。若未来按 token 计费，V4 Flash 的潜在成本约为 V3 的 1.58 倍。
+- **运行时间**：V4 Flash 总运行时间约 1,772,301 ms，V3 总运行时间约 518,180 ms，V4 Flash 耗时是 V3 的 3.42 倍。这意味着在单位时间内，V3 能处理更多请求，从而降低基础设施成本。
 
 ## 失败分析
 
-在检查的结果中未检测到失败样本。
+| 模型 | 数据集 | 失败数 | 失败原因概要 |
+|------|--------|--------|--------------|
+| DeepSeek V4 Flash | ceval-qa | 5 | 计算机网络（2 例：位填充、TCP 确认）、中文语言文学（2 例：音素区别、楷书印刷体）、1 例空输出 |
+| DeepSeek V3 | ceval-qa | 5 | 计算机网络（2 例：TCP 确认、交换技术）、中文语言文学（3 例：构词方式、音素区别、自由语素） |
+| DeepSeek V4 Flash | thucnews-classification | 6 | 时尚误判为娱乐（1 例）、房产误判为时政（1 例）、时政误判为教育（1 例）、时政误判为时政+多余字符（1 例）、教育误判为时政（1 例） |
+| DeepSeek V3 | thucnews-classification | 8 | 房产误判为财经（2 例）、时尚误判为娱乐（1 例）、教育误判为财经（1 例）、房产误判为财经（1 例）、房产误判为时政（1 例） |
+| DeepSeek V4 Flash | humaneval-coding | 3 | 代码生成失败（2 例输出为空字符串，1 例输出包含多余 markdown 代码块导致测试失败） |
+| DeepSeek V3 | humaneval-coding | 0 | 全部通过 |
+
+- **常见失败模式**：两个模型在 ceval-qa 上均对计算机网络和中文语言文学存在误判，说明这些领域知识仍是挑战。在 thucnews 分类中，V4 Flash 更易将“房产”类误判为“时政”，而 V3 更易将“房产”误判为“财经”。在编码任务中，V4 Flash 出现空输出和格式错误，V3 则未出现任何失败。
+- **空输出问题**：V4 Flash 在 ceval-qa 第 9 行（TCP 确认）和 humaneval-coding 第 32、39 行输出为空字符串，需排查模型是否因 token 截断或推理异常导致不生成有效内容。
 
 ## 建议
 
-在对准确率敏感的场景中，采用 **DeepSeek V3 (Qiniu)**（DeepSeek V3 (Qiniu) | humaneval-coding）作为基线（实测最高准确率为 100.0%）。
-在对成本敏感的路径中，可考虑 **deepseek/deepseek-v4-flash** （$0.00）作为更省钱的替代方案。
-排查 **DeepSeek V4 Flash (Qiniu) | humaneval-coding** —— 其失败样本数最多，可能需要调整提示词或数据。
+1. **任务选择模型**：
+   - 对于知识问答、分类等文本理解任务，优先使用 **DeepSeek V4 Flash**，其准确率更高。
+   - 对于编码生成任务，推荐使用 **DeepSeek V3**，其准确率 100% 且延迟更低。
+   - 若对延迟敏感（如实时推理），V3 是更优选择。
+
+2. **优化失败案例**：
+   - 针对 ceval-qa 的失败，可考虑提供更清晰的提示词（如要求输出选项字母），或对模型进行领域微调。
+   - 对 thucnews 分类的混淆（如“房产” vs “时政”），可增加示例或调整分类标签定义。
+   - 检查 V4 Flash 空输出问题，通过设置 `max_tokens` 或重试机制减少此类错误。
+
+3. **成本控制**：
+   - 当前免费，但未来若计费，V3 的 token 效率更高，适合大规模部署。
+   - 监控 token 消耗，在提示词中精简上下文以降低 V4 Flash 的 token 使用量。
 
 ## 下一步行动
 
-1. 逐个实验查看「性能分析」与「失败分析」部分。
-2. 在质量关键处推广使用准确率最高的模型。
-3. 针对失败率偏高的实验，调优提示词或筛选逻辑。
-4. 应用改动后重新生成本报告，以跟踪改进情况。
+1. **深入分析失败案例**：对 V4 Flash 在 humaneval-coding 中的空输出和格式错误进行复现，检查是否与模型版本或参数设置有关。
+2. **扩展测试集**：在更多数据集（如数学推理、长文本摘要）上评估两个模型，以验证性能差异的普适性。
+3. **对比微调效果**：对 V4 Flash 在 ceval-qa 上进行简单指令微调，观察准确率提升幅度。
+4. **监控投入生产**：若选择 V4 Flash 用于生产，需建立延迟告警和重试策略，确保空输出情况被及时处理。
+5. **成本模拟**：基于实际 token 单价，为两个模型估算不同规模下的月度成本，辅助预算决策。
