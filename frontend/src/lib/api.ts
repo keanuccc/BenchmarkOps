@@ -621,6 +621,24 @@ export const getMetrics = () =>
     "/benchmarks/metrics/available",
   );
 
+export interface JudgeCalibrationResponse {
+  calibration: {
+    n: number;
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1: number;
+    confusion: { tp: number; fp: number; tn: number; fn: number };
+  };
+  agreement: { n: number; agreement_rate: number; cohen_kappa: number } | null;
+}
+
+export const calibrateJudge = (body: {
+  gold_labels: number[];
+  judge_labels: number[];
+  judge_b_labels?: number[];
+}) => api.post<JudgeCalibrationResponse>("/benchmarks/judge/calibrate", body);
+
 // --- Experiments ---
 export interface Experiment {
   id: string;

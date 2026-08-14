@@ -14,6 +14,7 @@ import {
   type Project,
 } from "@/lib/api";
 import { useToast } from "@/components/notifications";
+import { JudgeCalibrationPanel } from "@/components/judge-calibration-panel";
 import {
   Button,
   Card,
@@ -161,6 +162,8 @@ export default function BenchmarksPage() {
           </Button>
         </div>
       </header>
+
+      <JudgeCalibrationPanel />
 
       {loading ? (
         <EmptyState message="Loading…" icon={<Spinner size={20} />} />
