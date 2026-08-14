@@ -68,13 +68,13 @@ flowchart LR
 
 | 模型 | C-Eval 问答 | THUCNews 分类 | HumanEval 代码 |
 |---|---:|---:|---:|
-| DeepSeek V4 Flash | **86.89%** | **89.17%** | 58.33% |
-| DeepSeek V3 | 70.49% | 84.17% | **65.00%** |
+| DeepSeek V4 Flash | **86.89%** | **89.17%** | 95.00% |
+| DeepSeek V3 | 70.49% | 84.17% | **100.00%** |
 
 > 样本量：C-Eval 61 / THUCNews 120 / HumanEval 60，总成本 $0（七牛免费额度）。
 > 统计显著性分析见 [docs/real-world-eval/significance.md](docs/real-world-eval/significance.md)：
-> C-Eval 上 V4 Flash 显著领先（p=0.007），HumanEval 上 V3 显著反超（p=0.025），
-> THUCNews 上差异不显著（p=0.069）——模型选型需按任务分场景。
+> C-Eval 上 V4 Flash 显著领先（p=0.007），THUCNews 与 HumanEval 上差异不显著
+> （p 分别为 0.069 / 0.068）——中文问答优先 V4 Flash，其余场景两模型接近。
 
 ## 目录
 
