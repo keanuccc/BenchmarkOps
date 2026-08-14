@@ -114,6 +114,18 @@ def test_provider_enabled_true_with_any_key(monkeypatch):
     assert registry_mod.settings.provider_enabled is False
 
 
+def test_active_provider_falls_back_to_configured_gateway(monkeypatch):
+    """When the default gateway has no key but another gateway does, the active
+    provider should be the first configured real gateway (not Mock)."""
+    _set(monkeypatch, deepseek_key="", qiniu_key="sk-x", default="deepseek")
+    assert registry_mod.active_provider_name() == "qiniu"
+
+
+def test_active_provider_prefers_default_when_key_present(monkeypatch):
+    _set(monkeypatch, deepseek_key="sk-ds", qiniu_key="sk-x", default="deepseek")
+    assert registry_mod.active_provider_name() == "deepseek"
+
+
 def test_model_pin_openrouter_beats_default_qiniu(monkeypatch):
     """A model whose provider is pinned to openrouter must route there even though
     the configured default is qiniu."""

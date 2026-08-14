@@ -76,8 +76,16 @@ def _key_present(name: str) -> bool:
 def active_provider_name() -> str:
     """The provider name the runner will use when no explicit model provider is set.
 
-    Returns the configured default if its key is present, else falls back to Mock.
+    Prefers the configured default when its key is present, then falls back to the
+    first real gateway that has a key, and finally Mock when no key is configured.
     """
-    if settings.provider_enabled:
-        return settings.default_provider if _key_present(settings.default_provider) else "mock"
+    if not settings.provider_enabled:
+        return "mock"
+    candidates: list[str] = []
+    for name in (settings.default_provider, "deepseek", "qiniu", "openrouter"):
+        if name != "mock" and name in _KNOWN and name not in candidates:
+            candidates.append(name)
+    for name in candidates:
+        if _key_present(name):
+            return name
     return "mock"

@@ -39,11 +39,13 @@ DEFAULT_REPORT_MODEL_ID = "openai/gpt-4o-mini"
 QINIU_REPORT_MODEL_ID = "deepseek/deepseek-v4-flash"
 
 
-def resolve_report_model_id() -> str:
+def resolve_report_model_id(provider_name: str | None = None) -> str:
     """Model id used for AI-generated reports (configurable via REPORT_MODEL_ID)."""
     if settings.report_model_id:
         return settings.report_model_id
-    provider = (settings.report_provider or settings.default_provider).lower()
+    provider = (
+        provider_name or settings.report_provider or settings.default_provider
+    ).lower()
     if provider == "deepseek":
         return DEEPSEEK_REPORT_MODEL_ID
     if provider == "qiniu":
@@ -104,8 +106,15 @@ class ReportService:
         generated_by = "template"
         try:
             if settings.provider_enabled:
-                provider = get_provider(settings.report_provider or None)
-                model_id = resolve_report_model_id()
+                # Prefer an explicit REPORT_PROVIDER, then the active real gateway
+                # (default first, then any other configured key). Never generate a
+                # fake report through Mock: if no real provider has a key, fall back
+                # to the deterministic template below.
+                provider_name = settings.report_provider or active_provider_name()
+                if provider_name == "mock":
+                    raise RuntimeError("no real provider configured for report")
+                provider = get_provider(provider_name)
+                model_id = resolve_report_model_id(provider_name)
                 content_markdown, sections = await ai_report(context, provider, model_id)
                 generated_by = getattr(provider, "name", None) or active_provider_name()
             else:
