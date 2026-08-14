@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, Query
 from app.core.security import require_auth
 from app.schemas.common import ListResponse
 from app.evaluation.metrics import DEFAULT_METRIC_FOR_TYPE, list_metrics
-from app.schemas.benchmark import BenchmarkCreate, BenchmarkRead, BenchmarkUpdate
+from app.schemas.benchmark import (
+    BenchmarkCreate,
+    BenchmarkRead,
+    BenchmarkUpdate,
+    JudgeCalibrationRequest,
+    JudgeCalibrationResponse,
+)
 from app.services.benchmark_service import BenchmarkService, get_benchmark_service
 
 router = APIRouter(prefix="/benchmarks", tags=["benchmarks"])
@@ -44,6 +50,24 @@ async def list_benchmarks(
 @router.get("/metrics/available")
 async def list_available_metrics() -> dict:
     return {"metrics": list_metrics(), "defaults": DEFAULT_METRIC_FOR_TYPE}
+
+
+@router.post("/judge/calibrate", response_model=JudgeCalibrationResponse)
+async def calibrate_judge(payload: JudgeCalibrationRequest) -> JudgeCalibrationResponse:
+    """Calibrate an LLM judge against a gold label set, plus optional agreement
+    between two judges / two runs of the same judge."""
+    from app.evaluation.judge_calibration import (
+        binary_calibration_metrics,
+        judge_agreement,
+    )
+
+    calibration = binary_calibration_metrics(
+        payload.gold_labels, payload.judge_labels
+    )
+    agreement = None
+    if payload.judge_b_labels is not None:
+        agreement = judge_agreement(payload.judge_labels, payload.judge_b_labels)
+    return JudgeCalibrationResponse(calibration=calibration, agreement=agreement)
 
 
 @router.get("/{benchmark_id}", response_model=BenchmarkRead)

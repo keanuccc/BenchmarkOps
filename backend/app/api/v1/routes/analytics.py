@@ -10,6 +10,7 @@ from app.schemas.analytics import (
     LeaderboardEntry,
     ModelRoutingEntry,
     ProjectAnalyticsSummary,
+    SignificanceResponse,
     SubgroupResponse,
     TrendPoint,
 )
@@ -106,4 +107,22 @@ async def get_model_routing(
 ):
     return await service.model_routing(
         project_id, min_accuracy=min_accuracy, limit=limit
+    )
+
+
+@router.get("/significance", response_model=SignificanceResponse)
+async def get_significance(
+    experiment_a: str,
+    experiment_b: str,
+    n_iterations: int = 2000,
+    confidence: float = 0.95,
+    seed: int | None = None,
+    service: AnalyticsService = Depends(get_analytics_service),
+):
+    return await service.significance(
+        experiment_a,
+        experiment_b,
+        n_iterations=n_iterations,
+        confidence=confidence,
+        seed=seed,
     )

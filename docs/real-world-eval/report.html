@@ -23,196 +23,63 @@
 </style>
 
 </head>
-<body><h2 id="_1">执行摘要</h2>
-<ul>
-<li>本评估比较了 <strong>GPT-4o mini (OpenRouter)</strong>、<strong>Doubao Seed 2.0 Pro (Qiniu)</strong> 与 <strong>DeepSeek V3 (Qiniu)</strong> 三个模型在两个数据集上的表现：<strong>THUCNews 新闻分类</strong>（120 条样本）和 <strong>ceval-qa 问答</strong>（61 条样本）。</li>
-<li>在准确率方面，<strong>Doubao Seed 2.0 Pro</strong> 在两个数据集上均取得最高分：THUCNews 为 <strong>93.33%</strong>，ceval-qa 为 <strong>91.80%</strong>。<strong>DeepSeek V3</strong> 在 THUCNews 上为 <strong>84.17%</strong>（与 GPT-4o mini 持平），在 ceval-qa 上为 <strong>70.49%</strong>，显著优于 GPT-4o mini 的 <strong>55.74%</strong>。</li>
-<li>在延迟方面，<strong>DeepSeek V3</strong> 平均延迟最低（约 1.2 秒/请求），<strong>Doubao Seed 2.0 Pro</strong> 延迟最高（ceval-qa 上平均达 12.56 秒/请求）。</li>
-<li>在成本方面，仅 <strong>GPT-4o mini</strong> 有实际计费数据；THUCNews 实验总成本 14.65 美元，ceval-qa 实验总成本 1.18 美元。Doubao 与 DeepSeek 成本记录为 0。</li>
-<li>所有实验覆盖率均为 100%，系统级失败率（provider 错误、指标错误）为 0%，但存在部分模型输出为空或分类错误的情况。</li>
-</ul>
-<hr />
+<body><h1 id="ai">AI 评测报告</h1>
+<h2 id="_1">执行摘要</h2>
+<p>本报告覆盖 <strong>2</strong> 个实验，总花费 <strong>$0</strong>，共消耗 <strong>7692</strong> 个令牌，累计运行 <strong>104473 毫秒</strong>。</p>
+<p>综合准确率最高的是 <strong>DeepSeek V3 (Qiniu) | humaneval-coding</strong> （DeepSeek V3 (Qiniu)），达到 <strong>100.0%</strong>。</p>
 <h2 id="_2">性能分析</h2>
 <table>
 <thead>
 <tr>
+<th>实验</th>
 <th>模型</th>
-<th>数据集</th>
 <th>准确率</th>
-<th>平均延迟 (ms)</th>
-<th>每行处理时间 (ms)</th>
-<th>总 Token 数</th>
 <th>覆盖率</th>
+<th>失败率</th>
+<th>平均延迟(毫秒)</th>
+<th>已评分行数</th>
+<th>失败行数</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>GPT-4o mini</td>
-<td>THUCNews</td>
-<td>84.17%</td>
-<td>1556.9</td>
-<td>1940.5</td>
-<td>97,065</td>
-<td>100%</td>
+<td>DeepSeek V4 Flash (Qiniu)</td>
+<td>humaneval-coding</td>
+<td>deepseek/deepseek-v4-flash</td>
+<td>90.00</td>
+<td>100.00</td>
+<td>0.00</td>
+<td>5192.00</td>
+<td>10</td>
 </tr>
 <tr>
-<td>Doubao Seed 2.0 Pro</td>
-<td>THUCNews</td>
-<td>93.33%</td>
-<td>5340.8</td>
-<td>5845.5</td>
-<td>111,301</td>
-<td>100%</td>
-</tr>
-<tr>
-<td>DeepSeek V3</td>
-<td>THUCNews</td>
-<td>84.17%</td>
-<td>1199.7</td>
-<td>1203.4</td>
-<td>83,315</td>
-<td>100%</td>
-</tr>
-<tr>
-<td>GPT-4o mini</td>
-<td>ceval-qa</td>
-<td>55.74%</td>
-<td>1685.5</td>
-<td>1771.6</td>
-<td>7,573</td>
-<td>100%</td>
-</tr>
-<tr>
-<td>Doubao Seed 2.0 Pro</td>
-<td>ceval-qa</td>
-<td>91.80%</td>
-<td>12564.1</td>
-<td>13552.1</td>
-<td>43,729</td>
-<td>100%</td>
-</tr>
-<tr>
-<td>DeepSeek V3</td>
-<td>ceval-qa</td>
-<td>70.49%</td>
-<td>1207.8</td>
-<td>1211.0</td>
-<td>6,499</td>
-<td>100%</td>
+<td>DeepSeek V3 (Qiniu)</td>
+<td>humaneval-coding</td>
+<td>DeepSeek V3 (Qiniu)</td>
+<td>100.00</td>
+<td>100.00</td>
+<td>0.00</td>
+<td>4908.80</td>
+<td>10</td>
 </tr>
 </tbody>
 </table>
-<ul>
-<li><strong>准确率对比</strong>：Doubao Seed 2.0 Pro 在两个任务上均表现最佳，尤其在 ceval-qa 上领先第二名约 21 个百分点。DeepSeek V3 在 THUCNews 上与 GPT-4o mini 完全相同（84.17%），但在 ceval-qa 上高出 GPT-4o mini 约 15 个百分点。</li>
-<li><strong>延迟与吞吐量</strong>：DeepSeek V3 在两组实验中每行处理时间均约 1.2 秒，吞吐量最高（约 0.83 行/秒）。GPT-4o mini 居中（每行约 1.8–1.9 秒）。Doubao 最慢，THUCNews 上每行 5.85 秒，ceval-qa 上每行 13.55 秒，可能不适合实时或高频调用。</li>
-<li><strong>Token 消耗</strong>：在 THUCNews 上，Doubao 消耗 Token 最多（111,301），GPT-4o mini 次之（97,065），DeepSeek 最少（83,315）。ceval-qa 上，Doubao 消耗 43,729 Token，远高于 GPT-4o mini 的 7,573 和 DeepSeek 的 6,499，表明 Doubao 可能生成了更长的推理内容。</li>
-</ul>
-<hr />
 <h2 id="_3">成本分析</h2>
-<table>
-<thead>
-<tr>
-<th>模型</th>
-<th>数据集</th>
-<th>总成本 (美元)</th>
-<th>每行成本 (美元)</th>
-<th>每千 Token 成本 (美元)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>GPT-4o mini</td>
-<td>THUCNews</td>
-<td>14.6511</td>
-<td>0.1221</td>
-<td>0.151</td>
-</tr>
-<tr>
-<td>GPT-4o mini</td>
-<td>ceval-qa</td>
-<td>1.17645</td>
-<td>0.0193</td>
-<td>0.155</td>
-</tr>
-<tr>
-<td>Doubao Seed 2.0 Pro</td>
-<td>THUCNews</td>
-<td>0.0</td>
-<td>0.0</td>
-<td>0.0</td>
-</tr>
-<tr>
-<td>Doubao Seed 2.0 Pro</td>
-<td>ceval-qa</td>
-<td>0.0</td>
-<td>0.0</td>
-<td>0.0</td>
-</tr>
-<tr>
-<td>DeepSeek V3</td>
-<td>THUCNews</td>
-<td>0.0</td>
-<td>0.0</td>
-<td>0.0</td>
-</tr>
-<tr>
-<td>DeepSeek V3</td>
-<td>ceval-qa</td>
-<td>0.0</td>
-<td>0.0</td>
-<td>0.0</td>
-</tr>
-</tbody>
-</table>
-<ul>
-<li>仅 GPT-4o mini 有成本数据：THUCNews 上每行约 0.122 美元，ceval-qa 上每行约 0.019 美元。每千 Token 成本在两个数据集上基本一致（约 0.15 美元）。</li>
-<li>Doubao 和 DeepSeek 的成本记录为 0，可能来自免费额度、内部计价未记录或特定商务协议。虽然表面上零成本，但在实际生产环境中应谨慎对待，需补充计费数据才能进行完整的成本效益对比。</li>
-<li>若以 GPT-4o mini 的成本为基准，处理 120 条新闻分类需约 14.65 美元，处理 61 条问答仅需约 1.18 美元，说明长文本（新闻）对成本影响显著。</li>
-</ul>
-<hr />
+<p>总花费：<strong>$0</strong>，共 <strong>7692</strong> 个令牌。
+最省钱的实验：<strong>DeepSeek V4 Flash (Qiniu) | humaneval-coding</strong> （$0.00，deepseek/deepseek-v4-flash）。
+- DeepSeek V4 Flash (Qiniu) | humaneval-coding：$0.00 （5016 个令牌）
+- DeepSeek V3 (Qiniu) | humaneval-coding：$0.00 （2676 个令牌）</p>
 <h2 id="_4">失败分析</h2>
-<ul>
-<li>
-<p>所有实验的 <code>failure_rate</code> 均为 0%，<code>provider_errors</code> 和 <code>metric_errors</code> 均为 0，系统级运行未出现中断。但各实验的 <code>failures</code> 列表记录了评分不匹配的样本（即模型输出与标准答案不一致），以下分析基于这些样本。</p>
-</li>
-<li>
-<p><strong>THUCNews 新闻分类错误模式</strong>：</p>
-</li>
-<li>类别混淆常见于「时政 → 财经」、「房产 → 财经 / 时政」、「时尚 → 娱乐」。</li>
-<li>例如，row_idx 1（时政新闻）被 GPT-4o mini 和 Doubao 均误判为「财经」；row_idx 11（时尚内容）被 GPT-4o mini 和 DeepSeek 均误判为「娱乐」。</li>
-<li>
-<p>存在<strong>空输出</strong>现象：GPT-4o mini 有 3 次（row_idx 24、32、33），Doubao 有 1 次（row_idx 1），模型未返回任何分类标签，导致得分为 0。DeepSeek 在该任务无空输出。</p>
-</li>
-<li>
-<p><strong>ceval-qa 问答错误模式</strong>：</p>
-</li>
-<li>错误集中在<strong>计算机网络</strong>（如 TCP 确认号计算、交换技术判断）和<strong>语言学</strong>（构词法、音素区别）等专业知识点。</li>
-<li>row_idx 9（TCP 确认号）三个模型均未答对：GPT-4o mini 选 C，Doubao 输出为空，DeepSeek 选 D，而正确答案为 B。</li>
-<li>同样存在空输出：Doubao 在 row_idx 9 输出为空；GPT-4o mini 和 DeepSeek 未出现空输出。</li>
-<li>
-<p>整体上，ceval-qa 的准确率普遍低于 THUCNews（除 Doubao 外），说明模型在专业领域推理上仍有明显短板。</p>
-</li>
-<li>
-<p><strong>空输出风险</strong>：空输出集中在 Doubao 和 GPT-4o mini 上，可能是模型未遵守“仅输出答案”的指令，或生成了被解析器丢弃的额外内容。这是一个需要优先解决的质量问题。</p>
-</li>
-</ul>
-<hr />
+<p>在检查的结果中未检测到失败样本。</p>
 <h2 id="_5">建议</h2>
-<ul>
-<li><strong>优先高准确率场景</strong>：推荐使用 <strong>Doubao Seed 2.0 Pro</strong>，其在两个数据集上准确率均为最高。但需接受其高延迟（平均 5–12 秒），适合离线批量处理或异步任务。</li>
-<li><strong>平衡延迟与准确率</strong>：<strong>DeepSeek V3</strong> 在 THUCNews 上达到与 GPT-4o mini 相同的准确率，且延迟最低；在 ceval-qa 上准确率显著高于 GPT-4o mini。若系统对响应时间有要求，DeepSeek V3 是更优选择。</li>
-<li><strong>谨慎使用 GPT-4o mini</strong>：其在 ceval-qa 上准确率不足 60%，且 THUCNews 实验产生了相对较高的成本。仅在需要其特定生态或接口能力时考虑使用。</li>
-<li><strong>修复空输出问题</strong>：在提示词中明确要求“必须返回一个分类标签”，并在后处理中增加空值兜底逻辑（如重试一次或返回默认类别）。同时建议对输出格式进行结构化约束（如 JSON）。</li>
-<li><strong>针对混淆类别优化</strong>：对「时政 vs 财经」「房产 vs 财经」「时尚 vs 娱乐」等高频混淆对，可增加 few-shot 示例或收集更多该类别数据做针对性微调。</li>
-</ul>
-<hr />
+<p>在对准确率敏感的场景中，采用 <strong>DeepSeek V3 (Qiniu)</strong>（DeepSeek V3 (Qiniu) | humaneval-coding）作为基线（实测最高准确率为 100.0%）。
+在对成本敏感的路径中，可考虑 <strong>deepseek/deepseek-v4-flash</strong> （$0.00）作为更省钱的替代方案。
+排查 <strong>DeepSeek V4 Flash (Qiniu) | humaneval-coding</strong> —— 其失败样本数最多，可能需要调整提示词或数据。</p>
 <h2 id="_6">下一步行动</h2>
 <ol>
-<li><strong>扩大评估样本量</strong>：当前每个数据集仅 120/61 条，统计波动较大。建议扩展至 500+ 条以获取更可靠的准确率估计和置信区间。</li>
-<li><strong>补全成本数据</strong>：为 Doubao 和 DeepSeek 接入实际计费或估算成本，完成三方总拥有成本（TCO）对比。</li>
-<li><strong>构建混淆矩阵</strong>：基于全量输出统计各类别间的误判分布，定位系统性偏置，并据此调整类别定义或提示词。</li>
-<li><strong>多版本 Prompt 实验</strong>：当前所有实验 <code>prompt_version=1</code>，可设计 v2（增加格式约束、示例、推理步骤）对比对准确率和空输出率的影响。</li>
-<li><strong>延迟优化</strong>：对 Doubao 尝试批处理、流式输出或降低最大 Token 数来压缩响应时间；对 DeepSeek 可进一步压测高并发场景下的稳定性。</li>
-<li><strong>专业领域专项评估</strong>：针对 ceval-qa 中的计算机网络、语言学等薄弱科目，引入领域知识库或 RAG 增强，并重新评测。</li>
+<li>逐个实验查看「性能分析」与「失败分析」部分。</li>
+<li>在质量关键处推广使用准确率最高的模型。</li>
+<li>针对失败率偏高的实验，调优提示词或筛选逻辑。</li>
+<li>应用改动后重新生成本报告，以跟踪改进情况。</li>
 </ol></body>
 </html>

@@ -12,6 +12,7 @@ import { Button, Card, EmptyState } from "@/components/ui";
 import { BarChart } from "@/components/charts";
 import { FailureDiffPanel } from "@/components/failure-diff-panel";
 import { ModelRoutingCard } from "@/components/model-routing-card";
+import { SignificancePanel } from "@/components/significance-panel";
 import { useQuery } from "@tanstack/react-query";
 
 const SERIES_COLORS = [
@@ -181,10 +182,18 @@ function CompareInner() {
           const a = experiments.find((e) => e.id === pair[0]);
           const b = experiments.find((e) => e.id === pair[1]);
           return a && b ? (
-            <FailureDiffPanel
-              experimentA={{ id: a.id, name: a.name }}
-              experimentB={{ id: b.id, name: b.name }}
-            />
+            <>
+              <SignificancePanel
+                experimentA={a.id}
+                experimentB={b.id}
+                nameA={a.name}
+                nameB={b.name}
+              />
+              <FailureDiffPanel
+                experimentA={{ id: a.id, name: a.name }}
+                experimentB={{ id: b.id, name: b.name }}
+              />
+            </>
           ) : null;
         })()}
 

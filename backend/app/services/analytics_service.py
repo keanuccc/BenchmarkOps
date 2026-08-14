@@ -15,6 +15,11 @@ from fastapi import Depends
 from app.core.database import get_session
 from app.core.exceptions import ValidationError
 from app.core.tenant import get_tenant
+from app.evaluation.statistics import (
+    bootstrap_ci,
+    mcnemar_p_value,
+    paired_bootstrap_test,
+)
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.dataset import Dataset
 from app.models.model import Model
@@ -27,6 +32,7 @@ from app.schemas.analytics import (
     LeaderboardEntry,
     ModelRoutingEntry,
     ProjectAnalyticsSummary,
+    SignificanceResponse,
     SubgroupEntry,
     SubgroupResponse,
     TrendPoint,
@@ -466,6 +472,99 @@ class AnalyticsService:
         if qualifying:
             ranked[0].recommended = True
         return ranked[:limit]
+
+    async def significance(
+        self,
+        experiment_a: str,
+        experiment_b: str,
+        *,
+        n_iterations: int = 2000,
+        confidence: float = 0.95,
+        seed: int | None = None,
+    ) -> SignificanceResponse:
+        """Statistical comparison of two experiments on the same dataset.
+
+        Pairs per-row scores by ``row_idx``, drops rows with an error on either
+        side, then reports bootstrap confidence intervals for each experiment,
+        a paired bootstrap test for the mean difference, and a McNemar test on
+        paired pass/fail outcomes.
+        """
+        if experiment_a == experiment_b:
+            raise ValidationError("experiment_ids must differ")
+        exp_a = await self._get_experiment(experiment_a)
+        exp_b = await self._get_experiment(experiment_b)
+        if exp_a is None or exp_b is None:
+            raise ValidationError("Both experiments must exist")
+
+        async def _rows(eid: str) -> dict[int, ExperimentResult]:
+            result = await self.session.execute(
+                select(ExperimentResult).where(
+                    ExperimentResult.experiment_id == eid
+                )
+            )
+            return {r.row_idx: r for r in result.scalars().all()}
+
+        rows_a = await _rows(experiment_a)
+        rows_b = await _rows(experiment_b)
+        common = sorted(set(rows_a) & set(rows_b))
+        scores_a: list[float] = []
+        scores_b: list[float] = []
+        pass_a: list[bool] = []
+        pass_b: list[bool] = []
+        for idx in common:
+            ra, rb = rows_a[idx], rows_b[idx]
+            if ra.error or rb.error:
+                continue
+            sa = float(ra.score or 0.0)
+            sb = float(rb.score or 0.0)
+            scores_a.append(sa)
+            scores_b.append(sb)
+            pass_a.append(sa >= 1.0)
+            pass_b.append(sb >= 1.0)
+
+        if not scores_a:
+            raise ValidationError(
+                "The two experiments have no paired error-free rows to compare"
+            )
+
+        ci_a = bootstrap_ci(
+            scores_a, n_iterations=n_iterations, confidence=confidence, seed=seed
+        )
+        ci_b = bootstrap_ci(
+            scores_b, n_iterations=n_iterations, confidence=confidence, seed=seed
+        )
+        paired = paired_bootstrap_test(
+            scores_a,
+            scores_b,
+            n_iterations=n_iterations,
+            confidence=confidence,
+            seed=seed,
+        )
+        mcnemar_p = mcnemar_p_value(pass_a, pass_b)
+        return SignificanceResponse(
+            experiment_a=experiment_a,
+            experiment_b=experiment_b,
+            paired_rows=len(scores_a),
+            a={
+                "mean": ci_a["mean"],
+                "lower": ci_a["lower"],
+                "upper": ci_a["upper"],
+                "n": ci_a["n"],
+            },
+            b={
+                "mean": ci_b["mean"],
+                "lower": ci_b["lower"],
+                "upper": ci_b["upper"],
+                "n": ci_b["n"],
+            },
+            mean_diff=paired["mean_diff"],
+            diff_ci_lower=paired["ci_lower"],
+            diff_ci_upper=paired["ci_upper"],
+            p_value=paired["p_value"],
+            significant=paired["significant"],
+            mcnemar_p_value=mcnemar_p,
+            mcnemar_significant=mcnemar_p < (1.0 - confidence),
+        )
 
 
 def get_analytics_service(

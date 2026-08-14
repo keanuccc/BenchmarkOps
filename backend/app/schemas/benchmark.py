@@ -61,3 +61,14 @@ class BenchmarkRead(BaseModel):
     is_archived: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class JudgeCalibrationRequest(BaseModel):
+    gold_labels: list[int]
+    judge_labels: list[int]
+    judge_b_labels: list[int] | None = None
+
+
+class JudgeCalibrationResponse(BaseModel):
+    calibration: dict
+    agreement: dict | None = None

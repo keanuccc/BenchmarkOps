@@ -1193,3 +1193,32 @@ export const getModelRouting = (projectId: string, minAccuracy = 0.8) =>
   api.get<ModelRoutingEntry[]>(
     `/analytics/model-routing?project_id=${encodeURIComponent(projectId)}&min_accuracy=${minAccuracy}`,
   );
+
+// --- A/B statistical significance -------------------------------------------
+
+export interface BootstrapCISummary {
+  mean: number;
+  lower: number;
+  upper: number;
+  n: number;
+}
+
+export interface SignificanceResponse {
+  experiment_a: string;
+  experiment_b: string;
+  paired_rows: number;
+  a: BootstrapCISummary;
+  b: BootstrapCISummary;
+  mean_diff: number;
+  diff_ci_lower: number;
+  diff_ci_upper: number;
+  p_value: number;
+  significant: boolean;
+  mcnemar_p_value: number;
+  mcnemar_significant: boolean;
+}
+
+export const getSignificance = (experimentA: string, experimentB: string) =>
+  api.get<SignificanceResponse>(
+    `/analytics/significance?experiment_a=${encodeURIComponent(experimentA)}&experiment_b=${encodeURIComponent(experimentB)}`,
+  );

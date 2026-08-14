@@ -1,53 +1,77 @@
 {
-  "project_id": "79a03faa-d223-4d56-8dd6-7812e614cf5c",
-  "project_name": "真实模型跨网关评测 4bcafe",
-  "generated_at": "2026-08-12T02:34:32+0800",
+  "project_id": "cc5a8d0c-19ec-4b1d-a980-66fc0d4baa2c",
+  "project_name": "full-size real eval (cheap DeepSeek via Qiniu)",
+  "generated_at": "2026-08-14T09:13:17+0800",
   "models": {
+    "DeepSeek V4 Flash (Qiniu)": {
+      "provider": "qiniu",
+      "model_id": "deepseek/deepseek-v4-flash"
+    },
     "DeepSeek V3 (Qiniu)": {
       "provider": "qiniu",
-      "model_id": "deepseek-v3",
-      "pricing": {
-        "input_per_1k": 0.0,
-        "output_per_1k": 0.0
-      }
-    },
-    "GPT-4o mini (OpenRouter)": {
-      "provider": "openrouter",
-      "model_id": "openai/gpt-4o-mini",
-      "pricing": {
-        "input_per_1k": 0.15,
-        "output_per_1k": 0.6
-      }
+      "model_id": "deepseek-v3"
     }
   },
   "results": {
     "DeepSeek V3 (Qiniu)|humaneval-coding.jsonl": {
-      "experiment_id": "126d4933-3296-42e1-a2ae-bbfc73d2bc6b",
-      "dataset": "humaneval-coding.jsonl",
-      "model": "DeepSeek V3 (Qiniu)",
-      "provider": "qiniu",
       "status": "completed",
-      "accuracy": 0.0,
+      "accuracy": 0.65,
       "cells_done": 60,
       "rows_total": 60,
       "errors": 0,
       "total_cost": 0.0,
-      "total_tokens": 14457,
-      "avg_latency_ms": 3963.8
+      "total_tokens": 14609,
+      "avg_latency_ms": 4550.8
     },
-    "GPT-4o mini (OpenRouter)|humaneval-coding.jsonl": {
-      "experiment_id": "d1260adb-bf85-4c25-a80e-c0b617fb7633",
-      "dataset": "humaneval-coding.jsonl",
-      "model": "GPT-4o mini (OpenRouter)",
-      "provider": "openrouter",
+    "DeepSeek V4 Flash (Qiniu)|humaneval-coding.jsonl": {
       "status": "completed",
-      "accuracy": 0.0,
+      "accuracy": 0.5833,
       "cells_done": 60,
       "rows_total": 60,
       "errors": 0,
-      "total_cost": 3.97845,
-      "total_tokens": 11763,
-      "avg_latency_ms": 2420.3
+      "total_cost": 0.0,
+      "total_tokens": 52717,
+      "avg_latency_ms": 9241.8
+    },
+    "DeepSeek V3 (Qiniu)|thucnews-classification.jsonl": {
+      "status": "completed",
+      "accuracy": 0.8417,
+      "cells_done": 120,
+      "rows_total": 120,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 83315,
+      "avg_latency_ms": 1314.8
+    },
+    "DeepSeek V4 Flash (Qiniu)|thucnews-classification.jsonl": {
+      "status": "completed",
+      "accuracy": 0.8917,
+      "cells_done": 120,
+      "rows_total": 120,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 90680,
+      "avg_latency_ms": 4236.6
+    },
+    "DeepSeek V3 (Qiniu)|ceval-qa.jsonl": {
+      "status": "completed",
+      "accuracy": 0.7049,
+      "cells_done": 61,
+      "rows_total": 61,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 6499,
+      "avg_latency_ms": 1369.4
+    },
+    "DeepSeek V4 Flash (Qiniu)|ceval-qa.jsonl": {
+      "status": "completed",
+      "accuracy": 0.8689,
+      "cells_done": 61,
+      "rows_total": 61,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 34412,
+      "avg_latency_ms": 6216.6
     }
   }
 }

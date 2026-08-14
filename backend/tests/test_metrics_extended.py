@@ -63,6 +63,32 @@ async def test_code_pass_timeout_scores_zero():
     assert score == 0.0
 
 
+@pytest.mark.asyncio
+async def test_code_pass_sandbox_blocks_dangerous_imports():
+    metric = get_metric("code_pass")
+    dangerous = "import os\nprint(os.getcwd())\n"
+    score = await _call_metric(
+        metric,
+        dangerous,
+        dangerous,
+        expected_raw={"tests": ["assert True"]},
+    )
+    assert score == 0.0
+
+
+@pytest.mark.asyncio
+async def test_code_pass_sandbox_allows_safe_stdlib():
+    metric = get_metric("code_pass")
+    safe = "import math\ndef f(x):\n    return math.sqrt(x)\n"
+    score = await _call_metric(
+        metric,
+        safe,
+        safe,
+        expected_raw={"tests": ["assert f(4) == 2.0"]},
+    )
+    assert score == 1.0
+
+
 def test_semantic_similarity_exact_and_rephrase():
     metric = get_metric("semantic_similarity")
     assert metric("退款需要1-3个工作日", "退款需要1-3个工作日") == 1.0

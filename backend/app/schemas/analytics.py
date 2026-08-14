@@ -100,3 +100,25 @@ class ModelRoutingEntry(BaseModel):
     total_cost: float
     total_tokens: int
     recommended: bool = False
+
+
+class BootstrapCISummary(BaseModel):
+    mean: float
+    lower: float
+    upper: float
+    n: int
+
+
+class SignificanceResponse(BaseModel):
+    experiment_a: str
+    experiment_b: str
+    paired_rows: int
+    a: BootstrapCISummary
+    b: BootstrapCISummary
+    mean_diff: float
+    diff_ci_lower: float
+    diff_ci_upper: float
+    p_value: float
+    significant: bool
+    mcnemar_p_value: float
+    mcnemar_significant: bool

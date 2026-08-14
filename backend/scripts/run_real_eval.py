@@ -84,7 +84,7 @@ def _headers() -> dict:
     return h
 
 
-def req(method: str, path: str, *, body=None, files=None, raw: bool = False):
+def req(method: str, path: str, *, body=None, files=None, raw: bool = False, retries: int = 5):
     url = BASE + path
     headers = _headers()
     data = None
@@ -105,19 +105,31 @@ def req(method: str, path: str, *, body=None, files=None, raw: bool = False):
         headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
     elif body is not None:
         data = json.dumps(body).encode()
-    request = urllib.request.Request(url, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(request, timeout=240) as resp:
-            content = resp.read()
+
+    last_err: Exception | None = None
+    for attempt in range(retries + 1):
+        request = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=240) as resp:
+                content = resp.read()
+                if raw:
+                    return resp.status, content
+                return resp.status, (json.loads(content) if content else None)
+        except urllib.error.HTTPError as e:
+            # 5xx 是后端瞬时故障，重试；4xx 是客户端错误，立即返回。
+            if e.code >= 500 and attempt < retries:
+                time.sleep(min(2 ** attempt, 10))
+                continue
             if raw:
-                return resp.status, content
-            return resp.status, (json.loads(content) if content else None)
-    except urllib.error.HTTPError as e:
-        if raw:
-            return e.code, e.read()
-        return e.code, e.read().decode("utf-8", "replace")[:500]
-    except urllib.error.URLError as e:
-        raise SystemExit(f"无法连接后端 {BASE}：{e}") from e
+                return e.code, e.read()
+            return e.code, e.read().decode("utf-8", "replace")[:500]
+        except urllib.error.URLError as e:
+            # 连接拒绝 / 超时等瞬时网络故障，退避重试，避免中断整轮评测。
+            last_err = e
+            if attempt < retries:
+                time.sleep(min(2 ** attempt, 10))
+                continue
+    raise SystemExit(f"无法连接后端 {BASE}：{last_err}")
 
 
 def _jsonl_rows(name: str, limit: int | None) -> list[dict]:

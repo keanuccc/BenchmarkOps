@@ -26,6 +26,44 @@ from pathlib import Path
 from app.evaluation.metrics import register
 
 
+# Modules blocked inside the code-execution sandbox. Model-generated code for
+# coding benchmarks only needs plain standard-library algorithms; anything that
+# touches the OS, network, or other processes is an escape risk and is rejected.
+_BLOCKED_MODULES = frozenset(
+    {
+        "os",
+        "subprocess",
+        "sys",
+        "socket",
+        "shutil",
+        "importlib",
+        "ctypes",
+        "pickle",
+        "marshal",
+        "pathlib",
+        "builtins",
+        "io",
+        "multiprocessing",
+        "threading",
+        "concurrent",
+        "requests",
+        "httpx",
+        "urllib",
+    }
+)
+
+_GUARD_PREAMBLE = (
+    "import builtins as _bmops_builtins\n"
+    "_bmops_real_import = _bmops_builtins.__import__\n"
+    f"_BM_OPS_BLOCKED = {sorted(_BLOCKED_MODULES)!r}\n"
+    "def _bmops_import(name, *args, **kwargs):\n"
+    "    if name.split('.')[0] in _BM_OPS_BLOCKED:\n"
+    "        raise ImportError('module blocked in evaluation sandbox: ' + name)\n"
+    "    return _bmops_real_import(name, *args, **kwargs)\n"
+    "_bmops_builtins.__import__ = _bmops_import\n"
+)
+
+
 def _extract_tests(expected_raw: dict | list | None, kwargs: dict) -> list[str]:
     """Pull test-case code from the row's expected payload or metric config."""
     tests: list[str] = []
@@ -41,17 +79,28 @@ def _extract_tests(expected_raw: dict | list | None, kwargs: dict) -> list[str]:
     return tests
 
 
-async def _run_python(code: str, test: str, timeout: float) -> bool:
-    """Run one test snippet against the model output in a fresh interpreter."""
-    script = f"{code}\n\n{test}\n"
+async def _run_python(code: str, test: str, timeout: float, *, sandbox: bool = True) -> bool:
+    """Run one test snippet against the model output in a fresh interpreter.
+
+    With ``sandbox`` enabled (the default), a guard preamble is prepended that
+    blocks imports of dangerous modules and the interpreter is started with
+    ``-I`` (isolated mode) so user site-packages and environment variables are
+    ignored. This is a best-effort local sandbox, not a container boundary.
+    """
+    preamble = _GUARD_PREAMBLE if sandbox else ""
+    script = f"{preamble}\n{code}\n\n{test}\n"
 
     def _run() -> int:
         with tempfile.TemporaryDirectory(prefix="bmops_code_") as tmp:
             path = Path(tmp) / "solution.py"
             path.write_text(script, encoding="utf-8")
             try:
+                argv = [sys.executable]
+                if sandbox:
+                    argv.append("-I")
+                argv.append(str(path))
                 proc = subprocess.run(
-                    [sys.executable, str(path)],
+                    argv,
                     capture_output=True,
                     timeout=timeout,
                     cwd=tmp,
@@ -87,8 +136,9 @@ async def code_pass(
     if not code:
         return 0.0
     timeout = float(kwargs.get("timeout_seconds", 5) or 5)
+    sandbox = bool(kwargs.get("sandbox", True))
     results = await asyncio.gather(
-        *(_run_python(code, test, timeout) for test in tests)
+        *(_run_python(code, test, timeout, sandbox=sandbox) for test in tests)
     )
     return sum(results) / len(results)
 
