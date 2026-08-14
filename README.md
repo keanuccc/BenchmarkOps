@@ -64,15 +64,17 @@ flowchart LR
 评测报告见 [docs/real-world-eval/report.md](docs/real-world-eval/report.md)，
 深度分析见 [docs/real-world-eval/ANALYSIS.md](docs/real-world-eval/ANALYSIS.md)。
 
-**最近一次评测结果（2026-08，真实模型、真实数据、双网关）**：
+**最近一次评测结果（2026-08-14，真实模型、真实数据、七牛网关、全量样本）**：
 
-| 模型 | 网关 | C-Eval 问答 | THUCNews 分类 | 平均延迟/行 |
-|---|---|---:|---:|---:|
-| Doubao Seed 2.0 Pro | 七牛云 AI | **91.8%** | **93.3%** | 5.3–12.6s |
-| DeepSeek V3 | 七牛云 AI | 70.5% | 84.2% | **1.2s** |
-| GPT-4o mini | OpenRouter | 55.7% | 84.2% | 1.6–1.9s |
+| 模型 | C-Eval 问答 | THUCNews 分类 | HumanEval 代码 |
+|---|---:|---:|---:|
+| DeepSeek V4 Flash | **86.89%** | **89.17%** | 58.33% |
+| DeepSeek V3 | 70.49% | 84.17% | **65.00%** |
 
-> 完整数据（含成本、Token、失败样本逐行分析）见 `docs/real-world-eval/`。
+> 样本量：C-Eval 61 / THUCNews 120 / HumanEval 60，总成本 $0（七牛免费额度）。
+> 统计显著性分析见 [docs/real-world-eval/significance.md](docs/real-world-eval/significance.md)：
+> C-Eval 上 V4 Flash 显著领先（p=0.007），HumanEval 上 V3 显著反超（p=0.025），
+> THUCNews 上差异不显著（p=0.069）——模型选型需按任务分场景。
 
 ## 目录
 
@@ -103,6 +105,9 @@ flowchart LR
 | **提示词库** | 可复用模板，支持 `{variable}` 占位符（含嵌套路径寻址），版本化管理 |
 | **实验运行** | 绑定数据集 + 基准 + 提示词 + 模型，异步执行评测，实时进度轮询；创建时保存模型 Provider 与免费模型状态快照 |
 | **对比分析** | 柱状图对比多个实验的准确率、延迟、花费、令牌数 |
+| **统计显著性** | A/B 模型对比的 bootstrap 置信区间、配对检验与 McNemar 检验 |
+| **LLM-judge 校准** | 对照 gold set 的 precision/recall/F1 校准，以及 Cohen's kappa 一致性检验 |
+| **代码执行沙箱** | coding 评测真实执行代码，拦截危险模块导入并隔离运行环境 |
 | **AI 报告** | 基于实验结果生成结构化 Markdown 报告，支持 AI 生成或确定性模板回退，并可导出 PDF |
 | **仪表盘** | 总览项目、实验状态、准确率趋势、模型排行榜 |
 | **行业雷达** | 汇总全部实验与模型的整体洞察：KPI、供应商准确率雷达图、状态环图 |
@@ -335,6 +340,7 @@ npm run build              # Next.js 生产构建
 | [docs/tech/benchmarkops-distributed-queue.md](docs/tech/benchmarkops-distributed-queue.md) | 技术文章：分布式评测队列的工程演进 |
 | [docs/tech/benchmarkops-reproducible-eval.md](docs/tech/benchmarkops-reproducible-eval.md) | 技术文章：可复现、脱敏与审计设计 |
 | [sample-data/real-world/README.md](sample-data/real-world/README.md) | 真实评测数据集与一键复现 |
+| [docs/real-world-eval/significance.md](docs/real-world-eval/significance.md) | A/B 统计显著性检验结果（bootstrap 置信区间 + 配对检验） |
 | [SECURITY.md](SECURITY.md) | 安全策略与密钥事件记录 |
 
 ## 已知限制与注意事项
