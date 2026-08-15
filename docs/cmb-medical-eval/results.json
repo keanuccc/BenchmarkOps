@@ -1,0 +1,1122 @@
+{
+  "project_id": "b29b0b98-16fa-4d53-98ad-335d2040ffc2",
+  "project_name": "CMB 中文医疗问答评测 d57238",
+  "generated_at": "2026-08-15T23:53:26+0800",
+  "data_source": {
+    "name": "CMB: A Comprehensive Medical Benchmark in Chinese",
+    "license": "Apache-2.0",
+    "questions_url": "https://raw.githubusercontent.com/FreedomIntelligence/CMB/main/data/CMB.zip",
+    "answers_url": "https://raw.githubusercontent.com/FreedomIntelligence/CMB/main/data/CMB-test-choice-answer.json"
+  },
+  "sampling": {
+    "seed": 42,
+    "per_exam_class": 10
+  },
+  "datasets": {
+    "cmb-medical-qa.jsonl": {
+      "rows": 280,
+      "sha256": "0b16502573e12dba7c8babd177fa5e23ab49bb8700b7f78d488a963ce614a5a3"
+    },
+    "cmb-medical-multi-qa.jsonl": {
+      "rows": 169,
+      "sha256": "039079ea0866cfa58fb214c9a7ffffa3f5c845c85613d02abb146c08b0fc3a5e"
+    }
+  },
+  "prompts": {
+    "cmb-medical-qa.jsonl": "你是严格的中国医学考试出题考官。请阅读下面的单项选择题，从 A/B/C/D/E 中选出唯一正确选项，只输出选项字母，不要输出任何解释。\n\n题目：\n{question}\n\n答案：",
+    "cmb-medical-multi-qa.jsonl": "你是严格的中国医学考试出题考官。请阅读下面的多项选择题，选出所有正确选项。只输出选项字母，并用英文逗号分隔，例如：A,C,D。不要输出任何解释。\n\n题目：\n{question}\n\n答案："
+  },
+  "models": {
+    "DeepSeek V4 Flash (Qiniu)": {
+      "provider": "qiniu",
+      "model_id": "deepseek/deepseek-v4-flash",
+      "pricing": {
+        "input_per_1k": 0.0,
+        "output_per_1k": 0.0
+      },
+      "model_db_id": "4e1ebb1e-d086-4b9b-94c7-61d73779dab9"
+    },
+    "DeepSeek V3 (Qiniu)": {
+      "provider": "qiniu",
+      "model_id": "deepseek-v3",
+      "pricing": {
+        "input_per_1k": 0.0,
+        "output_per_1k": 0.0
+      },
+      "model_db_id": "da9a031f-0b43-4dc8-9ebb-0db83ceaa70f"
+    }
+  },
+  "skipped_models": {},
+  "results": {
+    "DeepSeek V4 Flash (Qiniu)|cmb-medical-qa.jsonl": {
+      "experiment_id": "638ee9b6-93bd-42d6-bb7c-916f11507fe3",
+      "dataset": "cmb-medical-qa.jsonl",
+      "model": "DeepSeek V4 Flash (Qiniu)",
+      "provider": "qiniu",
+      "model_id": "deepseek/deepseek-v4-flash",
+      "status": "completed",
+      "accuracy": 0.8679,
+      "cells_done": 280,
+      "rows_total": 280,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 51191,
+      "avg_latency_ms": 2360.8,
+      "wrong_samples": [
+        {
+          "row_idx": 28,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "",
+          "cleaned_prediction": "",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000; empty_prediction finish_reason=length",
+          "error": null
+        },
+        {
+          "row_idx": 39,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 45,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 85,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "D",
+          "cleaned_prediction": "D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 95,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "",
+          "cleaned_prediction": "",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000; empty_prediction finish_reason=length",
+          "error": null
+        },
+        {
+          "row_idx": 99,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 111,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 119,
+          "expected": {
+            "answer": "E"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 120,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 122,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 130,
+          "expected": {
+            "answer": "A"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 138,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 143,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 145,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "D",
+          "cleaned_prediction": "D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 147,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 152,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 158,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 166,
+          "expected": {
+            "answer": "E"
+          },
+          "output": "D",
+          "cleaned_prediction": "D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 169,
+          "expected": {
+            "answer": "A"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 173,
+          "expected": {
+            "answer": "E"
+          },
+          "output": "",
+          "cleaned_prediction": "",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000; empty_prediction finish_reason=length",
+          "error": null
+        }
+      ]
+    },
+    "DeepSeek V3 (Qiniu)|cmb-medical-qa.jsonl": {
+      "experiment_id": "b6a1824b-fd65-44de-9a41-3a13d9fab716",
+      "dataset": "cmb-medical-qa.jsonl",
+      "model": "DeepSeek V3 (Qiniu)",
+      "provider": "qiniu",
+      "model_id": "deepseek-v3",
+      "status": "completed",
+      "accuracy": 0.9036,
+      "cells_done": 280,
+      "rows_total": 280,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 29600,
+      "avg_latency_ms": 1998.9,
+      "wrong_samples": [
+        {
+          "row_idx": 45,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 54,
+          "expected": {
+            "answer": "A"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 85,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "D",
+          "cleaned_prediction": "D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 95,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 99,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 102,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 111,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 120,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 129,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 136,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 138,
+          "expected": {
+            "answer": "B"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 145,
+          "expected": {
+            "answer": "C"
+          },
+          "output": "D",
+          "cleaned_prediction": "D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 147,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 152,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 164,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 168,
+          "expected": {
+            "answer": "E"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 182,
+          "expected": {
+            "answer": "E"
+          },
+          "output": "A",
+          "cleaned_prediction": "A",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 183,
+          "expected": {
+            "answer": "A"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 184,
+          "expected": {
+            "answer": "D"
+          },
+          "output": "C",
+          "cleaned_prediction": "C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 198,
+          "expected": {
+            "answer": "A"
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        }
+      ]
+    },
+    "DeepSeek V4 Flash (Qiniu)|cmb-medical-multi-qa.jsonl": {
+      "experiment_id": "43bc5d7a-2135-48c1-9b03-e631858d691f",
+      "dataset": "cmb-medical-multi-qa.jsonl",
+      "model": "DeepSeek V4 Flash (Qiniu)",
+      "provider": "qiniu",
+      "model_id": "deepseek/deepseek-v4-flash",
+      "status": "completed",
+      "accuracy": 0.6923,
+      "cells_done": 169,
+      "rows_total": 169,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 43166,
+      "avg_latency_ms": 3262.1,
+      "wrong_samples": [
+        {
+          "row_idx": 0,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "output": "A,B,C,E",
+          "cleaned_prediction": "A,B,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 3,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 9,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,E,F",
+          "cleaned_prediction": "A,B,C,D,E,F",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 12,
+          "expected": {
+            "answer": [
+              "A",
+              "E"
+            ]
+          },
+          "output": "A,C,D,E",
+          "cleaned_prediction": "A,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 15,
+          "expected": {
+            "answer": [
+              "C",
+              "E"
+            ]
+          },
+          "output": "A,C,D,E,F",
+          "cleaned_prediction": "A,C,D,E,F",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 16,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "output": "A,C",
+          "cleaned_prediction": "A,C",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 22,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,D,E",
+          "cleaned_prediction": "A,B,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 25,
+          "expected": {
+            "answer": [
+              "A",
+              "B"
+            ]
+          },
+          "output": "A,B,D,E",
+          "cleaned_prediction": "A,B,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 31,
+          "expected": {
+            "answer": [
+              "B",
+              "D"
+            ]
+          },
+          "output": "B,D,E",
+          "cleaned_prediction": "B,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 34,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "output": "A,C,E",
+          "cleaned_prediction": "A,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 35,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 40,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "E"
+            ]
+          },
+          "output": "B,E",
+          "cleaned_prediction": "B,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 43,
+          "expected": {
+            "answer": [
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "C,D",
+          "cleaned_prediction": "C,D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 47,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D",
+          "cleaned_prediction": "A,B,C,D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 48,
+          "expected": {
+            "answer": [
+              "A",
+              "D",
+              "E"
+            ]
+          },
+          "output": "D,E",
+          "cleaned_prediction": "D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 50,
+          "expected": {
+            "answer": [
+              "D",
+              "E"
+            ]
+          },
+          "output": "",
+          "cleaned_prediction": "",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000; empty_prediction finish_reason=length",
+          "error": null
+        },
+        {
+          "row_idx": 52,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,D,E",
+          "cleaned_prediction": "A,B,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 54,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "B,C,D,E",
+          "cleaned_prediction": "B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 57,
+          "expected": {
+            "answer": [
+              "A",
+              "B"
+            ]
+          },
+          "output": "B",
+          "cleaned_prediction": "B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 61,
+          "expected": {
+            "answer": [
+              "A",
+              "E"
+            ]
+          },
+          "output": "A,C,E",
+          "cleaned_prediction": "A,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        }
+      ]
+    },
+    "DeepSeek V3 (Qiniu)|cmb-medical-multi-qa.jsonl": {
+      "experiment_id": "97eb08ea-5a12-4b25-ae3d-60eadc5a3343",
+      "dataset": "cmb-medical-multi-qa.jsonl",
+      "model": "DeepSeek V3 (Qiniu)",
+      "provider": "qiniu",
+      "model_id": "deepseek-v3",
+      "status": "completed",
+      "accuracy": 0.5799,
+      "cells_done": 169,
+      "rows_total": 169,
+      "errors": 0,
+      "total_cost": 0.0,
+      "total_tokens": 19733,
+      "avg_latency_ms": 2346.2,
+      "wrong_samples": [
+        {
+          "row_idx": 0,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "output": "A,B,C,E",
+          "cleaned_prediction": "A,B,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 3,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 7,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "output": "A,B,C,E",
+          "cleaned_prediction": "A,B,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 9,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,F",
+          "cleaned_prediction": "A,B,C,D,F",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 11,
+          "expected": {
+            "answer": [
+              "B",
+              "D"
+            ]
+          },
+          "output": "B,C,D",
+          "cleaned_prediction": "B,C,D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 12,
+          "expected": {
+            "answer": [
+              "A",
+              "E"
+            ]
+          },
+          "output": "A,B",
+          "cleaned_prediction": "A,B",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 15,
+          "expected": {
+            "answer": [
+              "C",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,F",
+          "cleaned_prediction": "A,B,C,D,F",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 22,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,D,E",
+          "cleaned_prediction": "A,B,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 25,
+          "expected": {
+            "answer": [
+              "A",
+              "B"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 31,
+          "expected": {
+            "answer": [
+              "B",
+              "D"
+            ]
+          },
+          "output": "B,C,D,E",
+          "cleaned_prediction": "B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 34,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "output": "A,C,E",
+          "cleaned_prediction": "A,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 35,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 36,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "D",
+              "E"
+            ]
+          },
+          "output": "E",
+          "cleaned_prediction": "E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 38,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "D"
+            ]
+          },
+          "output": "B,C,D",
+          "cleaned_prediction": "B,C,D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 40,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "E"
+            ]
+          },
+          "output": "A,B,C,E",
+          "cleaned_prediction": "A,B,C,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 43,
+          "expected": {
+            "answer": [
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "output": "B,C,D",
+          "cleaned_prediction": "B,C,D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 46,
+          "expected": {
+            "answer": [
+              "A",
+              "B",
+              "E"
+            ]
+          },
+          "output": "B,E",
+          "cleaned_prediction": "B,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 48,
+          "expected": {
+            "answer": [
+              "A",
+              "D",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 49,
+          "expected": {
+            "answer": [
+              "A",
+              "C",
+              "E"
+            ]
+          },
+          "output": "A,B,C,D,E",
+          "cleaned_prediction": "A,B,C,D,E",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        },
+        {
+          "row_idx": 50,
+          "expected": {
+            "answer": [
+              "D",
+              "E"
+            ]
+          },
+          "output": "C,D",
+          "cleaned_prediction": "C,D",
+          "score_reason": "exact_match_ci: did not match; weighted metric components: exact_match_ci=0.0000",
+          "error": null
+        }
+      ]
+    }
+  },
+  "statistics": {
+    "cmb-medical-qa.jsonl": {
+      "paired_rows": 280,
+      "model_a": "DeepSeek V4 Flash (Qiniu)",
+      "model_b": "DeepSeek V3 (Qiniu)",
+      "mcnemar_p": 0.07551869750022888,
+      "discordant_a_correct_b_wrong": 8,
+      "discordant_a_wrong_b_correct": 18,
+      "DeepSeek V4 Flash (Qiniu)_wilson_ci": {
+        "accuracy": 0.8679,
+        "lower": 0.8231689459082747,
+        "upper": 0.902588316106548
+      },
+      "DeepSeek V3 (Qiniu)_wilson_ci": {
+        "accuracy": 0.9036,
+        "lower": 0.8633383863305362,
+        "upper": 0.932880745782813
+      }
+    },
+    "cmb-medical-multi-qa.jsonl": {
+      "paired_rows": 169,
+      "model_a": "DeepSeek V4 Flash (Qiniu)",
+      "model_b": "DeepSeek V3 (Qiniu)",
+      "mcnemar_p": 0.0005461126565933228,
+      "discordant_a_correct_b_wrong": 24,
+      "discordant_a_wrong_b_correct": 5,
+      "DeepSeek V4 Flash (Qiniu)_wilson_ci": {
+        "accuracy": 0.6923,
+        "lower": 0.6190940641817625,
+        "upper": 0.75697311578477
+      },
+      "DeepSeek V3 (Qiniu)_wilson_ci": {
+        "accuracy": 0.5799,
+        "lower": 0.5045014817237251,
+        "upper": 0.6517110391854498
+      }
+    }
+  }
+}

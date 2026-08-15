@@ -9,6 +9,11 @@ class LeaderboardEntry(BaseModel):
     experiment_name: str
     model_id: str
     model_name: str
+    benchmark_id: str
+    dataset_id: str
+    dataset_version: int | None
+    benchmark_name: str
+    dataset_name: str
     accuracy: float
     avg_latency_ms: float
     total_cost: float
@@ -18,6 +23,8 @@ class LeaderboardEntry(BaseModel):
     coverage: float
     failure_rate: float
     status: str
+    ci_lower: float | None = None
+    ci_upper: float | None = None
 
 
 class ComparisonResponse(BaseModel):
@@ -98,7 +105,13 @@ class ModelRoutingEntry(BaseModel):
     accuracy: float
     avg_latency_ms: float
     total_cost: float
+    cost_per_row: float
+    cost_unknown: bool
     total_tokens: int
+    rows_total: int
+    benchmark_id: str
+    dataset_id: str
+    dataset_version: int | None
     recommended: bool = False
 
 

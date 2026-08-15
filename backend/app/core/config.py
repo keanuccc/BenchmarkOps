@@ -80,6 +80,21 @@ class Settings(BaseSettings):
     free_model_concurrency: int = 5
     free_model_rpm_cap: int = 300
 
+    # Whether the coding metric may execute model-generated code in a local
+    # subprocess. None means "auto": allowed in development, disabled in
+    # production unless explicitly enabled by the operator.
+    code_execution_enabled: bool | None = None
+    # "subprocess" runs code in a local interpreter with best-effort limits;
+    # "docker" runs it in an isolated container (requires Docker).
+    code_execution_sandbox: str = "subprocess"
+    code_execution_docker_image: str = "python:3.11-slim"
+
+    # LLM-as-judge cache backend. "memory" is the default and keeps the
+    # existing per-process behaviour; "redis" shares results across worker
+    # processes when a Redis DSN is configured.
+    llm_judge_cache_backend: str = "memory"
+    llm_judge_cache_ttl: int = 86400
+
     # Task queue backend: "asyncio" (in-process, default) or "arq" (Redis-backed
     # distributed queue consumed by `app.worker.WorkerSettings` workers).
     task_queue_backend: str = "asyncio"
@@ -116,6 +131,13 @@ class Settings(BaseSettings):
             or bool(self.openrouter_api_key.strip())
             or bool(self.qiniu_api_key.strip())
         )
+
+    @property
+    def code_execution_allowed(self) -> bool:
+        """Resolve whether code execution is permitted for this environment."""
+        if self.code_execution_enabled is not None:
+            return self.code_execution_enabled
+        return self.app_env.strip().lower() != "production"
 
     @property
     def auth_enabled(self) -> bool:

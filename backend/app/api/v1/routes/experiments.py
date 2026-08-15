@@ -13,6 +13,7 @@ from app.evaluation.task_records import mark_done
 from app.evaluation.task_queue import task_queue
 from app.schemas.common import ListResponse
 from app.schemas.experiment import (
+    ExperimentBatchCreate,
     ExperimentCreate,
     ExperimentRecomputeReport,
     ExperimentRead,
@@ -71,6 +72,15 @@ async def create_experiment(
     _: None = Depends(require_auth),
 ):
     return await service.create(payload)
+
+
+@router.post("/batch", response_model=list[ExperimentRead], status_code=status.HTTP_201_CREATED)
+async def create_experiment_batch(
+    payload: ExperimentBatchCreate,
+    service: ExperimentService = Depends(get_experiment_service),
+    _: None = Depends(require_auth),
+):
+    return await service.create_batch(payload)
 
 
 @router.get("/", response_model=ListResponse[ExperimentRead])

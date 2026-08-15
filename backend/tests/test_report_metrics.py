@@ -28,10 +28,34 @@ def test_report_uses_full_failure_count_not_sample_count() -> None:
                     },
                     "total_cost": 0.0,
                     "total_tokens": 0,
-                    "failures": [{"row_idx": 1, "score": 0.0, "error": None}],
+                    "sample_failures": [{"row_idx": 1, "score": 0.0, "error": None}],
                 }
             ]
         }
     )
 
     assert "共检查了 **10** 个失败样本" in markdown
+
+
+def test_report_includes_statistical_significance_verdict() -> None:
+    markdown, _ = template_report(
+        {
+            "experiments": [
+                {
+                    "name": "Run",
+                    "model_name": "Model",
+                    "metrics": {"accuracy": 0.5},
+                    "total_cost": 0.0,
+                    "total_tokens": 0,
+                    "sample_failures": [],
+                }
+            ],
+            "statistics": {
+                "cmb-medical-qa.jsonl": {
+                    "mcnemar_p": 0.0923,
+                }
+            },
+        }
+    )
+    assert "McNemar p=0.0923" in markdown
+    assert "差异未达到统计显著水平" in markdown

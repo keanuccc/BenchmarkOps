@@ -51,6 +51,17 @@ class ExperimentCreate(BaseModel):
     params: dict = Field(default_factory=dict)
 
 
+class ExperimentBatchCreate(BaseModel):
+    project_id: str
+    name: str | None = None
+    dataset_id: str
+    dataset_version: int | None = None
+    benchmark_id: str
+    prompt_id: str
+    model_ids: list[str]
+    params: dict = Field(default_factory=dict)
+
+
 class ExperimentUpdate(BaseModel):
     name: str | None = None
     params: dict | None = None

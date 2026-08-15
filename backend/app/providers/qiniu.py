@@ -229,7 +229,11 @@ class QiniuProvider(LLMProvider):
         message = first.get("message") or {}
         text = message.get("content") or ""
         content_source = "content"
-        if not text:
+        # 当上游明确要求关闭思考（enable_thinking=False）时，不把
+        # reasoning_content 回退成最终答案。否则思考链会被当成模型输出，
+        # 污染 exact_match 等指标。
+        allow_reasoning_fallback = not (request.extra.get("enable_thinking") is False)
+        if not text and allow_reasoning_fallback:
             reasoning = message.get("reasoning_content") or ""
             if reasoning:
                 text = reasoning

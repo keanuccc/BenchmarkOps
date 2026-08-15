@@ -624,7 +624,12 @@ async def _run_experiment(experiment_id: str) -> None:
             return await _mark_failed(experiment_id, "Experiment has no scoring metric")
 
         row_repo = DatasetRowRepository(load_session)
-        dataset_total = await row_repo.count_by_dataset(experiment.dataset_id)
+        if experiment.dataset_version is not None:
+            dataset_total = await row_repo.count_by_dataset_version(
+                experiment.dataset_id, experiment.dataset_version
+            )
+        else:
+            dataset_total = await row_repo.count_by_dataset(experiment.dataset_id)
 
         metric_suite = normalize_metric_suite(metric_name, metric_config, benchmark_spec)
         explicit_metric_suite = has_metric_suite(metric_config, benchmark_spec)
@@ -695,6 +700,7 @@ async def _run_experiment(experiment_id: str) -> None:
             temperature=temperature,
             max_tokens=max_tokens,
             is_free=model_is_free,
+            extra=params.get("extra") or {},
         )
         expected_str = _first_value(row.expected)
         try:
@@ -760,6 +766,11 @@ async def _run_experiment(experiment_id: str) -> None:
                 cleaned_expected,
                 metric_scores,
             )
+            if cleaned_prediction == "":
+                finish_reason = (completion.raw or {}).get("finish_reason")
+                score_reason = (
+                    f"{score_reason}; empty_prediction finish_reason={finish_reason}"
+                )
 
             cost = _cost(pricing or {}, completion.prompt_tokens, completion.completion_tokens)
             res = ExperimentResult(
@@ -972,6 +983,16 @@ async def _run_experiment(experiment_id: str) -> None:
         for name, metric_total in metric_totals.items()
         if scored
     }
+    cost_unknown = (
+        not model_is_free
+        and (
+            not pricing
+            or (
+                "input_per_1k" not in pricing
+                and "output_per_1k" not in pricing
+            )
+        )
+    )
     metrics = {
         "metric": "metric_suite" if explicit_metric_suite else metric_name,
         "accuracy": round(accuracy, 4),
@@ -991,6 +1012,7 @@ async def _run_experiment(experiment_id: str) -> None:
         "provider_errors": provider_errors,
         "metric_errors": metric_errors,
         "prompt_version": prompt_version,
+        "cost_unknown": cost_unknown,
     }
     runtime_ms = int((time.perf_counter() - started) * 1000)
 

@@ -1,6 +1,9 @@
 """Tests for A/B significance and LLM-judge calibration endpoints."""
 from __future__ import annotations
 
+import pytest
+
+from app.core.exceptions import ValidationError
 from app.core.database import AsyncSessionLocal
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.project import Project
@@ -73,6 +76,68 @@ async def test_significance_detects_clear_winner():
         assert result.significant is True
         assert result.p_value < 0.05
         assert result.mcnemar_significant is True
+
+
+async def test_significance_rejects_incomparable_experiments():
+    async with AsyncSessionLocal() as session:
+        project = Project(name="sig-incomparable")
+        session.add(project)
+        await session.flush()
+        exp_a = Experiment(
+            project_id=project.id,
+            name="a",
+            dataset_id="d1",
+            benchmark_id="b",
+            prompt_id="p",
+            model_id="m1",
+            status="completed",
+        )
+        exp_b = Experiment(
+            project_id=project.id,
+            name="b",
+            dataset_id="d2",
+            benchmark_id="b",
+            prompt_id="p",
+            model_id="m2",
+            status="completed",
+        )
+        session.add_all([exp_a, exp_b])
+        await session.commit()
+
+        service = AnalyticsService(session)
+        with pytest.raises(ValidationError):
+            await service.significance(exp_a.id, exp_b.id)
+
+
+async def test_compare_rejects_incomparable_experiments():
+    async with AsyncSessionLocal() as session:
+        project = Project(name="compare-incomparable")
+        session.add(project)
+        await session.flush()
+        exp_a = Experiment(
+            project_id=project.id,
+            name="a",
+            dataset_id="d1",
+            benchmark_id="b",
+            prompt_id="p",
+            model_id="m1",
+            status="completed",
+        )
+        exp_b = Experiment(
+            project_id=project.id,
+            name="b",
+            dataset_id="d2",
+            benchmark_id="b",
+            prompt_id="p",
+            model_id="m2",
+            status="completed",
+        )
+        session.add_all([exp_a, exp_b])
+        await session.commit()
+
+        service = AnalyticsService(session)
+        with pytest.raises(ValidationError):
+            await service.compare([exp_a.id, exp_b.id])
 
 
 def test_judge_calibrate_endpoint(client):

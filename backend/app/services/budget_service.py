@@ -29,6 +29,26 @@ async def check_org_budget(org_id: str | None, session: AsyncSession) -> None:
         )
     )
     spent = float(result.scalar_one() or 0.0)
+
+    unknown_cost_rows = (
+        await session.execute(
+            select(Experiment.metrics).where(
+                Experiment.organization_id == org_id,
+                Experiment.created_at >= month_start,
+                Experiment.status.in_(("completed", "partial", "failed")),
+            )
+        )
+    ).scalars().all()
+    unknown_cost_count = sum(
+        1 for metrics in unknown_cost_rows if (metrics or {}).get("cost_unknown")
+    )
+    if unknown_cost_count:
+        raise ValidationError(
+            "Organization monthly budget cannot be enforced because "
+            f"{unknown_cost_count} run(s) have unknown evaluation cost; "
+            "set model pricing and rerun before enforcing a budget"
+        )
+
     if spent >= org.monthly_budget_usd:
         raise ValidationError(
             f"Organization monthly budget ${org.monthly_budget_usd:g} exhausted "

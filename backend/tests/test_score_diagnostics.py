@@ -7,10 +7,12 @@ import pytest
 
 from app.core.database import AsyncSessionLocal
 from app.evaluation.runner import run_experiment
-from app.models.experiment import ExperimentResult
+from app.models.experiment import Experiment, ExperimentResult
 from app.models.model import Model
+from app.models.project import Project
 from app.providers.base import CompletionRequest, CompletionResult, LLMProvider
-from app.repositories.experiment import ExperimentRepository
+from app.repositories.experiment import ExperimentRepository, ExperimentResultRepository
+from app.services.experiment_service import ExperimentService
 
 
 class _NoisyAnswerProvider(LLMProvider):
@@ -227,3 +229,73 @@ def test_recompute_scores_falls_back_to_current_model_for_legacy_experiment(clie
     client.post(f"/api/v1/experiments/{eid}/recompute-scores")
 
     assert captured == {"model_id": model_id, "provider": provider}
+
+
+def test_recompute_scores_pages_beyond_default_repository_limit(client, monkeypatch):
+    """recompute-scores must not silently stop at the repository's 1000-row page."""
+
+    async def _seed_experiment() -> str:
+        async with AsyncSessionLocal() as session:
+            project = Project(name="recompute-paging")
+            session.add(project)
+            await session.flush()
+            exp = Experiment(
+                project_id=project.id,
+                name="paged",
+                dataset_id="d",
+                dataset_version=1,
+                benchmark_id="b",
+                prompt_id="p",
+                model_id="m",
+                status="completed",
+                rows_total=2500,
+                benchmark_snapshot={
+                    "metric": "exact_match_ci",
+                    "metric_config": {},
+                    "spec": {},
+                    "type": "qa",
+                },
+                dataset_snapshot={"answer_policy": {}},
+                metrics={"dataset_rows_total": 2500},
+            )
+            session.add(exp)
+            await session.commit()
+            return exp.id
+
+    eid = asyncio.run(_seed_experiment())
+    monkeypatch.setattr(
+        "app.services.experiment_service.get_metric",
+        lambda name: lambda *args, **kwargs: 1.0,
+    )
+
+    async def fake_list_by_experiment(
+        self, experiment_id, *, offset: int = 0, limit: int = 1000
+    ):
+        rows = [
+            ExperimentResult(
+                experiment_id=experiment_id,
+                row_idx=i,
+                input={"question": "q"},
+                expected={"answer": "A"},
+                output="A",
+                score=1.0,
+            )
+            for i in range(2500)
+        ]
+        return rows[offset : offset + limit]
+
+    monkeypatch.setattr(
+        ExperimentResultRepository, "list_by_experiment", fake_list_by_experiment
+    )
+
+    async def _recompute() -> dict:
+        async with AsyncSessionLocal() as session:
+            return await ExperimentService(session).recompute_scores(eid)
+
+    report = asyncio.run(_recompute())
+
+    assert report["rows_total"] == 2500
+    assert report["rows_scored"] == 2500
+    assert report["rows_unprocessed"] == 0
+    assert report["recomputed_accuracy"] == 1.0
+    assert report["changed_rows"] == 0

@@ -126,3 +126,59 @@ def test_in_memory_cancel_stops_run_and_cleans_results(
     exp, rows = asyncio.run(_drive())
     assert exp is not None and exp.status == "cancelled"
     assert len(rows) == 0, "cancelled run must not leave partial result rows"
+
+
+def test_versioned_dataset_uses_pinned_version_for_totals(client, patched_slow):
+    """The runner must count rows for the experiment's pinned dataset version,
+    not every row ever stored across all versions of the dataset."""
+    assert client.post("/api/v1/models/seed").status_code in (200, 201)
+    model_pk = client.get("/api/v1/models/").json()["items"][0]["id"]
+    pid = client.post("/api/v1/projects/", json={"name": "VER"}).json()["id"]
+    benchmark = client.post(
+        "/api/v1/benchmarks/",
+        json={"project_id": pid, "name": "QA", "type": "qa", "metric": "exact_match_ci"},
+    ).json()
+    prompt = client.post(
+        "/api/v1/prompts/",
+        json={"project_id": pid, "name": "P", "template": "{question}"},
+    ).json()
+
+    def _rows(n: int) -> bytes:
+        return "\n".join(
+            f'{{"question":"q{i}?","answer":"yes"}}' for i in range(n)
+        ).encode()
+
+    dataset = client.post(
+        "/api/v1/datasets/upload",
+        data={"project_id": pid, "name": "DS", "format": "jsonl"},
+        files={"file": ("v1.jsonl", _rows(2), "application/x-ndjson")},
+    ).json()
+
+    version = client.post(
+        f"/api/v1/datasets/{dataset['id']}/versions",
+        data={"mode": "append", "format": "jsonl"},
+        files={"file": ("v2.jsonl", _rows(2), "application/x-ndjson")},
+    ).json()
+    assert version["version"] == 2
+
+    experiment = client.post(
+        "/api/v1/experiments/",
+        json={
+            "project_id": pid,
+            "name": "E",
+            "dataset_id": dataset["id"],
+            "benchmark_id": benchmark["id"],
+            "prompt_id": prompt["id"],
+            "model_id": model_pk,
+        },
+    ).json()
+    assert experiment["dataset_version"] == 2
+
+    asyncio.run(run_experiment(experiment["id"]))
+    fetched = client.get(f"/api/v1/experiments/{experiment['id']}").json()
+
+    assert fetched["status"] == "completed"
+    assert fetched["rows_total"] == 4
+    assert fetched["metrics"]["dataset_rows_total"] == 4
+    assert fetched["metrics"]["rows_scored"] == 4
+    assert fetched["metrics"]["coverage"] == 1.0

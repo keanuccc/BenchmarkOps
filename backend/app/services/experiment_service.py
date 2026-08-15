@@ -26,6 +26,7 @@ from app.models.benchmark import Benchmark
 from app.models.dataset import Dataset
 from app.models.experiment import Experiment, ExperimentResult
 from app.models.model import Model
+from app.models.prompt import Prompt
 from app.repositories.experiment import (
     ExperimentRepository,
     ExperimentResultRepository,
@@ -36,7 +37,7 @@ from app.repositories.prompt import PromptRepository
 from app.repositories.project import ProjectRepository
 from app.repositories.model import ModelRepository
 from app.repositories.task import TaskRepository
-from app.schemas.experiment import ExperimentCreate, ExperimentUpdate
+from app.schemas.experiment import ExperimentBatchCreate, ExperimentCreate, ExperimentUpdate
 from app.services.benchmark_service import build_benchmark_snapshot
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,84 @@ class ExperimentService:
         logger.info("experiment %s created (project %s)", created.id, data.project_id)
         return created
 
+    async def create_batch(self, data: ExperimentBatchCreate) -> list[Experiment]:
+        """Create one experiment per model for a fixed dataset/benchmark/prompt."""
+        if not data.model_ids:
+            raise ValidationError("model_ids must contain at least one model id")
+        if await ProjectRepository(self.session).get(data.project_id) is None:
+            raise ValidationError(f"Referenced project '{data.project_id}' does not exist")
+
+        components = {
+            "dataset": (DatasetRepository(self.session), data.dataset_id),
+            "benchmark": (BenchmarkRepository(self.session), data.benchmark_id),
+            "prompt": (PromptRepository(self.session), data.prompt_id),
+        }
+        resolved: dict[str, Dataset | Benchmark | Prompt] = {}
+        for label, (repo, oid) in components.items():
+            obj = await repo.get(oid)
+            if obj is None:
+                raise ValidationError(f"Referenced {label} '{oid}' does not exist")
+            obj_project_id = getattr(obj, "project_id", None)
+            if obj_project_id is not None and obj_project_id != data.project_id:
+                raise ValidationError(
+                    f"Referenced {label} '{oid}' belongs to another project"
+                )
+            resolved[label] = obj
+
+        dataset: Dataset = resolved["dataset"]  # type: ignore[assignment]
+        benchmark: Benchmark = resolved["benchmark"]  # type: ignore[assignment]
+        prompt: Prompt = resolved["prompt"]  # type: ignore[assignment]
+        prompt_snapshot = {
+            "template": prompt.template,
+            "variables": prompt.variables,
+            "version": prompt.version,
+        }
+        benchmark_snapshot = build_benchmark_snapshot(benchmark)
+        contract = dataset.contract or {}
+        dataset_snapshot = {
+            "task_type": dataset.task_type,
+            "schema_version": dataset.schema_version,
+            "dataset_version": dataset.version,
+            "sensitive_fields": (contract.get("sensitive_fields", []) or []),
+            "structured_chat": bool(contract.get("structured_chat", False)),
+            "answer_policy": contract.get("answer_policy", {}) or {},
+        }
+
+        experiments: list[Experiment] = []
+        for model_id in data.model_ids:
+            model = await ModelRepository(self.session).get(model_id)
+            if model is None:
+                raise ValidationError(f"Referenced model '{model_id}' does not exist")
+            model_snapshot = {
+                "model_id": model.model_id,
+                "name": model.name,
+                "pricing": model.pricing,
+                "provider": model.provider,
+                "context_length": model.context_length,
+                "is_free": model.model_id.endswith(":free")
+                or (
+                    model.provider == "qiniu"
+                    and model.model_id in settings.qiniu_free_set
+                ),
+            }
+            experiment = Experiment(
+                project_id=data.project_id,
+                name=data.name or f"{benchmark.name} · {model.name}",
+                dataset_id=data.dataset_id,
+                dataset_version=dataset.version,
+                benchmark_id=data.benchmark_id,
+                prompt_id=data.prompt_id,
+                model_id=model_id,
+                params=data.params or {},
+                prompt_snapshot=prompt_snapshot,
+                benchmark_snapshot=benchmark_snapshot,
+                model_snapshot=model_snapshot,
+                dataset_snapshot=dataset_snapshot,
+                status="pending",
+            )
+            experiments.append(await self.experiments.create(experiment))
+        return experiments
+
     async def get(self, experiment_id: str) -> Experiment:
         exp = await self.experiments.get(experiment_id)
         if exp is None:
@@ -198,7 +277,22 @@ class ExperimentService:
     async def recompute_scores(self, experiment_id: str, *, diff_limit: int = 100) -> dict:
         """Re-score stored outputs without calling the evaluated model again."""
         experiment = await self.get(experiment_id)
-        results = list(await self.results.list_by_experiment(experiment_id))
+        # The repository defaults to a page size of 1000. Fetch every page so
+        # recompute covers the whole experiment rather than silently limiting
+        # itself to the first 1000 rows.
+        results: list[ExperimentResult] = []
+        offset = 0
+        page_size = 1000
+        while True:
+            page = await self.results.list_by_experiment(
+                experiment_id, offset=offset, limit=page_size
+            )
+            if not page:
+                break
+            results.extend(page)
+            if len(page) < page_size:
+                break
+            offset += page_size
 
         snapshot = experiment.benchmark_snapshot
         if snapshot:

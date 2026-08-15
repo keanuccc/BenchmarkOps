@@ -44,6 +44,11 @@ business-data/*.xls
 # Real-world eval download cache (regenerable via prepare_real_world_data.py)
 sample-data/real-world/_downloads/
 
+# CMB raw downloads (large, regenerable via public URLs)
+sample-data/cmb_medical_eval/CMB.zip
+sample-data/cmb_medical_eval/CMB-test-choice-answer.json
+sample-data/cmb_medical_eval/CMB_unzipped/
+
 # E2E test caches
 frontend/e2e/.pytest_cache/
 

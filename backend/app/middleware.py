@@ -62,11 +62,13 @@ class RequestIDMiddleware:
 
 
 class TenantContextMiddleware:
-    """Resolve the organization API key from the Authorization header.
+    """Resolve auth and tenant context, and gate API reads in production.
 
-    Installs the tenant context for every request (read and write) so scoped
-    repositories filter correctly even on open read endpoints. Requests without
-    a credential, or with the legacy global token, stay unscoped (demo mode).
+    Development/demo mode keeps the original open-read behaviour. In production
+    (``app_env=production``) with ``API_TOKEN`` set, every ``/api/v1`` request
+    except the health/readiness probes must carry either the global token or a
+    valid organization API key, including reads. This closes the gap where
+    datasets/results could be enumerated anonymously while writes were guarded.
     """
 
     def __init__(self, app):
@@ -86,23 +88,52 @@ class TenantContextMiddleware:
         )
 
         token = None
+        credential: str | None = None
         auth_header = None
         for name, value in scope.get("headers", []):
             if name == b"authorization":
                 auth_header = value.decode("latin-1")
                 break
         if auth_header and auth_header.lower().startswith("bearer "):
-            raw = auth_header[7:].strip()
-            if not (settings.api_token and raw == settings.api_token):
-                key = await _resolve_org_key(raw)
-                if key is not None and key.is_active:
-                    token = set_tenant(
-                        TenantContext(
-                            organization_id=key.organization_id,
-                            role=key.role,
-                            key_id=key.id,
-                        )
+            credential = auth_header[7:].strip()
+
+        # SSE's EventSource cannot send Authorization headers, so the endpoint
+        # accepts ``?token=`` as an explicit fallback.
+        if credential is None and scope.get("query_string"):
+            from urllib.parse import parse_qs
+
+            query = parse_qs(scope["query_string"].decode("latin-1"))
+            credential = (query.get("token") or [None])[0]
+
+        global_token_ok = bool(credential and settings.api_token and credential == settings.api_token)
+        org_key_ok = False
+        if credential and not global_token_ok:
+            key = await _resolve_org_key(credential)
+            if key is not None and key.is_active:
+                token = set_tenant(
+                    TenantContext(
+                        organization_id=key.organization_id,
+                        role=key.role,
+                        key_id=key.id,
                     )
+                )
+                org_key_ok = True
+
+        path = scope.get("path", "")
+        production_read_gate = (
+            settings.app_env.strip().lower() == "production"
+            and bool(settings.api_token)
+            and path.startswith("/api/v1")
+            and path not in ("/api/v1/health", "/api/v1/ready")
+        )
+        if (
+            scope.get("method") != "OPTIONS"
+            and production_read_gate
+            and not (global_token_ok or org_key_ok)
+        ):
+            await _send_unauthorized(send)
+            return
+
         try:
             await self.app(scope, receive, send)
         finally:
@@ -111,6 +142,23 @@ class TenantContextMiddleware:
                     reset_tenant(token)
                 except ValueError:
                     pass
+
+
+async def _send_unauthorized(send) -> None:
+    """Return a compact 401 JSON response from middleware."""
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 401,
+            "headers": [(b"content-type", b"application/json")],
+        }
+    )
+    await send(
+        {
+            "type": "http.response.body",
+            "body": b'{"detail":"Authentication required"}',
+        }
+    )
 
 
 def setup_structured_logging() -> None:

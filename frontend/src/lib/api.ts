@@ -714,6 +714,16 @@ export const createExperiment = (body: {
   model_id: string;
   params?: Record<string, unknown>;
 }) => api.post<Experiment>("/experiments/", body);
+export const createExperimentBatch = (body: {
+  project_id: string;
+  name?: string;
+  dataset_id: string;
+  dataset_version?: number;
+  benchmark_id: string;
+  prompt_id: string;
+  model_ids: string[];
+  params?: Record<string, unknown>;
+}) => api.post<Experiment[]>("/experiments/batch", body);
 export const runExperiment = (id: string) =>
   api.post<Experiment>(`/experiments/${id}/run`);
 export const cancelExperiment = (id: string) =>
@@ -744,6 +754,11 @@ export interface LeaderboardEntry {
   experiment_name: string;
   model_id: string;
   model_name: string;
+  benchmark_id: string;
+  dataset_id: string;
+  dataset_version: number | null;
+  benchmark_name: string;
+  dataset_name: string;
   accuracy: number;
   avg_latency_ms: number;
   total_cost: number;
@@ -753,6 +768,8 @@ export interface LeaderboardEntry {
   coverage?: number;
   failure_rate?: number;
   status: string;
+  ci_lower?: number | null;
+  ci_upper?: number | null;
 }
 export interface ComparisonResponse {
   experiments: Array<Record<string, unknown>>;
@@ -766,10 +783,25 @@ export interface ComparisonResponse {
     failure_rate?: number[];
   };
 }
-export const getLeaderboard = (projectId?: string) =>
-  api.get<LeaderboardEntry[]>(
-    `/analytics/leaderboard${projectId ? `?project_id=${projectId}` : ""}`,
-  );
+export const getLeaderboard = (
+  projectId?: string,
+  params?: {
+    benchmarkId?: string;
+    datasetId?: string;
+    datasetVersion?: number;
+    withConfidence?: boolean;
+  },
+) => {
+  const qs = new URLSearchParams();
+  if (projectId) qs.set("project_id", projectId);
+  if (params?.benchmarkId) qs.set("benchmark_id", params.benchmarkId);
+  if (params?.datasetId) qs.set("dataset_id", params.datasetId);
+  if (params?.datasetVersion !== undefined)
+    qs.set("dataset_version", String(params.datasetVersion));
+  if (params?.withConfidence) qs.set("with_confidence", "true");
+  const s = qs.toString();
+  return api.get<LeaderboardEntry[]>(`/analytics/leaderboard${s ? `?${s}` : ""}`);
+};
 export const compareExperiments = (experimentIds: string[]) =>
   api.post<ComparisonResponse>("/analytics/compare", {
     experiment_ids: experimentIds,
@@ -1203,14 +1235,34 @@ export interface ModelRoutingEntry {
   accuracy: number;
   avg_latency_ms: number;
   total_cost: number;
+  cost_per_row: number;
+  cost_unknown: boolean;
   total_tokens: number;
+  rows_total: number;
+  benchmark_id: string;
+  dataset_id: string;
+  dataset_version: number | null;
   recommended: boolean;
 }
 
-export const getModelRouting = (projectId: string, minAccuracy = 0.8) =>
-  api.get<ModelRoutingEntry[]>(
-    `/analytics/model-routing?project_id=${encodeURIComponent(projectId)}&min_accuracy=${minAccuracy}`,
-  );
+export const getModelRouting = (
+  projectId: string,
+  params?: {
+    minAccuracy?: number;
+    benchmarkId?: string;
+    datasetId?: string;
+    datasetVersion?: number;
+  },
+) => {
+  const qs = new URLSearchParams();
+  qs.set("project_id", projectId);
+  qs.set("min_accuracy", String(params?.minAccuracy ?? 0.8));
+  if (params?.benchmarkId) qs.set("benchmark_id", params.benchmarkId);
+  if (params?.datasetId) qs.set("dataset_id", params.datasetId);
+  if (params?.datasetVersion !== undefined)
+    qs.set("dataset_version", String(params.datasetVersion));
+  return api.get<ModelRoutingEntry[]>(`/analytics/model-routing?${qs.toString()}`);
+};
 
 // --- A/B statistical significance -------------------------------------------
 

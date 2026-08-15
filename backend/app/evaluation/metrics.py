@@ -30,6 +30,7 @@ from collections import Counter
 from collections.abc import Callable
 from typing import ParamSpec
 
+from app.core.config import settings
 from app.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,30 @@ P = ParamSpec("P")
 Metric = Callable[..., float]
 
 _METRICS: dict[str, Metric] = {}
+
+_OPTION_LETTER_PATTERNS = (
+    re.compile(r"(?:选项|选择|正确答案|答案|选)[^A-Za-z]{0,4}([A-Ea-e])"),
+    re.compile(r"([A-Ea-e])[^A-Za-z]{0,4}(?:选项)"),
+    re.compile(
+        r"(?<![A-Za-z0-9\u4e00-\u9fff])([A-Ea-e])(?=\s|$|[.,;:!?。，；：）)]|[）)]\s*$)"
+    ),
+)
+
+
+def _extract_option_letter(value: str | None) -> str:
+    """从常见选项表述中提取单个选项字母，仅用于单选题评分。
+
+    真实模型可能输出 ``B``、``选项 B``、``选B``、``B选项``、
+    ``正确答案是 B`` 等形态。这里的规则只处理字母 A-E，并刻意避免
+    把 ``B超``、``维生素A`` 这类术语误识别成答案。
+    """
+    if not value:
+        return ""
+    for pattern in _OPTION_LETTER_PATTERNS:
+        match = pattern.search(value)
+        if match:
+            return match.group(1)
+    return ""
 
 
 class MetricEvaluationError(Exception):
@@ -367,10 +392,22 @@ def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict 
             for v in _required_answer_values(expected, expected_raw)
             if str(v).strip()
         }
-        parts = {
-            _normalize_match_text(v, answer_policy=answer_policy)
-            for v in _split_answer_values(prediction, answer_policy=answer_policy)
-        }
+        if required and all(re.fullmatch(r"[a-z]", v) for v in required):
+            # 多项选择题常见输出是紧凑字母串（如 ABC），此时按单字符拆开；
+            # 也兼容“A, B, C”这类逗号分隔形式。
+            compact = _normalize_match_text(prediction, answer_policy=answer_policy)
+            if re.fullmatch(r"[a-z]{2,}", compact):
+                parts = set(compact)
+            else:
+                parts = {
+                    _normalize_match_text(v, answer_policy=answer_policy)
+                    for v in _split_answer_values(prediction, answer_policy=answer_policy)
+                }
+        else:
+            parts = {
+                _normalize_match_text(v, answer_policy=answer_policy)
+                for v in _split_answer_values(prediction, answer_policy=answer_policy)
+            }
         if not required:
             return 0.0
         alias_sets = _alias_sets(answer_policy)
@@ -380,9 +417,24 @@ def exact_match_ci(prediction: str, expected: str | None, *, expected_raw: dict 
                 matched += 1
             elif req == "" and any(alias in parts for alias in alias_sets.get("", set())):
                 matched += 1
+        if (answer_policy or {}).get("reject_extra") and parts != required:
+            # 严格多选：预测集合必须与标准答案集合完全一致，不能多选。
+            return 0.0
         if (answer_policy or {}).get("partial_credit"):
             return matched / len(required)
         return 1.0 if matched == len(required) else 0.0
+    # 单项选择题兼容：标准答案是单个字母时，尝试从模型输出中抽取
+    # 选项字母（如“选项 B”“选B”“B选项”），避免因格式噪声误判为零分。
+    if pred_n not in candidates:
+        letter_candidates = [c for c in candidates if re.fullmatch(r"[a-z]", c)]
+        if letter_candidates:
+            extracted = _extract_option_letter(prediction)
+            if extracted:
+                extracted_n = _normalize_match_text(
+                    extracted, answer_policy=answer_policy
+                )
+                if extracted_n in candidates:
+                    return 1.0
     if pred_n in candidates:
         return 1.0
     return 0.0
@@ -625,8 +677,10 @@ async def llm_judge(
         provider=provider_name,
         benchmark_type=benchmark_type,
     )
-    if cache_enabled and cache_key in _llm_judge_cache:
-        return _llm_judge_cache[cache_key]
+    if cache_enabled:
+        cached = await _judge_cache_get(cache_key)
+        if cached is not None:
+            return cached
 
     try:
         completion = await asyncio.wait_for(
@@ -667,9 +721,7 @@ async def llm_judge(
 
     # Cache the result for identical prediction+expected pairs.
     if cache_enabled:
-        _llm_judge_cache[cache_key] = score
-        if len(_llm_judge_cache) > _MAX_CACHE_SIZE:
-            _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
+        await _judge_cache_set(cache_key, score)
     return score
 
 
@@ -679,6 +731,46 @@ async def llm_judge(
 
 _llm_judge_cache: dict[str, float] = {}
 _MAX_CACHE_SIZE = 4096
+_llm_judge_redis_client = None
+
+
+def _redis_judge_client():
+    """Lazily return a shared Redis client (no I/O until first command)."""
+    global _llm_judge_redis_client
+    if _llm_judge_redis_client is None:
+        import redis.asyncio as redis
+
+        _llm_judge_redis_client = redis.from_url(
+            settings.redis_dsn, decode_responses=True
+        )
+    return _llm_judge_redis_client
+
+
+async def _judge_cache_get(key: str) -> float | None:
+    """Return a cached judge score from Redis or the in-process dict."""
+    if settings.llm_judge_cache_backend == "redis":
+        try:
+            value = await _redis_judge_client().get(key)
+            if value is not None:
+                return float(value)
+        except Exception as exc:  # noqa: BLE001 - fall back to memory on Redis errors
+            logger.warning("llm judge redis cache read failed: %s", exc)
+    return _llm_judge_cache.get(key)
+
+
+async def _judge_cache_set(key: str, score: float) -> None:
+    """Store a judge score in Redis (with TTL) and/or the in-process dict."""
+    if settings.llm_judge_cache_backend == "redis":
+        try:
+            await _redis_judge_client().set(
+                key, str(score), ex=settings.llm_judge_cache_ttl
+            )
+            return
+        except Exception as exc:  # noqa: BLE001 - fall back to memory on Redis errors
+            logger.warning("llm judge redis cache write failed: %s", exc)
+    _llm_judge_cache[key] = score
+    if len(_llm_judge_cache) > _MAX_CACHE_SIZE:
+        _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
 
 
 def _llm_judge_cache_key(
@@ -906,8 +998,10 @@ async def llm_judge_rubric(
         benchmark_type=benchmark_type,
         config_sig=config_sig,
     )
-    if cache_enabled and cache_key in _llm_judge_cache:
-        return _llm_judge_cache[cache_key]
+    if cache_enabled:
+        cached = await _judge_cache_get(cache_key)
+        if cached is not None:
+            return cached
 
     try:
         provider = get_provider(provider_name)
@@ -966,9 +1060,7 @@ async def llm_judge_rubric(
     score = max(0.0, min(1.0, score))
 
     if cache_enabled:
-        _llm_judge_cache[cache_key] = score
-        if len(_llm_judge_cache) > _MAX_CACHE_SIZE:
-            _llm_judge_cache.pop(next(iter(_llm_judge_cache)))
+        await _judge_cache_set(cache_key, score)
     return score
 
 

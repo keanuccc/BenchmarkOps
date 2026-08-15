@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from app.core.database import AsyncSessionLocal
 from app.models.experiment import Experiment
 from app.models.organization import Organization
@@ -34,7 +36,13 @@ async def _seed(
                 total_cost=cost,
                 total_tokens=100,
                 runtime_ms=200,
-                metrics={"accuracy": accuracy, "avg_latency_ms": 100.0},
+                rows_total=100,
+                metrics={
+                    "accuracy": accuracy,
+                    "avg_latency_ms": 100.0,
+                    "rows_total": 100,
+                    "dataset_rows_total": 100,
+                },
                 created_at=now - timedelta(hours=i),
             )
         )
@@ -87,6 +95,37 @@ async def test_budget_allowed_under_cap():
         )
         await session.commit()
         await check_org_budget(org.id, session)  # must not raise
+
+
+async def test_budget_blocks_when_cost_is_unknown():
+    async with AsyncSessionLocal() as session:
+        org = Organization(name="budget-unknown", monthly_budget_usd=10.0)
+        session.add(org)
+        await session.flush()
+        project = Project(name="budget-unknown-p", organization_id=org.id)
+        session.add(project)
+        await session.flush()
+        session.add(
+            Experiment(
+                project_id=project.id,
+                organization_id=org.id,
+                name="unknown-cost-run",
+                dataset_id="d",
+                benchmark_id="b",
+                prompt_id="p",
+                model_id="m",
+                status="completed",
+                accuracy=0.9,
+                total_cost=0.0,
+                metrics={"accuracy": 0.9, "cost_unknown": True},
+            )
+        )
+        await session.commit()
+
+        from app.core.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            await check_org_budget(org.id, session)
 
 
 async def test_model_routing_ranks_cost_effective_models():

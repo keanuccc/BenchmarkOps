@@ -10,6 +10,7 @@ import {
   listBenchmarks,
   listPrompts,
   createExperiment,
+  createExperimentBatch,
   getRunningTasks,
   type Experiment,
   type Project,
@@ -77,6 +78,7 @@ function RunningBanner({ tasks }: { tasks: RunningTaskInfo[] }) {
 export default function ExperimentsPage() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -100,6 +102,16 @@ export default function ExperimentsPage() {
     temperature: 0.7,
     max_tokens: "",
   });
+  const [batchForm, setBatchForm] = useState({
+    project_id: "",
+    name: "",
+    dataset_id: "",
+    benchmark_id: "",
+    prompt_id: "",
+    temperature: 0.7,
+    max_tokens: "",
+  });
+  const [batchModelIds, setBatchModelIds] = useState<string[]>([]);
 
   // Main experiment + models fetch via React Query
   const { data: experimentsData = { items: [], total: 0 }, isLoading: loading } = useQuery({
@@ -200,6 +212,95 @@ export default function ExperimentsPage() {
     }
   }, [modalOpen]);
 
+  function openBatch() {
+    setBatchForm({
+      project_id: "",
+      name: "",
+      dataset_id: "",
+      benchmark_id: "",
+      prompt_id: "",
+      temperature: 0.7,
+      max_tokens: "",
+    });
+    setBatchModelIds([]);
+    setBatchOpen(true);
+  }
+
+  async function onBatchProjectChange(projectId: string) {
+    setBatchForm((f) => ({
+      ...f,
+      project_id: projectId,
+      dataset_id: "",
+      benchmark_id: "",
+      prompt_id: "",
+    }));
+    setBatchModelIds([]);
+    if (projectId) {
+      try {
+        const [ds, bms, prs] = await Promise.all([
+          listDatasets(projectId).then((r) => r.items),
+          listBenchmarks(projectId).then((r) => r.items),
+          listPrompts(projectId).then((r) => r.items),
+        ]);
+        setDatasets(ds);
+        setBenchmarks(bms);
+        setPrompts(prs);
+      } catch {
+        /* ignore */
+      }
+    } else {
+      setDatasets([]);
+      setBenchmarks([]);
+      setPrompts([]);
+    }
+  }
+
+  useEffect(() => {
+    if (batchOpen) {
+      listProjects().then((r) => setProjects(r.items)).catch(() => setProjects([]));
+    }
+  }, [batchOpen]);
+
+  function toggleBatchModel(id: string) {
+    setBatchModelIds((ids) =>
+      ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+    );
+  }
+
+  async function submitBatch() {
+    if (
+      !batchForm.project_id ||
+      !batchForm.name ||
+      !batchForm.dataset_id ||
+      !batchForm.benchmark_id ||
+      !batchForm.prompt_id ||
+      batchModelIds.length === 0
+    ) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createExperimentBatch({
+        project_id: batchForm.project_id,
+        name: batchForm.name,
+        dataset_id: batchForm.dataset_id,
+        benchmark_id: batchForm.benchmark_id,
+        prompt_id: batchForm.prompt_id,
+        model_ids: batchModelIds,
+        params: {
+          temperature: batchForm.temperature,
+          ...(batchForm.max_tokens
+            ? { max_tokens: parseInt(batchForm.max_tokens, 10) }
+            : {}),
+        },
+      });
+      setBatchOpen(false);
+      void queryClient.invalidateQueries({ queryKey: ["experiments"] });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function submit() {
     if (!form.project_id || !form.name || !form.dataset_id || !form.benchmark_id || !form.prompt_id || !form.model_id) {
       return;
@@ -266,6 +367,9 @@ export default function ExperimentsPage() {
           />
           <Button onClick={openModal}>
             <Plus size={14} /> 新建实验
+          </Button>
+          <Button variant="secondary" onClick={openBatch}>
+            批量创建
           </Button>
         </div>
       </header>
@@ -464,6 +568,134 @@ export default function ExperimentsPage() {
             </Button>
             <Button type="submit" disabled={submitting || !isFormValid}>
               {submitting ? <Spinner size={14} /> : "创建"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* --- Batch Experiment Modal --- */}
+      <Modal open={batchOpen} onClose={() => setBatchOpen(false)} title="批量创建实验">
+        <form
+          className="space-y-4"
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            submitBatch();
+          }}
+        >
+          <Field label="Project">
+            <Combobox
+              items={projectItems}
+              value={batchForm.project_id}
+              onChange={(item) => onBatchProjectChange(item.id)}
+              placeholder="搜索项目…"
+            />
+          </Field>
+
+          <Field label="名称前缀">
+            <input
+              className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+              style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+              value={batchForm.name}
+              onChange={(e) => setBatchForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="例如：金融客服 A/B"
+              required
+            />
+          </Field>
+
+          <Field label="Dataset">
+            <Combobox
+              items={datasetItems}
+              value={batchForm.dataset_id}
+              onChange={(item) => setBatchForm((f) => ({ ...f, dataset_id: item.id }))}
+              placeholder="搜索数据集…"
+              disabled={!batchForm.project_id}
+            />
+          </Field>
+
+          <Field label="Benchmark">
+            <Combobox
+              items={benchmarkItems}
+              value={batchForm.benchmark_id}
+              onChange={(item) => setBatchForm((f) => ({ ...f, benchmark_id: item.id }))}
+              placeholder="搜索基准…"
+              disabled={!batchForm.project_id}
+            />
+          </Field>
+
+          <Field label="Prompt">
+            <Combobox
+              items={promptItems}
+              value={batchForm.prompt_id}
+              onChange={(item) => setBatchForm((f) => ({ ...f, prompt_id: item.id }))}
+              placeholder="搜索提示词…"
+              disabled={!batchForm.project_id}
+            />
+          </Field>
+
+          <Field label="模型（可多选）">
+            <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: "var(--ocd-border)" }}>
+              {models.map((m) => (
+                <label key={m.id} className="flex items-center gap-2 text-sm text-[var(--ocd-text)]">
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--ocd-accent)]"
+                    checked={batchModelIds.includes(m.id)}
+                    onChange={() => toggleBatchModel(m.id)}
+                  />
+                  <span className="truncate">{m.name}</span>
+                  <span className="ml-auto text-xs text-[var(--ocd-text-faint)]">{m.provider}</span>
+                </label>
+              ))}
+            </div>
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Temperature">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  value={batchForm.temperature}
+                  onChange={(e) => setBatchForm((f) => ({ ...f, temperature: parseFloat(e.target.value) }))}
+                  className="flex-1 accent-[var(--ocd-accent)]"
+                />
+                <span className="w-12 text-right text-sm tabular-nums">
+                  {batchForm.temperature.toFixed(1)}
+                </span>
+              </div>
+            </Field>
+            <Field label="Max Tokens">
+              <input
+                type="number"
+                className="w-full rounded-lg bg-[var(--ocd-bg)] px-3 py-2 text-sm text-[var(--ocd-text)]"
+                style={{ borderColor: "var(--ocd-border)", borderWidth: 1 }}
+                value={batchForm.max_tokens}
+                onChange={(e) => setBatchForm((f) => ({ ...f, max_tokens: e.target.value }))}
+                placeholder="不限制则留空"
+                min={1}
+              />
+            </Field>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setBatchOpen(false)} type="button">
+              取消
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                submitting ||
+                !batchForm.project_id ||
+                !batchForm.name ||
+                !batchForm.dataset_id ||
+                !batchForm.benchmark_id ||
+                !batchForm.prompt_id ||
+                batchModelIds.length === 0
+              }
+            >
+              {submitting ? <Spinner size={14} /> : `创建 ${batchModelIds.length || 0} 个实验`}
             </Button>
           </div>
         </form>

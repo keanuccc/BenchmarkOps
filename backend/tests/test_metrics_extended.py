@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.evaluation.metrics import _call_metric, get_metric
+from app.evaluation.metrics import MetricEvaluationError, _call_metric, get_metric
 
 
 @pytest.mark.asyncio
@@ -87,6 +87,23 @@ async def test_code_pass_sandbox_allows_safe_stdlib():
         expected_raw={"tests": ["assert f(4) == 2.0"]},
     )
     assert score == 1.0
+
+
+@pytest.mark.asyncio
+async def test_code_pass_disabled_in_production(monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "code_execution_enabled", None)
+
+    metric = get_metric("code_pass")
+    with pytest.raises(MetricEvaluationError):
+        await _call_metric(
+            metric,
+            "print('x')",
+            "print('x')",
+            expected_raw={"tests": ["assert True"]},
+        )
 
 
 def test_semantic_similarity_exact_and_rephrase():

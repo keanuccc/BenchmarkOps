@@ -20,3 +20,19 @@ def test_production_accepts_api_token():
 def test_development_allows_empty_token():
     settings = Settings(_env_file=None, app_env="development", api_token="")
     assert settings.auth_enabled is False
+
+
+def test_production_gates_anonymous_api_reads(client, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "app_env", "production")
+    monkeypatch.setattr(settings, "api_token", "secret")
+
+    assert client.get("/api/v1/projects/").status_code == 401
+    assert client.get("/api/v1/health").status_code == 200
+    assert client.get("/api/v1/ready").status_code == 200
+
+    allowed = client.get(
+        "/api/v1/projects/", headers={"Authorization": "Bearer secret"}
+    )
+    assert allowed.status_code == 200

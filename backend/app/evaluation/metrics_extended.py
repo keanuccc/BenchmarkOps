@@ -23,7 +23,7 @@ from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from app.evaluation.metrics import register
+from app.evaluation.metrics import MetricEvaluationError, register
 
 
 # Modules blocked inside the code-execution sandbox. Model-generated code for
@@ -98,6 +98,11 @@ async def _run_python(code: str, test: str, timeout: float, *, sandbox: bool = T
     preamble = _GUARD_PREAMBLE if sandbox else ""
     script = f"{preamble}\n{code}\n\n{test}\n"
 
+    from app.core.config import settings
+
+    if settings.code_execution_sandbox == "docker":
+        return await _run_docker(script, timeout)
+
     def _run() -> int:
         with tempfile.TemporaryDirectory(prefix="bmops_code_") as tmp:
             path = Path(tmp) / "solution.py"
@@ -107,17 +112,70 @@ async def _run_python(code: str, test: str, timeout: float, *, sandbox: bool = T
                 if sandbox:
                     argv.append("-I")
                 argv.append(str(path))
+
+                def _posix_limits() -> None:
+                    import resource
+
+                    resource.setrlimit(resource.RLIMIT_CPU, (int(timeout), int(timeout)))
+                    resource.setrlimit(
+                        resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024)
+                    )
+                    resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
+
+                run_kwargs: dict = {
+                    "capture_output": True,
+                    "timeout": timeout,
+                    "cwd": tmp,
+                }
+                if sys.platform == "win32":
+                    run_kwargs["creationflags"] = getattr(
+                        subprocess, "CREATE_NO_WINDOW", 0
+                    )
+                elif sandbox:
+                    run_kwargs["preexec_fn"] = _posix_limits
+
                 proc = subprocess.run(
                     argv,
-                    capture_output=True,
-                    timeout=timeout,
-                    cwd=tmp,
+                    **run_kwargs,
                 )
                 return proc.returncode
             except subprocess.TimeoutExpired:
                 return 124
             except OSError:
                 return 125
+
+    return await asyncio.to_thread(_run) == 0
+
+
+async def _run_docker(script: str, timeout: float) -> bool:
+    """Run the solution in a throwaway container (network disabled, limited)."""
+    from app.core.config import settings
+
+    def _run() -> int:
+        try:
+            proc = subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--network",
+                    "none",
+                    "--memory",
+                    "256m",
+                    "--cpus",
+                    "1",
+                    "-i",
+                    settings.code_execution_docker_image,
+                    "python",
+                    "-I",
+                ],
+                input=script.encode("utf-8"),
+                capture_output=True,
+                timeout=timeout,
+            )
+            return proc.returncode
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            return 125
 
     return await asyncio.to_thread(_run) == 0
 
@@ -137,6 +195,15 @@ async def code_pass(
     a subprocess with a per-case timeout (default 5s, configurable via
     ``timeout_seconds``). No tests available -> 0 (unverifiable).
     """
+    from app.core.config import settings
+
+    if not settings.code_execution_allowed:
+        raise MetricEvaluationError(
+            "Code execution is disabled in this environment "
+            "(set CODE_EXECUTION_ENABLED=true only in trusted environments)",
+            kind="metric",
+        )
+
     tests = _extract_tests(expected_raw, kwargs)
     if not tests:
         return 0.0

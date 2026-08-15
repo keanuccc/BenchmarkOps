@@ -52,7 +52,9 @@ export function ModelRoutingCard({ projectId }: { projectId?: string }) {
               </div>
               <div className="flex items-center gap-3 text-xs text-neutral-400">
                 <span>准确率 {(row.accuracy * 100).toFixed(1)}%</span>
-                <span>${row.total_cost.toFixed(4)}</span>
+                <span>
+                  {row.cost_unknown ? "成本未知" : `$${row.cost_per_row.toFixed(4)}/样本`}
+                </span>
                 <span>{row.avg_latency_ms.toFixed(0)}ms</span>
               </div>
             </div>

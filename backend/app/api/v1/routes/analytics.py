@@ -27,11 +27,19 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 async def get_leaderboard(
     project_id: str | None = None,
     benchmark_id: str | None = None,
+    dataset_id: str | None = None,
+    dataset_version: int | None = None,
     limit: int = 50,
+    with_confidence: bool = False,
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     return await service.leaderboard(
-        project_id=project_id, benchmark_id=benchmark_id, limit=limit
+        project_id=project_id,
+        benchmark_id=benchmark_id,
+        dataset_id=dataset_id,
+        dataset_version=dataset_version,
+        limit=limit,
+        with_confidence=with_confidence,
     )
 
 
@@ -93,9 +101,10 @@ async def get_subgroups(
 async def compare_failures(
     experiment_a: str,
     experiment_b: str,
+    limit: int = 500,
     service: AnalyticsService = Depends(get_analytics_service),
 ):
-    return await service.compare_failures(experiment_a, experiment_b)
+    return await service.compare_failures(experiment_a, experiment_b, limit=limit)
 
 
 @router.get("/model-routing", response_model=list[ModelRoutingEntry])
@@ -103,10 +112,18 @@ async def get_model_routing(
     project_id: str,
     min_accuracy: float = 0.8,
     limit: int = 10,
+    benchmark_id: str | None = None,
+    dataset_id: str | None = None,
+    dataset_version: int | None = None,
     service: AnalyticsService = Depends(get_analytics_service),
 ):
     return await service.model_routing(
-        project_id, min_accuracy=min_accuracy, limit=limit
+        project_id,
+        min_accuracy=min_accuracy,
+        limit=limit,
+        benchmark_id=benchmark_id,
+        dataset_id=dataset_id,
+        dataset_version=dataset_version,
     )
 
 

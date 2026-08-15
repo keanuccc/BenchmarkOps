@@ -101,6 +101,7 @@ class ReportService:
             results_by_exp,
             model_names,
             sensitive_by_exp=sensitive_by_exp,
+            statistics=req.statistics,
         )
 
         generated_by = "template"

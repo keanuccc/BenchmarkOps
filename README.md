@@ -247,7 +247,7 @@ docker compose up --build
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `API_TOKEN` | *(空)* | 全局鉴权 token。留空 = 不强制鉴权（Demo/Mock 模式）；配置后所有写请求需 `Authorization: Bearer <token>` |
+| `API_TOKEN` | *(空)* | 全局鉴权 token。留空 = 不强制鉴权（Demo/Mock 模式）；配置后写请求需 `Authorization: Bearer <token>`，`APP_ENV=production` 时读接口也需鉴权 |
 | `APP_ENV` | `development` | 置为 `production` 时若未设置 `API_TOKEN`，应用拒绝启动 |
 | `DATABASE_URL` | `sqlite+aiosqlite:///./benchmarkops.db` | 数据库连接串，生产环境建议切换 PostgreSQL |
 | `DEFAULT_PROVIDER` | `deepseek` | 默认 Provider 路由，可选 `deepseek` / `openrouter` / `qiniu` / `mock` |
@@ -258,6 +258,9 @@ docker compose up --build
 | `TASK_QUEUE_BACKEND` | `asyncio` | 任务队列后端：`asyncio`（进程内，默认）或 `arq`（Redis 分布式队列） |
 | `REDIS_DSN` | `redis://localhost:6379/0` | ARQ 队列与 worker 使用的 Redis 连接串（仅 `arq` 模式） |
 | `EVAL_MAX_WORKERS` | `4` | 单 worker 进程内的评测并发上限 |
+| `CODE_EXECUTION_ENABLED` | *(空)* | 是否允许 coding 指标执行模型生成代码；留空时开发环境允许、生产环境禁止 |
+| `CODE_EXECUTION_SANDBOX` | `subprocess` | 代码执行隔离方式：`subprocess`（本机进程 + 资源限制）或 `docker`（独立容器） |
+| `CODE_EXECUTION_DOCKER_IMAGE` | `python:3.11-slim` | `CODE_EXECUTION_SANDBOX=docker` 时使用的镜像 |
 | `TASK_MAX_TRIES` | `2` | 单任务最大尝试次数；仅瞬态、计费前失败会重试，Provider 侧失败不重试 |
 | `REPORT_MODEL_ID` | *(空)* | AI 报告生成模型；留空按网关使用内置默认（DeepSeek 为 `deepseek-chat`） |
 | `MAX_UPLOAD_BYTES` | `52428800` (50 MB) | 数据集上传大小上限 |
@@ -352,8 +355,8 @@ npm run build              # Next.js 生产构建
 
 - `.env` 文件已被 `.gitignore` 排除，**请勿将包含 API Key 的 `.env` 提交到仓库**。
 - **七牛云 API Key 曾泄露**：开发早期将 Key 作为示例写入 `references/openapi.json` 并提交；已吊销并替换为占位符，详见 [SECURITY.md](SECURITY.md)。
-- `API_TOKEN` 是**全局共享密钥**，非用户/租户系统。生产环境务必设置。
-- **生产环境强制鉴权**：`APP_ENV=production` 且未设置 `API_TOKEN` 时，应用拒绝启动。
+- 平台同时支持**全局共享 `API_TOKEN`** 与**组织 API Key**（owner / admin / member / viewer），组织 API Key 提供项目级租户隔离。
+- **生产环境强制鉴权**：`APP_ENV=production` 且未设置 `API_TOKEN` 时，应用拒绝启动；除 `/health`、`/ready` 外，读接口同样需要凭据。
 - **SSE 进度流鉴权**：启用 `API_TOKEN` 后，`/experiments/{id}/stream` 会校验 `?token=` 参数（EventSource 无法设置请求头）。
 
 </details>
@@ -366,6 +369,7 @@ npm run build              # Next.js 生产构建
   DATABASE_URL=postgresql+asyncpg://user:pass@host:5432/benchmarkops
   ```
 - 数据库文件 `benchmarkops.db` 会在首次启动时自动创建在 `backend/` 目录下。
+- 当前迁移为内置的轻量、零依赖方案（`backend/app/migrations/__init__.py`），已覆盖列/表/索引/约束演进。若后续 schema 复杂度继续上升（多团队并行、复杂数据回填、跨库 DDL 审查），建议再切换到 Alembic 以获得更强的迁移历史与审查体验。
 
 </details>
 
@@ -376,6 +380,7 @@ npm run build              # Next.js 生产构建
 - 设置 `TASK_QUEUE_BACKEND=arq` 后，评测任务持久化在 **Redis（ARQ）** 中，由独立 worker（`uv run arq app.worker.WorkerSettings`）消费，支持多 worker / 多副本与重启不丢任务；此时启动恢复不会误标 queued/running 实验。
 - **计费安全**：ARQ 仅对“调用 Provider 之前”的瞬态失败（如数据库锁）自动重试；429 / 配额耗尽 / 行级错误一律标记失败，人工重试。
 - **Redis 必须开启 AOF 持久化**（compose 中已配置 `--appendonly yes`），否则 Redis 自身重启会丢失队列任务。
+- **代码执行沙箱**：`coding` 评测的 `code_pass` 会在隔离子进程执行模型生成代码，并禁用危险模块导入；生产环境默认关闭（`CODE_EXECUTION_ENABLED=false`）。若需开启，`CODE_EXECUTION_SANDBOX=subprocess` 提供进程级隔离 + 资源限制，`CODE_EXECUTION_SANDBOX=docker` 提供真正的容器边界；执行不可信代码仍建议把 worker 部署到独立容器/Serverless。
 - **多写者约束**：compose 默认后端 + worker 共享 SQLite，存在 `database is locked` 风险；生产环境请按 [docs/postgres-migration-guide.md](docs/postgres-migration-guide.md) 切换 PostgreSQL，或保持单 backend + 任务侧 worker 的部署形态。
 - 未配置 `DEEPSEEK_API_KEY` / `QINIU_API_KEY` / `OPENROUTER_API_KEY` 时，自动使用 **Mock Provider** 生成合成结果，可用于功能演示。
 
@@ -417,9 +422,9 @@ npm run build              # Next.js 生产构建
 <details>
 <summary>ℹ️ 其他限制</summary>
 
-- **无多租户 / 无组织隔离**：所有项目共享同一数据库与同一 token 空间。
+- **组织隔离已落地**：`Organization` + 角色化 API Key 已提供基础租户隔离；模型目录为全局共享，完整用户身份系统仍待后续版本。
 - **报告导出**：支持 Markdown（`.md`）和 PDF（`.pdf`）下载；PDF 依赖 `weasyprint`，若运行环境缺少其系统依赖则接口返回 501。
-- **鉴权**：当前为单 token 简化方案，非完整用户/租户系统。
+- **鉴权**：已有全局 token 与组织 API Key 两级鉴权；尚未包含用户账号、密码/SSO、token 过期与刷新等完整身份体系。
 
 </details>
 
@@ -428,7 +433,7 @@ npm run build              # Next.js 生产构建
 | 阶段 | 计划 |
 |------|------|
 | **v2** | ARQ 分布式任务队列（✅ 已落地）、Redis 缓存、MinIO 对象存储 |
-| **v3** | 多租户 / 组织隔离、完整 RBAC 权限系统 |
+| **v3** | 完整用户身份 / SSO、更细粒度 RBAC 权限系统（基础组织隔离已落地） |
 | **v4** | Multi-Agent 评测层、自定义评测智能体 |
 
 ## 贡献

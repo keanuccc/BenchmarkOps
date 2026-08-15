@@ -10,6 +10,7 @@ class ReportGenerateRequest(BaseModel):
     project_id: str
     experiment_ids: list[str] = Field(default_factory=list)
     title: str | None = None
+    statistics: dict | None = None
 
 
 class ReportRead(BaseModel):

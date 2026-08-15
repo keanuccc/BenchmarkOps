@@ -21,6 +21,7 @@ def build_context(
     results_by_exp: dict[str, list[ExperimentResult]],
     model_names: dict[str, str],
     sensitive_by_exp: dict[str, set[str]] | None = None,
+    statistics: dict | None = None,
 ) -> dict:
     """Assemble a compact, JSON-serializable summary of the experiments.
 
@@ -31,18 +32,20 @@ def build_context(
     for exp in experiments:
         results = results_by_exp.get(exp.id, [])
         sensitive = (sensitive_by_exp or {}).get(exp.id, set())
-        failures = []
+        sample_failures = []
         for r in results:
-            if len(failures) >= 5:
+            if len(sample_failures) >= 5:
                 break
             if (r.error is not None and r.error != "") or (r.score is not None and r.score < 1):
-                failures.append(
+                sample_failures.append(
                     {
                         "row_idx": r.row_idx,
                         "input": redact_values(r.input, sensitive),
                         "expected": redact_values(r.expected, sensitive) if r.expected else None,
                         "output": redact_text(r.output or ""),
+                        "cleaned_prediction": redact_text(r.cleaned_prediction or ""),
                         "score": r.score,
+                        "score_reason": r.score_reason,
                         "error": _sanitize_error(r.error),
                     }
                 )
@@ -67,10 +70,13 @@ def build_context(
                 "runtime_ms": exp.runtime_ms,
                 "status": exp.status,
                 "error": _sanitize_error(exp.error),
-                "failures": failures,
+                "sample_failures": sample_failures,
             }
         )
-    return {"experiments": exp_summaries}
+    return {
+        "experiments": exp_summaries,
+        "statistics": statistics or {},
+    }
 
 
 def _fmt(v, digits: int = 2) -> str:
@@ -99,13 +105,18 @@ def template_report(context: dict) -> tuple[str, dict]:
     total_tokens = sum(e.get("total_tokens") or 0 for e in exps)
     total_fail = sum(
         int(
-            e.get("failure_count", e.get("metrics", {}).get("rows_failed", len(e.get("failures") or [])))
+            e.get(
+                "failure_count",
+                e.get("metrics", {}).get(
+                    "rows_failed", len(e.get("sample_failures") or [])
+                ),
+            )
             or 0
         )
         for e in exps
     )
     high_fail = (
-        max(exps, key=lambda e: len(e.get("failures") or []))
+        max(exps, key=lambda e: int(e.get("failure_count") or 0))
         if exps
         else None
     )
@@ -142,6 +153,19 @@ def template_report(context: dict) -> tuple[str, dict]:
             f"{_fmt(_pct(m.get('failure_rate')))} | {_fmt(m.get('avg_latency_ms'))} | "
             f"{_fmt(m.get('rows_scored'))} | {_fmt(m.get('rows_failed'))} |"
         )
+    statistics = context.get("statistics") or {}
+    for dataset_name, stat in statistics.items():
+        if not isinstance(stat, dict):
+            continue
+        mcnemar = stat.get("mcnemar_p")
+        if mcnemar is None:
+            continue
+        verdict = "差异达到统计显著水平" if float(mcnemar) < 0.05 else "差异未达到统计显著水平"
+        perf_lines.append("")
+        perf_lines.append(
+            f"- **{dataset_name} 显著性**：McNemar p={_fmt(mcnemar, 4)}，"
+            f"{verdict}。"
+        )
     performance_analysis = "\n".join(perf_lines)
 
     # --- 成本分析 ---
@@ -164,14 +188,15 @@ def template_report(context: dict) -> tuple[str, dict]:
         fail_lines.append("在检查的结果中未检测到失败样本。")
     else:
         for e in exps:
-            fs = e.get("failures") or []
+            fs = e.get("sample_failures") or []
             if not fs:
                 continue
             fail_lines.append(f"### {e['name']} ({e['model_name']})")
             for f in fs:
+                reason = f.get("score_reason") or f.get("error") or "得分 < 1"
                 fail_lines.append(
                     f"- 第 {f['row_idx']} 行：得分={_fmt(f.get('score'))}，"
-                    f"错误={f.get('error') or '得分 < 1'}"
+                    f"原因={reason}"
                 )
     failure_analysis = "\n".join(fail_lines) if fail_lines else "未记录失败。"
 
@@ -188,7 +213,7 @@ def template_report(context: dict) -> tuple[str, dict]:
             f"在对成本敏感的路径中，可考虑 **{cheapest['model_name']}** "
             f"（${_fmt(cheapest['total_cost'])}）作为更省钱的替代方案。"
         )
-    if high_fail and len(high_fail.get("failures") or []):
+    if high_fail and int(high_fail.get("failure_count") or 0):
         rec_lines.append(
             f"排查 **{high_fail['name']}** —— 其失败样本数最多，"
             f"可能需要调整提示词或数据。"
@@ -336,8 +361,16 @@ def _strip_title(markdown: str) -> str:
 
 
 def _build_prompt(context: dict) -> str:
-    return (
-        "Generate an evaluation report from the following experiment data. "
-        "Base all claims on the data provided.\n\n"
-        f"```json\n{json.dumps(context, default=str, indent=2)}\n```\n"
-    )
+        return (
+            "Generate an evaluation report from the following experiment data. "
+            "Base all claims on the data provided.\n"
+            "IMPORTANT: `failure_count` is the authoritative total number of "
+            "failed/wrong samples for an experiment. `sample_failures` only "
+            "contains up to five illustrative examples and MUST NOT be used as "
+            "the total error count.\n"
+            "If `statistics` contains `mcnemar_p`, respect it when describing "
+            "differences: p >= 0.05 means the difference is NOT statistically "
+            "significant, so do not use words like 'significant', '显著', "
+            "or '显著优于'.\n\n"
+            f"```json\n{json.dumps(context, default=str, indent=2)}\n```\n"
+        )

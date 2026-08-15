@@ -39,7 +39,7 @@ function CompareInner() {
 
   const { data: leaderboard = [] } = useQuery({
     queryKey: ["leaderboard", projectId ? { projectId } : null],
-    queryFn: () => getLeaderboard(projectId),
+    queryFn: () => getLeaderboard(projectId, { withConfidence: true }),
   });
 
   // Filter to completed experiments
@@ -216,7 +216,9 @@ function CompareInner() {
                   <th className="px-4 py-3">#</th>
                   <th className="px-4 py-3">实验</th>
                   <th className="px-4 py-3">模型</th>
+                  <th className="px-4 py-3">数据集 / 基准</th>
                   <th className="px-4 py-3">准确率</th>
+                  <th className="px-4 py-3">95% CI</th>
                   <th className="px-4 py-3">花费</th>
                   <th className="px-4 py-3">延迟</th>
                   <th className="px-4 py-3">令牌数</th>
@@ -250,12 +252,21 @@ function CompareInner() {
                     <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
                       {row.model_name}
                     </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
+                      {row.dataset_name}
+                      {row.dataset_version != null ? ` v${row.dataset_version}` : ""} · {row.benchmark_name}
+                    </td>
                     <td
                       className={`px-4 py-3 font-semibold tabular-nums ${
                         i === 0 ? "text-[var(--ocd-accent)]" : "text-[var(--ocd-ok)]"
                       }`}
                     >
                       {(row.accuracy * 100).toFixed(1)}%
+                    </td>
+                    <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
+                      {row.ci_lower != null && row.ci_upper != null
+                        ? `${(row.ci_lower * 100).toFixed(1)}–${(row.ci_upper * 100).toFixed(1)}%`
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-[var(--ocd-text-muted)]">
                       ${row.total_cost.toFixed(4)}

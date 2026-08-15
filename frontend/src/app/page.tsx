@@ -32,10 +32,22 @@ import { Badge, Button, Card, EmptyState, ErrorState, KpiCard, ProgressBar, Sect
 export default function DashboardPage() {
   const queries = useQueries({
     queries: [
-      { queryKey: ["projects"], queryFn: () => listProjects(), select: (d: PageResult<Project>) => d.items },
-      { queryKey: ["experiments"], queryFn: () => listExperiments(), select: (d: PageResult<Experiment>) => d.items },
+      {
+        queryKey: ["projects"],
+        queryFn: () => listProjects({ limit: 100000 }),
+        select: (d: PageResult<Project>) => d.items,
+      },
+      {
+        queryKey: ["experiments"],
+        queryFn: () => listExperiments(undefined, { limit: 100000 }),
+        select: (d: PageResult<Experiment>) => d.items,
+      },
       { queryKey: ["leaderboard"], queryFn: () => getLeaderboard() },
-      { queryKey: ["models"], queryFn: () => listModels(), select: (d: PageResult<ModelInfo>) => d.items },
+      {
+        queryKey: ["models"],
+        queryFn: () => listModels({ limit: 100000 }),
+        select: (d: PageResult<ModelInfo>) => d.items,
+      },
     ],
   });
 
